@@ -7,12 +7,13 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v4.html?v=20260910-fix2" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v4.html?v=20260910-chatgpt1" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
   try{
     const w=frame.contentWindow;
+    const d=frame.contentDocument;
     const originalFetch=w.fetch.bind(w);
     w.fetch=async function(input,init){
       let url=typeof input==='string'?input:(input&&input.url)||'';
@@ -22,8 +23,57 @@ frame.addEventListener('load',()=>{
       }
       return originalFetch(input,init);
     };
+
+    // Usa o próprio ChatGPT, sem consumir créditos da API.
+    // O fluxo prepara o prompt com os dados do imóvel, copia para a área de transferência
+    // e abre o ChatGPT em uma nova aba para o usuário anexar as fotos e gerar a descrição.
+    w.generateDescription=async function(){
+      const files=w.newFiles||[];
+      const stored=w.storedPhotos||[];
+      if(!files.length&&!stored.length){w.toast('Adicione fotos primeiro.','err');return}
+      const val=(name)=>{
+        const form=d.getElementById('propertyForm');
+        const el=form&&form.elements.namedItem(name);
+        return String(el?.value||'').trim();
+      };
+      const finalidade=(d.getElementById('fs')?.checked&&d.getElementById('fr')?.checked)?'venda e locação':(d.getElementById('fr')?.checked?'locação':'venda');
+      const features=[...d.querySelectorAll('input[name="feature"]:checked')].map(e=>e.value).join(', ');
+      const prompt=`Você é o redator imobiliário da VSN Imóveis. Analise cuidadosamente as fotos que vou anexar e os dados abaixo. Gere uma descrição comercial profissional em português do Brasil, elegante, objetiva e convincente, pronta para publicar em portal imobiliário. Não invente características que não possam ser confirmadas pelas fotos ou pelos dados. Destaque ambientes, distribuição, iluminação, acabamento, diferenciais visíveis e localização quando houver informação suficiente. Evite exageros, clichês e informações não confirmadas. Retorne somente a descrição final, em 2 a 4 parágrafos.
+
+DADOS DO IMÓVEL:
+Finalidade: ${finalidade}
+Tipo: ${val('property_type')}
+Área: ${val('area')} m²
+Dormitórios: ${val('bedrooms')||'0'}
+Suítes: ${val('suites')||'0'}
+Banheiros: ${val('bathrooms')||'0'}
+Vagas: ${val('parking')||'0'}
+Condomínio: ${val('condominium_name')}
+Bairro: ${val('neighborhood')}
+Endereço: ${val('address')}${val('number')?', '+val('number'):''}
+Características selecionadas: ${features||'nenhuma informada'}
+
+IMPORTANTE: use as fotos como fonte principal para descrever os ambientes e não invente itens que não estejam visíveis ou informados.`;
+      try{
+        await w.navigator.clipboard.writeText(prompt);
+        w.toast('Prompt copiado. Abrindo o ChatGPT...','ok');
+      }catch(e){
+        w.prompt('Copie este prompt e cole no ChatGPT:',prompt);
+      }
+      w.open('https://chatgpt.com/','_blank','noopener');
+    };
+
+    // Troca o texto do botão para deixar claro que ele usa o ChatGPT, não a API paga.
+    const replaceButton=()=>{
+      const buttons=[...d.querySelectorAll('button')];
+      const b=buttons.find(x=>(x.textContent||'').includes('Gerar descrição com IA'));
+      if(b){b.textContent='Gerar descrição com ChatGPT';b.title='Copia os dados do imóvel e abre o ChatGPT para gerar a descrição com as fotos.';}
+    };
+    replaceButton();
+    const observer=new w.MutationObserver(replaceButton);
+    observer.observe(d.body,{subtree:true,childList:true});
   }catch(e){
-    console.error('Não foi possível aplicar o endpoint corrigido:',e);
+    console.error('Não foi possível aplicar as personalizações do painel:',e);
   }
 });
 </script>
