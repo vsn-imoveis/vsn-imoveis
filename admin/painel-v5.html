@@ -7,7 +7,7 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v4.html?v=20260910-chatgpt2" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v4.html?v=20260910-openai" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
@@ -24,55 +24,49 @@ frame.addEventListener('load',()=>{
       return originalFetch(input,init);
     };
 
-    // Usa o próprio ChatGPT, sem consumir créditos da API.
-    // O fluxo prepara o prompt com os dados do imóvel, copia para a área de transferência
-    // e abre o ChatGPT em uma nova aba para o usuário anexar as fotos e gerar a descrição.
+    // Geração automática de descrição dentro do painel usando a OpenAI API.
     w.generateDescription=async function(){
-      const fileInput=d.getElementById('files');
-      const photoCount=(fileInput?.files?.length||0)+d.querySelectorAll('#photos img').length;
-      if(!photoCount){w.toast('Adicione fotos primeiro.','err');return}
-      const val=(name)=>{
-        const form=d.getElementById('propertyForm');
-        const el=form&&form.elements.namedItem(name);
-        return String(el?.value||'').trim();
-      };
-      const finalidade=(d.getElementById('fs')?.checked&&d.getElementById('fr')?.checked)?'venda e locação':(d.getElementById('fr')?.checked?'locação':'venda');
-      const features=[...d.querySelectorAll('input[name="feature"]:checked')].map(e=>e.value).join(', ');
-      const prompt=`Você é o redator imobiliário da VSN Imóveis. Analise cuidadosamente as fotos que vou anexar e os dados abaixo. Gere uma descrição comercial profissional em português do Brasil, elegante, objetiva e convincente, pronta para publicar em portal imobiliário. Não invente características que não possam ser confirmadas pelas fotos ou pelos dados. Destaque ambientes, distribuição, iluminação, acabamento, diferenciais visíveis e localização quando houver informação suficiente. Evite exageros, clichês e informações não confirmadas. Retorne somente a descrição final, em 2 a 4 parágrafos.
-
-DADOS DO IMÓVEL:
-Finalidade: ${finalidade}
-Tipo: ${val('property_type')}
-Área: ${val('area')} m²
-Dormitórios: ${val('bedrooms')||'0'}
-Suítes: ${val('suites')||'0'}
-Banheiros: ${val('bathrooms')||'0'}
-Vagas: ${val('parking')||'0'}
-Condomínio: ${val('condominium_name')}
-Bairro: ${val('neighborhood')}
-Endereço: ${val('address')}${val('number')?', '+val('number'):''}
-Características selecionadas: ${features||'nenhuma informada'}
-
-IMPORTANTE: use as fotos como fonte principal para descrever os ambientes e não invente itens que não estejam visíveis ou informados.`;
+      if(!w.newFiles?.length&&!w.storedPhotos?.length){w.toast('Adicione fotos primeiro.','err');return}
+      w.toast('Gerando descrição com IA...');
       try{
-        await w.navigator.clipboard.writeText(prompt);
-        w.toast('Prompt copiado. Abrindo o ChatGPT...','ok');
-      }catch(e){
-        w.prompt('Copie este prompt e cole no ChatGPT:',prompt);
-      }
-      w.open('https://chatgpt.com/','_blank','noopener');
+        let urls=[...(w.storedPhotos||[])];
+        for(const file of (w.newFiles||[])){
+          const path='tmp/'+crypto.randomUUID()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+          const up=await w.DB.storage.from('property-photos').upload(path,file);
+          if(up.error)throw up.error;
+          urls.push(w.DB.storage.from('property-photos').getPublicUrl(path).data.publicUrl);
+        }
+        const data={
+          property_type:w.val('property_type'),
+          area:w.val('area'),
+          bedrooms:w.val('bedrooms'),
+          suites:w.val('suites'),
+          bathrooms:w.val('bathrooms'),
+          parking:w.val('parking'),
+          neighborhood:w.val('neighborhood'),
+          condominium_name:w.val('condominium_name'),
+          address:w.val('address')+', '+w.val('number')
+        };
+        const r=await originalFetch('/api/generate-description.js',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({images:urls,data})
+        });
+        const j=await r.json();
+        if(!r.ok)throw Error(j.error||'Falha ao gerar descrição');
+        const box=d.getElementById('description');
+        if(box)box.value=j.description||'';
+        w.toast('Descrição gerada automaticamente.','ok');
+      }catch(e){w.toast('Falha ao gerar descrição: '+e.message,'err')}
     };
 
     const replaceButton=()=>{
-      const buttons=[...d.querySelectorAll('button')];
-      const b=buttons.find(x=>(x.textContent||'').includes('Gerar descrição com IA'));
-      if(b){b.textContent='Gerar descrição com ChatGPT';b.title='Copia os dados do imóvel e abre o ChatGPT para gerar a descrição com as fotos.';}
+      const b=[...d.querySelectorAll('button')].find(x=>(x.textContent||'').includes('Gerar descrição'));
+      if(b){b.textContent='Gerar descrição com IA';b.title='Analisa automaticamente as fotos e preenche a descrição do imóvel.';}
     };
     replaceButton();
-    const observer=new w.MutationObserver(replaceButton);
-    observer.observe(d.body,{subtree:true,childList:true});
   }catch(e){
-    console.error('Não foi possível aplicar as personalizações do painel:',e);
+    console.error('Não foi possível aplicar os ajustes do painel:',e);
   }
 });
 </script>
