@@ -1,0 +1,2 @@
+VSN Imóveis — Supabase backend connection test.
+This file confirms GitHub write access is available.
