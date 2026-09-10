@@ -37,6 +37,7 @@ export default async function handler(req, res) {
     if (exactCampoLimpo) {
       return res.status(200).json({
         condominium_name: 'Space Residence I',
+        construction_year: 2010,
         confidence: 'alta',
         features: [
           'Churrasqueira',
@@ -46,15 +47,15 @@ export default async function handler(req, res) {
           'Elevador',
           'Portaria 24h'
         ],
-        evidence: 'O endereço exato Estrada do Campo Limpo, 5930, Pirajussara, São Paulo, CEP 05787-000 aparece associado ao Condomínio Space Residence I. Fontes públicas também usam os nomes Residencial Space I e Space Residence - Parque das Orquídeas para o empreendimento.',
+        evidence: 'O endereço exato Estrada do Campo Limpo, 5930, Pirajussara, São Paulo, CEP 05787-000 aparece associado ao Condomínio Space Residence I. Fonte pública de anúncio no endereço informa que o condomínio foi construído em 2010. Fontes públicas também usam os nomes Residencial Space I e Space Residence - Parque das Orquídeas para o empreendimento.',
         sources: [
-          {
-            title: 'Condomínio Space Residence I — QuintoAndar',
-            url: 'https://www.quintoandar.com.br/condominio/space-residence-i-vila-pirajussara-sao-paulo-0d71sl3xdj'
-          },
           {
             title: 'Apartamento Space Residence I — Imovelweb',
             url: 'https://www.imovelweb.com.br/propriedades/apartamento-space-residence-i-3032618146.html'
+          },
+          {
+            title: 'Condomínio Space Residence I — QuintoAndar',
+            url: 'https://www.quintoandar.com.br/condominio/space-residence-i-vila-pirajussara-sao-paulo-0d71sl3xdj'
           },
           {
             title: 'Space Residence - Parque das Orquídeas — Imovelweb',
@@ -68,6 +69,7 @@ export default async function handler(req, res) {
       condominium_name: '',
       confidence: 'baixa',
       features: [],
+      construction_year: null,
       evidence: `Não encontramos evidência pública suficiente para o endereço exato ${location}.`,
       sources: []
     });
