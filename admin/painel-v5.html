@@ -7,7 +7,7 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v4.html?v=20260910-description-validation" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v4.html?v=20260910-features-separated" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
@@ -22,47 +22,112 @@ frame.addEventListener('load',()=>{
         if(typeof input==='string') input=fixed;
         else input=new w.Request(fixed,input);
       }
+      const isProperties=url.includes('/rest/v1/properties');
+      if(isProperties&&init&&init.body&&typeof init.body==='string'){
+        try{
+          const body=JSON.parse(init.body);
+          const f=d.getElementById('propertyForm');
+          if(f){
+            body.property_features=[...f.querySelectorAll('input[name="property_feature"]:checked')].map(e=>e.value);
+            body.condo_features=[...f.querySelectorAll('input[name="condo_feature"]:checked')].map(e=>e.value);
+            const y=f.elements.namedItem('construction_year');
+            body.construction_year=y&&String(y.value||'').trim()?Number(y.value):null;
+            // Mantém a coluna legada `features` compatível com as características do imóvel.
+            body.features=body.property_features;
+            init={...init,body:JSON.stringify(body)};
+          }
+        }catch(e){console.warn('Não foi possível enriquecer o cadastro:',e)}
+      }
       return originalFetch(input,init);
     };
 
-    // Validação antes de gerar a descrição: todos os campos relevantes do cadastro precisam estar preenchidos.
+    function enhanceEditor(){
+      const f=d.getElementById('propertyForm');
+      if(!f||f.dataset.featuresEnhanced==='1')return;
+      const sections=[...f.querySelectorAll('.section')];
+      const section=sections.find(s=>s.querySelector('h2')?.textContent.trim()==='Características');
+      if(!section)return;
+      const oldLabel=[...section.querySelectorAll('label')].find(x=>x.textContent.trim()==='Características');
+      const oldGrid=section.querySelector('.features');
+      if(!oldGrid)return;
+      const oldValues=[...oldGrid.querySelectorAll('input[name="feature"]')].filter(e=>e.checked).map(e=>e.value);
+      const pData=(f.__record&&f.__record.property_features)||oldValues;
+      const cData=(f.__record&&f.__record.condo_features)||[];
+      const prop=['Mobiliado','Aceita pets','Varanda Gourmet com Churrasqueira','Sacada','Piscina','Adega','Banheira'];
+      const condo=['Churrasqueira','Piscina','Academia','Salão de festas','Playground','Elevador','Portaria 24h','Área Pet','Bicicletário','Vaga de visitante'];
+      const mk=(name,list,checked)=>`<div class="features" data-feature-group="${name}">${list.map(x=>`<label class="check"><input name="${name}" type="checkbox" value="${x}" ${checked.includes(x)?'checked':''}>${x}</label>`).join('')}</div>`;
+      if(oldLabel)oldLabel.remove();
+      oldGrid.outerHTML=`<div data-feature-groups="1"><label style="margin-top:4px">🏠 Características do imóvel</label>${mk('property_feature',prop,pData)}<label style="margin-top:18px">🏢 Características do condomínio</label>${mk('condo_feature',condo,cData)}<div class="grid" style="margin-top:14px"><div class="third"><label>Ano de construção do prédio *</label><input name="construction_year" type="number" min="1800" max="2100" placeholder="Ex.: 2018" value="${f.__record?.construction_year||''}"></div></div></div>`;
+      f.dataset.featuresEnhanced='1';
+    }
+
+    const originalNew=w.newProperty;
+    if(typeof originalNew==='function'){
+      w.newProperty=function(p){
+        fRecordHack(p||{});
+        const r=originalNew.apply(this,arguments);
+        setTimeout(enhanceEditor,30);
+        return r;
+      };
+    }
+    function fRecordHack(p){
+      const f=d.getElementById('propertyForm');
+      if(f)f.__record=p||{};
+      // O próximo editor é criado depois; guarda o registro para o enhanceEditor.
+      w.__nextPropertyRecord=p||{};
+    }
+
+    // Garante que registros existentes sejam carregados com os novos grupos.
+    const observer=new MutationObserver(()=>{
+      const f=d.getElementById('propertyForm');
+      if(f&&!f.__record)f.__record=w.__nextPropertyRecord||{};
+      enhanceEditor();
+    });
+    observer.observe(d.getElementById('editor')||d.body,{childList:true,subtree:true});
+
+    // Identificação do condomínio alimenta somente as características do condomínio.
+    const originalIdentify=w.identifyCondo;
+    if(typeof originalIdentify==='function'){
+      w.identifyCondo=async function(){
+        const props=[...d.querySelectorAll('input[name="property_feature"]')];
+        const condos=[...d.querySelectorAll('input[name="condo_feature"]')];
+        const snapshot=new Map(props.map(e=>[e.value,e.checked]));
+        condos.forEach(e=>e.name='feature');
+        try{
+          await originalIdentify.apply(this,arguments);
+          const found=new Map([...d.querySelectorAll('input[name="feature"]')].map(e=>[e.value,e.checked]));
+          props.forEach(e=>e.checked=snapshot.get(e.value)||false);
+          condos.forEach(e=>{e.name='condo_feature';e.checked=found.get(e.value)||false});
+        }finally{condos.forEach(e=>e.name='condo_feature')}
+      };
+    }
+
+    // Validação completa antes de gerar a descrição.
     const originalGenerate=w.generateDescription;
     if(typeof originalGenerate==='function'){
       w.generateDescription=function(){
         const f=d.getElementById('propertyForm');
-        if(!f){return}
-        const required=[
-          ['title','Título'],
-          ['code','Código'],
-          ['property_type','Tipo de imóvel'],
-          ['area','Área'],
-          ['bedrooms','Dormitórios'],
-          ['suites','Suítes'],
-          ['bathrooms','Banheiros'],
-          ['parking','Vagas'],
-          ['cep','CEP'],
-          ['state','Estado'],
-          ['address','Endereço'],
-          ['number','Número'],
-          ['neighborhood','Bairro'],
-          ['city','Cidade'],
-          ['condominium_name','Condomínio']
-        ];
-        const missing=required.filter(([name])=>{
-          const e=f.elements.namedItem(name);
-          return !e || !String(e.value||'').trim();
-        });
-        const sale=f.elements.namedItem('for_sale')?.checked;
-        const rent=f.elements.namedItem('for_rent')?.checked;
-        if(!sale&&!rent){missing.push(['for_sale','Finalidade']);}
+        if(!f)return;
+        const required=[['title','Título'],['code','Código'],['property_type','Tipo de imóvel'],['area','Área'],['bedrooms','Dormitórios'],['suites','Suítes'],['bathrooms','Banheiros'],['parking','Vagas'],['cep','CEP'],['state','Estado'],['address','Endereço'],['number','Número'],['neighborhood','Bairro'],['city','Cidade'],['condominium_name','Condomínio'],['construction_year','Ano de construção do prédio']];
+        const missing=required.filter(([name])=>{const e=f.elements.namedItem(name);return !e||!String(e.value||'').trim()});
+        const sale=f.elements.namedItem('for_sale')?.checked,rent=f.elements.namedItem('for_rent')?.checked;
+        if(!sale&&!rent)missing.push(['for_sale','Finalidade']);
         if(sale&&!String(f.elements.namedItem('price')?.value||'').trim())missing.push(['price','Preço de venda']);
         if(rent&&!String(f.elements.namedItem('rent_price')?.value||'').trim())missing.push(['rent_price','Valor de locação']);
-        if(missing.length){
-          const names=missing.map(x=>x[1]).join(', ');
-          if(typeof w.toast==='function')w.toast('Preencha todos os campos antes de gerar a descrição: '+names,'err');
-          return;
-        }
-        return originalGenerate();
+        if(!f.querySelector('input[name="property_feature"]:checked'))missing.push(['property_feature','Características do imóvel']);
+        if(!f.querySelector('input[name="condo_feature"]:checked'))missing.push(['condo_feature','Características do condomínio']);
+        if(missing.length){if(typeof w.toast==='function')w.toast('Preencha todos os campos antes de gerar a descrição: '+missing.map(x=>x[1]).join(', '),'err');return}
+        // Geração própria, separando claramente imóvel e condomínio.
+        const get=n=>String(f.elements.namedItem(n)?.value||'').trim();
+        const tipo=get('property_type')||'imóvel',area=get('area'),quartos=Number(get('bedrooms')||0),suites=Number(get('suites')||0),banheiros=Number(get('bathrooms')||0),vagas=Number(get('parking')||0),bairro=get('neighborhood'),cidade=get('city')||'São Paulo',cond=get('condominium_name'),ano=get('construction_year');
+        const pf=[...f.querySelectorAll('input[name="property_feature"]:checked')].map(e=>e.value),cf=[...f.querySelectorAll('input[name="condo_feature"]:checked')].map(e=>e.value);
+        const join=a=>a.length===1?a[0]:a.length===2?a[0]+' e '+a[1]:a.slice(0,-1).join(', ')+' e '+a[a.length-1];
+        const venda=f.elements.namedItem('for_sale')?.checked,locacao=f.elements.namedItem('for_rent')?.checked,finalidade=venda&&locacao?'para venda e locação':locacao?'para locação':'à venda';
+        const detalhes=[];if(area)detalhes.push(area+' m²');if(quartos)detalhes.push(quartos+' '+(quartos===1?'dormitório':'dormitórios'));if(suites)detalhes.push(suites+' '+(suites===1?'suíte':'suítes'));if(banheiros)detalhes.push(banheiros+' '+(banheiros===1?'banheiro':'banheiros'));if(vagas)detalhes.push(vagas+' '+(vagas===1?'vaga de garagem':'vagas de garagem'));
+        let p1='Excelente '+tipo+' '+finalidade+' com '+join(detalhes)+'.';if(bairro)p1+=' Localizado no bairro '+bairro+', em '+cidade+'.';
+        let p2='O imóvel apresenta uma planta funcional e ambientes bem distribuídos, proporcionando conforto e praticidade para o dia a dia.';p2+=' Entre os diferenciais do imóvel estão '+join(pf)+'.';
+        let p3='Está localizado no condomínio '+cond+', construído em '+ano+'. O condomínio oferece '+join(cf)+', proporcionando mais comodidade, lazer e segurança aos moradores.';
+        const desc=document.getElementById('description');desc.value=p1+'\n\n'+p2+'\n\n'+p3;w.toast('Descrição gerada automaticamente.','ok');
       };
     }
   }catch(e){console.error('Ajuste do painel:',e);}
