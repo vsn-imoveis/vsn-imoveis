@@ -7,7 +7,7 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v4.html?v=20260910-features-separated-v3" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v4.html?v=20260910-features-separated-v4" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
@@ -86,21 +86,54 @@ frame.addEventListener('load',()=>{
     });
     observer.observe(d.getElementById('editor')||d.body,{childList:true,subtree:true});
 
-    const originalIdentify=w.identifyCondo;
-    if(typeof originalIdentify==='function'){
-      w.identifyCondo=async function(){
-        const props=[...d.querySelectorAll('input[name="property_feature"]')];
-        const condos=[...d.querySelectorAll('input[name="condo_feature"]')];
-        const snapshot=new Map(props.map(e=>[e.value,e.checked]));
-        condos.forEach(e=>e.name='feature');
-        try{
-          await originalIdentify.apply(this,arguments);
-          const found=new Map([...d.querySelectorAll('input[name="feature"]')].map(e=>[e.value,e.checked]));
-          props.forEach(e=>e.checked=snapshot.get(e.value)||false);
-          condos.forEach(e=>{e.name='condo_feature';e.checked=found.get(e.value)||false});
-        }finally{condos.forEach(e=>e.name='condo_feature')}
-      };
-    }
+    // Identificação do condomínio: consulta a API e preenche automaticamente
+    // somente os checkboxes de condomínio, sem alterar as características do imóvel.
+    w.identifyCondo=async function(){
+      const f=d.getElementById('propertyForm');
+      if(!f)return;
+      const value=n=>String(f.elements.namedItem(n)?.value||'').trim();
+      const address=value('address'),number=value('number'),neighborhood=value('neighborhood'),city=value('city')||'São Paulo',state=value('state'),cep=value('cep');
+      if(!address||!number){if(typeof w.toast==='function')w.toast('Informe endereço e número antes de identificar o condomínio.','err');return}
+      const btn=[...d.querySelectorAll('button')].find(b=>/identificar|condomínio/i.test(b.textContent||''));
+      if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Identificando...'}
+      try{
+        const r=await fetch('/api/identify-condo-fixed.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address,number,neighborhood,city,state,cep})});
+        const j=await r.json();
+        if(!r.ok)throw new Error(j?.error||'Não foi possível identificar o condomínio.');
+        const name=j?.condominium_name||j?.name||j?.condominium||'';
+        const condoName=f.elements.namedItem('condominium_name');
+        if(condoName&&name)condoName.value=name;
+        const found=Array.isArray(j?.features)?j.features:Array.isArray(j?.amenities)?j.amenities:[];
+        const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+        const aliases={
+          'churrasqueira':['churrasqueira'],
+          'piscina':['piscina'],
+          'academia':['academia','fitness'],
+          'salaodefestas':['salaodefestas','salaofestas'],
+          'playground':['playground'],
+          'elevador':['elevador','elevadores'],
+          'portaria24h':['portaria24h','portaria24horas','seguranca24h','seguranca'],
+          'areapet':['areapet','petplace','espacopet'],
+          'bicicletario':['bicicletario','bicicletarios'],
+          'vagadevisitante':['vagadevisitante','vagasdevisitante','visitante']
+        };
+        const foundNorm=found.map(normalize);
+        d.querySelectorAll('input[name="condo_feature"]').forEach(input=>{
+          const key=normalize(input.value);
+          const keys=aliases[key]||[key];
+          input.checked=keys.some(k=>foundNorm.some(v=>v.includes(k)||k.includes(v)));
+        });
+        const year=j?.construction_year||j?.year_built||j?.building_year;
+        const yearInput=f.elements.namedItem('construction_year');
+        if(yearInput&&year)yearInput.value=year;
+        if(typeof w.toast==='function')w.toast(name?`Condomínio identificado: ${name}. Características preenchidas automaticamente.`:'Condomínio identificado. Características preenchidas automaticamente.','ok');
+      }catch(e){
+        console.error('Identificação do condomínio:',e);
+        if(typeof w.toast==='function')w.toast(e.message||'Erro ao identificar condomínio.','err');
+      }finally{
+        if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Identificar condomínio'}
+      }
+    };
 
     const originalGenerate=w.generateDescription;
     if(typeof originalGenerate==='function'){
