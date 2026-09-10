@@ -7,81 +7,23 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v4.html?v=20260910-localdesc" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v4.html?v=20260910-stable" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
   try{
     const w=frame.contentWindow;
-    const d=frame.contentDocument;
     const originalFetch=w.fetch.bind(w);
     w.fetch=async function(input,init){
       let url=typeof input==='string'?input:(input&&input.url)||'';
       if(url.includes('/api/identify-condo.js')){
-        if(typeof input==='string') input=url.replace('/api/identify-condo.js','/api/identify-condo-fixed.js');
-        else input=new w.Request(url.replace('/api/identify-condo.js','/api/identify-condo-fixed.js'),input);
+        const fixed=url.replace('/api/identify-condo.js','/api/identify-condo-fixed.js');
+        if(typeof input==='string') input=fixed;
+        else input=new w.Request(fixed,input);
       }
       return originalFetch(input,init);
     };
-
-    // Geração local: usa somente os dados preenchidos no cadastro, sem API e sem custo.
-    w.generateDescription=async function(){
-      const val=(name)=>w.val(name);
-      const tipo=val('property_type')||'imóvel';
-      const area=val('area');
-      const quartos=Number(val('bedrooms')||0);
-      const suites=Number(val('suites')||0);
-      const banheiros=Number(val('bathrooms')||0);
-      const vagas=Number(val('parking')||0);
-      const bairro=val('neighborhood');
-      const cidade=val('city')||'São Paulo';
-      const cond=val('condominium_name');
-      const endereco=val('address');
-      const numero=val('number');
-      const features=[...d.querySelectorAll('input[name="feature"]:checked')].map(e=>e.value);
-      const sale=d.getElementById('fs')?.checked;
-      const rent=d.getElementById('fr')?.checked;
-      const finalidade=sale&&rent?'para venda e locação':rent?'para locação':'à venda';
-
-      if(!area&&!quartos&&!bairro&&!cond){
-        w.toast('Preencha pelo menos área, dormitórios ou localização para gerar a descrição.','err');
-        return;
-      }
-
-      const partes=[];
-      if(area)partes.push(`${area} m²`);
-      if(quartos)partes.push(`${quartos} ${quartos===1?'dormitório':'dormitórios'}${suites?` sendo ${suites} ${suites===1?'suíte':'suítes'}`:''}`);
-      if(banheiros)partes.push(`${banheiros} ${banheiros===1?'banheiro':'banheiros'}`);
-      if(vagas)partes.push(`${vagas} ${vagas===1?'vaga':'vagas'} de garagem`);
-
-      const local=bairro?`Localizado${bairro?' no bairro '+bairro:''}${cidade?', em '+cidade:''}`:'';
-      const condText=cond?`O imóvel faz parte do condomínio ${cond}`:'';
-      const featureText=features.length?`Entre os diferenciais informados estão ${features.join(', ').replace(/, ([^,]*)$/, ' e $1')}.`:'';
-      const addressText=endereco?`O endereço informado é ${endereco}${numero?', '+numero:''}.`:'';
-
-      let p1=`Excelente ${tipo} ${finalidade}${partes.length?' com '+partes.join(', '):''}.`;
-      if(local)p1+=` ${local}.`;
-      if(condText)p1+=` ${condText}.`;
-
-      let p2=`A propriedade oferece uma configuração prática e funcional, com ambientes dimensionados para proporcionar conforto e comodidade no dia a dia.`;
-      if(featureText)p2+=` ${featureText}`;
-      if(addressText)p2+=` ${addressText}`;
-
-      const box=d.getElementById('description');
-      if(box)box.value=p1+'\n\n'+p2;
-      w.toast('Descrição gerada automaticamente com os dados do imóvel.','ok');
-    };
-
-    const replaceButton=()=>{
-      const b=[...d.querySelectorAll('button')].find(x=>(x.textContent||'').includes('Gerar descrição'));
-      if(b){b.textContent='Gerar descrição automática';b.title='Gera uma descrição profissional usando os dados preenchidos no cadastro, sem API.';}
-    };
-    replaceButton();
-    const observer=new w.MutationObserver(replaceButton);
-    observer.observe(d.body,{subtree:true,childList:true});
-  }catch(e){
-    console.error('Não foi possível aplicar os ajustes do painel:',e);
-  }
+  }catch(e){console.error('Ajuste do painel:',e);}
 });
 </script>
 </body>
