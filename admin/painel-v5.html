@@ -52,7 +52,7 @@ frame.addEventListener('load',()=>{
       const oldLabel=[...section.querySelectorAll('label')].find(x=>x.textContent.trim()==='Características');
       const oldGrid=section.querySelector('.features');
       if(!oldGrid)return;
-      const oldValues=[...oldGrid.querySelectorAll('input')].filter(e=>e.checked).map(e=>e.value);
+      const oldValues=[...oldGrid.querySelectorAll('input[name="feature"]')].filter(e=>e.checked).map(e=>e.value);
       const pData=(f.__record&&f.__record.property_features)||oldValues;
       const cData=(f.__record&&f.__record.condo_features)||[];
       const prop=['Mobiliado','Aceita pets','Varanda Gourmet com Churrasqueira','Sacada','Piscina','Adega','Banheira'];
