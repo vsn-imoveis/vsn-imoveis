@@ -38,7 +38,6 @@ export default async function handler(req,res){
   if(!best)return res.status(200).json({condominium_name:'',confidence:'baixa',features:[],construction_year:null,delivery_year:null,evidence:`Não encontramos evidência pública suficiente para o endereço exato ${location}.`,sources:[]});
 
   // ===== ENRIQUECIMENTO AUTOMÁTICO DAS CARACTERÍSTICAS =====
-  // Depois de descobrir o nome, fazemos uma segunda busca focada no condomínio. Assim endereços novos também recebem amenidades.
   const featureRules=[
     ['Churrasqueira',/churrasqueira|churrasqueiras|churrasco/],
     ['Piscina',/piscina/],
@@ -57,6 +56,24 @@ export default async function handler(req,res){
   const texts=[...(best.texts||[]),...featureResults.map(x=>x.text)];
   const features=[];const evidenceSources=[];
   for(const [label,rx] of featureRules){let hitsForFeature=0;for(const t of texts){const n=normalize(t);const nameOk=n.includes(normalize(best.name).slice(0,Math.min(45,normalize(best.name).length)));const addrOk=n.includes(exactAddress);if(rx.test(n)&&(nameOk||addrOk)){hitsForFeature++;if(hitsForFeature<=2)evidenceSources.push({title:`Pesquisa do condomínio — ${label}`,url:featureResults.find(x=>x.text===t)?.url||best.sources?.[0]?.url||null})}}if(hitsForFeature>0)features.push(label)}
+
+  // REGRA SP: se uma fonte confiável do endereço/condomínio indicar mais de 5 andares,
+  // consideramos Elevador confirmado e marcamos automaticamente no cadastro.
+  const floorPatterns=[
+    /(?:mais de|acima de)\s*(?:5|cinco)\s*andares?/i,
+    /(?:6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40)\s*(?:andares?|pavimentos?)/i,
+    /(?:\b(?:6|7|8|9|10|11|12|13|14|15|16|17|18|19|20|21|22|23|24|25|26|27|28|29|30|31|32|33|34|35|36|37|38|39|40)\s*(?:andares?|pavimentos?))/i
+  ];
+  const hasMoreThanFiveFloors=texts.some(t=>{
+    const n=normalize(t);
+    const nameOk=n.includes(normalize(best.name).slice(0,Math.min(45,normalize(best.name).length)));
+    const addrOk=n.includes(exactAddress);
+    return (nameOk||addrOk)&&floorPatterns.some(rx=>rx.test(n));
+  });
+  if(hasMoreThanFiveFloors&&!features.includes('Elevador')){
+    features.push('Elevador');
+    evidenceSources.push({title:'Regra automática — condomínio com mais de 5 andares',url:best.sources?.[0]?.url||featureResults[0]?.url||null});
+  }
 
   let deliveryYear=null;for(const t of texts){for(const rx of [/(?:entregue|entrega|entregas|concluido|conclusao|habite-se)[^\d]{0,35}(19\d{2}|20\d{2}|21\d{2})/i,/(19\d{2}|20\d{2}|21\d{2})[^\d]{0,20}(?:entregue|entrega|entregas|concluido|conclusao|habite-se)/i]){const m=t.match(rx);if(m){const y=Number(m[1]);if(y>=1900&&y<=2100){deliveryYear=y;break}}}if(deliveryYear)break}
   const sources=[...(best.sources||[]),...evidenceSources].filter((x,i,a)=>x?.url&&a.findIndex(y=>y.url===x.url)===i).slice(0,10);
