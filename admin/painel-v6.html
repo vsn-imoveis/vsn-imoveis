@@ -7,22 +7,13 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v5.html?v=20260910-condo-override-v1" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v5.html?v=20260910-name-only-v1" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
   try{
     const w=frame.contentWindow,d=frame.contentDocument,original=w.identifyCondo;
     if(typeof original!=='function')return;
-    const originalFetch=w.fetch.bind(w);
-    w.fetch=async function(input,init){
-      let url=typeof input==='string'?input:(input&&input.url)||'';
-      if(url.includes('/api/identify-condo-fixed.js')){
-        const fixed=url.replace('/api/identify-condo-fixed.js','/api/identify-condo-override.js');
-        input=typeof input==='string'?fixed:new w.Request(fixed,input);
-      }
-      return originalFetch(input,init);
-    };
     w.identifyCondo=async function(){
       const f=d.getElementById('propertyForm');
       if(f){
@@ -30,7 +21,15 @@ frame.addEventListener('load',()=>{
         d.querySelectorAll('input[name="condo_feature"]').forEach(e=>e.checked=false);
         const year=f.elements.namedItem('construction_year');if(year)year.value='';
       }
-      return original.apply(this,arguments);
+      const result=await original.apply(this,arguments);
+      const field=f?.elements.namedItem('condominium_name');
+      if(field&&field.value){
+        let name=String(field.value).trim();
+        name=name.replace(/\s+-\s+(?:Vila Andrade|Vila\s+.*?|Morumbi|Panamby|São Paulo|Sao Paulo)\b.*$/i,'').trim();
+        name=name.replace(/\s+-\s+(?:Loft|QuintoAndar|Imovelweb|Imóvelweb|ZAP|Viva Real|Chaves na Mão)\b.*$/i,'').trim();
+        field.value=name;
+      }
+      return result;
     };
   }catch(e){console.error('Correção do painel:',e)}
 });
