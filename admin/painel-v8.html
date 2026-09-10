@@ -1,13 +1,90 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VSN Imóveis — Painel</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style></head><body><iframe id="panel" src="./painel-v7.html?v=20260910-v8" title="Painel VSN Imóveis"></iframe><script>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VSN Imóveis — Painel</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
+</head>
+<body>
+<iframe id="panel" src="./painel-v7.html?v=20260910-v8-fixed" title="Painel VSN Imóveis"></iframe>
+<script>
 const frame=document.getElementById('panel');
-frame.addEventListener('load',()=>{try{const w=frame.contentWindow,d=frame.contentDocument;
-function addFields(){const f=d.getElementById('propertyForm');if(!f||f.dataset.structuralFields==='1')return;
- const existing=['condominium_builder','condominium_delivery_year','condominium_units','condominium_land_area'].every(n=>f.elements.namedItem(n));if(existing){f.dataset.structuralFields='1';return;}
- const box=d.createElement('div');box.id='structuralCondoFields';box.style.cssText='margin-top:18px;padding:16px;border:1px solid #dfe4ea;border-radius:12px;background:#fff';
- box.innerHTML='<div style="font-weight:700;font-size:15px;margin-bottom:12px">🏢 Dados do condomínio</div><div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px"><div><label>Construtora</label><input name="condominium_builder" type="text" placeholder="Ex.: Campanário"></div><div><label>Ano de entrega</label><input name="condominium_delivery_year" type="number" min="1800" max="2100" placeholder="Ex.: 1992"></div><div><label>Unidades</label><input name="condominium_units" type="number" min="1" placeholder="Ex.: 34"></div><div><label>Terreno (m²)</label><input name="condominium_land_area" type="number" min="0" step="0.01" placeholder="Ex.: 2456"></div></div>';
- const target=[...f.querySelectorAll('.section')].find(s=>/condomínio|características/i.test(s.querySelector('h2')?.textContent||''))||f.querySelector('.section:last-of-type');
- if(target)target.appendChild(box);else f.appendChild(box);f.dataset.structuralFields='1';
+function findForm(win){
+  try{
+    const doc=win.document;
+    const f=doc.getElementById('propertyForm');
+    if(f)return {win,doc,form:f};
+    for(const fr of doc.querySelectorAll('iframe')){
+      try{const r=findForm(fr.contentWindow);if(r)return r}catch(e){}
+    }
+  }catch(e){}
+  return null;
 }
-function installSave(){const old=w.fetch;if(w.__v8fetch)return;w.__v8fetch=true;w.fetch=async function(input,init){let url=typeof input==='string'?input:(input&&input.url)||'';if(url.includes('/rest/v1/properties')&&init?.body&&typeof init.body==='string'){try{const body=JSON.parse(init.body),f=d.getElementById('propertyForm');if(f){for(const n of ['condominium_builder','condominium_delivery_year','condominium_units','condominium_land_area']){const e=f.elements.namedItem(n);if(e)body[n]=String(e.value||'').trim()?(n==='condominium_builder'?e.value.trim():Number(e.value)):null}init={...init,body:JSON.stringify(body)}}}catch(e){console.warn(e)}}return old.call(this,input,init)}};
-addFields();installSave();new MutationObserver(()=>{addFields();installSave()}).observe(d.body,{childList:true,subtree:true});setTimeout(addFields,500);setTimeout(addFields,1500);
-}catch(e){console.error('VSN v8:',e)}});</script></body></html>
+function setup(){
+  const ctx=findForm(frame.contentWindow);
+  if(!ctx)return;
+  const {win:dwin,doc:d,form:f}=ctx;
+  if(f.dataset.v8StructuralInstalled==='1')return;
+  function addFields(){
+    if(d.getElementById('structuralCondoFields'))return;
+    const box=d.createElement('div');
+    box.id='structuralCondoFields';
+    box.style.cssText='margin-top:18px;padding:18px;border:1px solid #dfe4ea;border-radius:12px;background:#fff';
+    box.innerHTML='<div style="font-weight:700;font-size:15px;margin-bottom:12px">🏢 Dados do condomínio</div><div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:12px"><div><label>Construtora</label><input name="condominium_builder" type="text" placeholder="Ex.: Campanário"></div><div><label>Ano de entrega</label><input name="condominium_delivery_year" type="number" min="1800" max="2100" placeholder="Ex.: 1992"></div><div><label>Unidades</label><input name="condominium_units" type="number" min="1" placeholder="Ex.: 34"></div><div><label>Terreno (m²)</label><input name="condominium_land_area" type="number" min="0" step="0.01" placeholder="Ex.: 2456"></div></div>';
+    const sections=[...f.querySelectorAll('.section')];
+    const target=sections.find(s=>/características do condomínio|condomínio/i.test(s.querySelector('h2')?.textContent||''))||sections[sections.length-1];
+    if(target)target.appendChild(box);else f.appendChild(box);
+  }
+  function installSave(){
+    if(dwin.__v8StructuralFetch)return;
+    const oldFetch=dwin.fetch.bind(dwin);
+    dwin.__v8StructuralFetch=true;
+    dwin.fetch=async function(input,init){
+      let url=typeof input==='string'?input:(input&&input.url)||'';
+      if(url.includes('/rest/v1/properties')&&init?.body&&typeof init.body==='string'){
+        try{
+          const body=JSON.parse(init.body);
+          for(const n of ['condominium_builder','condominium_delivery_year','condominium_units','condominium_land_area']){
+            const e=f.elements.namedItem(n);
+            if(e)body[n]=String(e.value||'').trim()?(n==='condominium_builder'?e.value.trim():Number(e.value)):null;
+          }
+          init={...init,body:JSON.stringify(body)};
+        }catch(e){console.warn('Dados estruturais:',e)}
+      }
+      return oldFetch(input,init);
+    };
+  }
+  function installIdentify(){
+    if(typeof dwin.identifyCondo!=='function'||dwin.__v8Identify)return;
+    const original=dwin.identifyCondo;
+    dwin.__v8Identify=true;
+    dwin.identifyCondo=async function(){
+      await original.apply(this,arguments);
+      const get=n=>String(f.elements.namedItem(n)?.value||'').trim();
+      const address=get('address'),number=get('number');
+      if(!address||!number)return;
+      try{
+        const r=await fetch('/api/identify-condo-structural.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address,number,cep:get('cep'),neighborhood:get('neighborhood'),city:get('city'),state:get('state')})});
+        const j=await r.json();
+        if(!r.ok)return;
+        const set=(n,v)=>{const e=f.elements.namedItem(n);if(e&&v!==null&&v!==undefined&&String(v)!=='')e.value=v};
+        set('condominium_builder',j.condominium_builder);
+        set('condominium_delivery_year',j.condominium_delivery_year);
+        set('condominium_units',j.condominium_units);
+        set('condominium_land_area',j.condominium_land_area);
+        if(typeof dwin.toast==='function'&&(j.condominium_builder||j.condominium_delivery_year||j.condominium_units||j.condominium_land_area))dwin.toast('Dados estruturais do condomínio preenchidos automaticamente.','ok');
+      }catch(e){console.warn('Dados estruturais:',e)}
+    };
+  }
+  addFields();
+  installSave();
+  installIdentify();
+  f.dataset.v8StructuralInstalled='1';
+  new MutationObserver(()=>{addFields();installSave();installIdentify()}).observe(d.body,{childList:true,subtree:true});
+}
+frame.addEventListener('load',()=>{setTimeout(setup,100);setTimeout(setup,600);setTimeout(setup,1500)});
+</script>
+</body>
+</html>
