@@ -7,7 +7,7 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v4.html?v=20260910-features-separated-v2" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v4.html?v=20260910-features-separated-v3" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
@@ -52,7 +52,7 @@ frame.addEventListener('load',()=>{
       const oldLabel=[...section.querySelectorAll('label')].find(x=>x.textContent.trim()==='Características');
       const oldGrid=section.querySelector('.features');
       if(!oldGrid)return;
-      const oldValues=[...oldGrid.querySelectorAll('input[name="feature"]')].filter(e=>e.checked).map(e=>e.value);
+      const oldValues=[...oldGrid.querySelectorAll('input')].filter(e=>e.checked).map(e=>e.value);
       const pData=(f.__record&&f.__record.property_features)||oldValues;
       const cData=(f.__record&&f.__record.condo_features)||[];
       const prop=['Mobiliado','Aceita pets','Varanda Gourmet com Churrasqueira','Sacada','Piscina','Adega','Banheira'];
@@ -60,6 +60,7 @@ frame.addEventListener('load',()=>{
       const mk=(name,list,checked)=>`<div class="features" data-feature-group="${name}">${list.map(x=>`<label class="check"><input name="${name}" type="checkbox" value="${x}" ${checked.includes(x)?'checked':''}>${x}</label>`).join('')}</div>`;
       if(oldLabel)oldLabel.remove();
       oldGrid.outerHTML=`<div data-feature-groups="1"><label style="margin-top:4px">🏠 Características do imóvel</label>${mk('property_feature',prop,pData)}<label style="margin-top:18px">🏢 Características do condomínio</label>${mk('condo_feature',condo,cData)}<div class="grid" style="margin-top:14px"><div class="third"><label>Ano de construção do prédio *</label><input name="construction_year" type="number" min="1800" max="2100" placeholder="Ex.: 2018" value="${f.__record?.construction_year||''}"></div></div></div>`;
+      sections.filter(s=>s!==section && s.querySelector('h2')?.textContent.trim()==='Características do condomínio').forEach(s=>s.remove());
       f.dataset.featuresEnhanced='1';
     }
 
