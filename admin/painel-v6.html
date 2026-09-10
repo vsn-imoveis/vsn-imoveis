@@ -4,64 +4,31 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VSN Imóveis — Painel</title>
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v5.html?v=20260910-condo-v6" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v5.html?v=20260910-google-condo-v2" title="Painel VSN Imóveis"></iframe>
 <script>
-const outer=document.getElementById('panel');
-function installFix(){
+const frame=document.getElementById('panel');
+frame.addEventListener('load',()=>{
   try{
-    const v5=outer.contentWindow;
-    const inner=v5.document.getElementById('panel');
-    if(!inner) return setTimeout(installFix,300);
-    const w=inner.contentWindow;
-    const d=inner.contentDocument;
-    if(!w||!d) return setTimeout(installFix,300);
-
+    const w=frame.contentWindow;
+    const d=frame.contentDocument;
+    const original=w.identifyCondo;
+    if(typeof original!=='function')return;
     w.identifyCondo=async function(){
       const f=d.getElementById('propertyForm');
-      if(!f)return;
-      const value=n=>String(f.elements.namedItem(n)?.value||'').trim();
-      const address=value('address'),number=value('number'),neighborhood=value('neighborhood'),city=value('city')||'São Paulo',state=value('state'),cep=value('cep');
-      if(!address||!number){if(typeof w.toast==='function')w.toast('Informe endereço e número antes de identificar o condomínio.','err');return}
-
-      const condoName=f.elements.namedItem('condominium_name');
-      const yearInput=f.elements.namedItem('construction_year');
-      const condoInputs=[...d.querySelectorAll('input[name="condo_feature"]')];
-      // Sempre limpa o resultado anterior antes de pesquisar o novo endereço.
-      if(condoName)condoName.value='';
-      if(yearInput)yearInput.value='';
-      condoInputs.forEach(x=>x.checked=false);
-
-      const btn=[...d.querySelectorAll('button')].find(b=>/identificar|condomínio/i.test(b.textContent||''));
-      if(btn){btn.disabled=true;btn.dataset.oldText=btn.textContent;btn.textContent='Pesquisando endereço...'}
-      try{
-        const r=await fetch('/api/identify-condo-v2.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({address,number,neighborhood,city,state,cep})});
-        const j=await r.json();
-        if(!r.ok)throw new Error(j?.error||'Não foi possível pesquisar o endereço.');
-        const name=String(j?.condominium_name||'').trim();
-        if(!name){if(typeof w.toast==='function')w.toast('Não encontrei um condomínio confirmado para este endereço. O cadastro anterior foi limpo.','err');return}
-        if(condoName)condoName.value=name;
-
-        const found=Array.isArray(j?.features)?j.features:[];
-        const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-        const aliases={'churrasqueira':['churrasqueira'],'piscina':['piscina'],'academia':['academia','fitness'],'salaodefestas':['salaodefestas','salaofestas'],'playground':['playground'],'elevador':['elevador','elevadores'],'portaria24h':['portaria24h','portaria24horas','seguranca24h','seguranca'],'areapet':['areapet','petplace','espacopet'],'bicicletario':['bicicletario','bicicletarios'],'vagadevisitante':['vagadevisitante','vagasdevisitante','visitante']};
-        const foundNorm=found.map(normalize);
-        condoInputs.forEach(input=>{const key=normalize(input.value),keys=aliases[key]||[key];input.checked=keys.some(k=>foundNorm.some(v=>v.includes(k)||k.includes(v)))});
-        const year=j?.construction_year||j?.delivery_year||j?.year_built||j?.building_year;
-        if(yearInput&&year)yearInput.value=year;
-        if(typeof w.toast==='function')w.toast(`Condomínio identificado: ${name}. Dados atualizados para ${address}, ${number}.`,'ok');
-      }catch(e){
-        console.error('Identificação do condomínio:',e);
-        if(typeof w.toast==='function')w.toast(e.message||'Erro ao pesquisar o endereço.','err');
-      }finally{if(btn){btn.disabled=false;btn.textContent=btn.dataset.oldText||'Identificar condomínio'}}
+      if(f){
+        const condoName=f.elements.namedItem('condominium_name');
+        if(condoName)condoName.value='';
+        d.querySelectorAll('input[name="condo_feature"]').forEach(e=>e.checked=false);
+        const year=f.elements.namedItem('construction_year');
+        if(year)year.value='';
+      }
+      return original.apply(this,arguments);
     };
-  }catch(e){console.error('VSN painel v6:',e);setTimeout(installFix,500)}
-}
-outer.addEventListener('load',installFix);
-setTimeout(installFix,500);
+  }catch(e){console.error('Correção do painel:',e)}
+});
 </script>
 </body>
 </html>
