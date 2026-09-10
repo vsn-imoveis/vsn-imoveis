@@ -7,7 +7,7 @@
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f4f6f8}iframe{display:block;width:100%;height:100%;border:0}</style>
 </head>
 <body>
-<iframe id="panel" src="./painel-v4.html?v=20260910-features-separated" title="Painel VSN Imóveis"></iframe>
+<iframe id="panel" src="./painel-v4.html?v=20260910-features-separated-v2" title="Painel VSN Imóveis"></iframe>
 <script>
 const frame=document.getElementById('panel');
 frame.addEventListener('load',()=>{
@@ -32,7 +32,6 @@ frame.addEventListener('load',()=>{
             body.condo_features=[...f.querySelectorAll('input[name="condo_feature"]:checked')].map(e=>e.value);
             const y=f.elements.namedItem('construction_year');
             body.construction_year=y&&String(y.value||'').trim()?Number(y.value):null;
-            // Mantém a coluna legada `features` compatível com as características do imóvel.
             body.features=body.property_features;
             init={...init,body:JSON.stringify(body)};
           }
@@ -45,7 +44,10 @@ frame.addEventListener('load',()=>{
       const f=d.getElementById('propertyForm');
       if(!f||f.dataset.featuresEnhanced==='1')return;
       const sections=[...f.querySelectorAll('.section')];
-      const section=sections.find(s=>s.querySelector('h2')?.textContent.trim()==='Características');
+      const section=sections.find(s=>{
+        const h=s.querySelector('h2')?.textContent.trim()||'';
+        return h==='Características' || h==='Características do imóvel';
+      });
       if(!section)return;
       const oldLabel=[...section.querySelectorAll('label')].find(x=>x.textContent.trim()==='Características');
       const oldGrid=section.querySelector('.features');
@@ -73,11 +75,9 @@ frame.addEventListener('load',()=>{
     function fRecordHack(p){
       const f=d.getElementById('propertyForm');
       if(f)f.__record=p||{};
-      // O próximo editor é criado depois; guarda o registro para o enhanceEditor.
       w.__nextPropertyRecord=p||{};
     }
 
-    // Garante que registros existentes sejam carregados com os novos grupos.
     const observer=new MutationObserver(()=>{
       const f=d.getElementById('propertyForm');
       if(f&&!f.__record)f.__record=w.__nextPropertyRecord||{};
@@ -85,7 +85,6 @@ frame.addEventListener('load',()=>{
     });
     observer.observe(d.getElementById('editor')||d.body,{childList:true,subtree:true});
 
-    // Identificação do condomínio alimenta somente as características do condomínio.
     const originalIdentify=w.identifyCondo;
     if(typeof originalIdentify==='function'){
       w.identifyCondo=async function(){
@@ -102,7 +101,6 @@ frame.addEventListener('load',()=>{
       };
     }
 
-    // Validação completa antes de gerar a descrição.
     const originalGenerate=w.generateDescription;
     if(typeof originalGenerate==='function'){
       w.generateDescription=function(){
@@ -117,7 +115,6 @@ frame.addEventListener('load',()=>{
         if(!f.querySelector('input[name="property_feature"]:checked'))missing.push(['property_feature','Características do imóvel']);
         if(!f.querySelector('input[name="condo_feature"]:checked'))missing.push(['condo_feature','Características do condomínio']);
         if(missing.length){if(typeof w.toast==='function')w.toast('Preencha todos os campos antes de gerar a descrição: '+missing.map(x=>x[1]).join(', '),'err');return}
-        // Geração própria, separando claramente imóvel e condomínio.
         const get=n=>String(f.elements.namedItem(n)?.value||'').trim();
         const tipo=get('property_type')||'imóvel',area=get('area'),quartos=Number(get('bedrooms')||0),suites=Number(get('suites')||0),banheiros=Number(get('bathrooms')||0),vagas=Number(get('parking')||0),bairro=get('neighborhood'),cidade=get('city')||'São Paulo',cond=get('condominium_name'),ano=get('construction_year');
         const pf=[...f.querySelectorAll('input[name="property_feature"]:checked')].map(e=>e.value),cf=[...f.querySelectorAll('input[name="condo_feature"]:checked')].map(e=>e.value);
