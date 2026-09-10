@@ -15,7 +15,7 @@ async function loadPublishedProperties(){
    const valor=p.transaction_type==='rent'?(p.rent_price?brl(p.rent_price)+'/mês': 'Consulte'):(p.price?brl(p.price):'Consulte');
    const det=[p.area?p.area+' m²':null,p.bedrooms?p.bedrooms+' '+(p.bedrooms===1?'dormitório':'dormitórios'):null,p.suites?p.suites+' '+(p.suites===1?'suíte':'suítes'):null,p.parking?p.parking+' '+(p.parking===1?'vaga':'vagas'):null].filter(Boolean).join(' · ');
    const loc=[p.neighborhood,p.city].filter(Boolean).join(' · ');
-   return '<article class="card"><a href="/imovel.html?id='+encodeURIComponent(p.id)+'"><div class="photo" style="background-image:url(\''+esc(photo)+'\')"><span class="tag">'+finalidade+'</span></div><div class="body"><div class="location">'+esc(loc)+'</div><div class="price">'+esc(valor)+'</div><div class="details">'+esc(det)+'</div></div></a></article>';
+   return '<article class="card"><a target="_blank" rel="noopener noreferrer" href="/imovel.html?id='+encodeURIComponent(p.id)+'"><div class="photo" style="background-image:url(\''+esc(photo)+'\')"><span class="tag">'+finalidade+'</span></div><div class="body"><div class="location">'+esc(loc)+'</div><div class="price">'+esc(valor)+'</div><div class="details">'+esc(det)+'</div></div></a></article>';
   };
   el.innerHTML=data.map(card).join('');
  }catch(e){console.error(e);el.innerHTML='<div style="grid-column:1/-1;padding:35px;text-align:center;color:#a92828">Não foi possível carregar os imóveis agora.</div>'}
