@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Sitemap: https://vsn-imoveis.vercel.app/sitemap.xml
