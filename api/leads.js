@@ -57,6 +57,6 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, id: data?.id });
   } catch (error) {
     console.error('Lead API error:', error);
-    return res.status(500).json({ error: 'Falha ao enviar lead' });
+    return res.status(500).json({ error: 'Falha ao enviar lead', details: error?.message || 'Erro interno no servidor' });
   }
 }
