@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VSN Imóveis — Painel do Vendedor</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#d71920;--red-dark:#b3141a;--red-soft:#fff0f1;
+  --dark:#171d24;--dark-2:#20272f;
+  --text:#1a222b;--muted:#6b7885;--faint:#9aa5b1;
+  --line:#e7ebef;--line-2:#eef1f4;
+  --bg:#f5f7f9;--card:#fff;--soft:#f8fafb;
+  --green:#0f9d58;--green-soft:#e8f6ee;
+  --amber:#b7791f;--amber-soft:#fdf6e3;
+  --blue:#1769e0;--blue-soft:#eef4ff;
+  --shadow-sm:0 1px 2px rgba(23,29,36,.06);
+  --shadow:0 6px 24px rgba(23,29,36,.08);
+  --shadow-lg:0 20px 50px rgba(23,29,36,.18);
+  --r:14px;--r-sm:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px}
+button{font-family:inherit}
+a{color:inherit;text-decoration:none}
+::selection{background:var(--red);color:#fff}
+
+/* ===== Layout shell ===== */
+.shell{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+.sidebar{background:var(--dark);color:#fff;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.side-brand{display:flex;align-items:center;gap:11px;padding:22px 22px 18px}
+.side-brand .mark{width:38px;height:38px;border-radius:10px;background:var(--red);display:grid;place-items:center;font-weight:900;font-size:17px;letter-spacing:-.5px;box-shadow:0 6px 16px rgba(215,25,32,.4)}
+.side-brand .nm{font-weight:900;font-size:16px;letter-spacing:.3px;line-height:1}
+.side-brand .nm small{display:block;font-weight:600;font-size:10.5px;letter-spacing:2px;color:#8b96a3;margin-top:4px}
+.nav{padding:8px 14px;display:flex;flex-direction:column;gap:3px}
+.nav-label{font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase;color:#63707d;font-weight:700;padding:16px 10px 8px}
+.nav a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:#c3ccd5;font-weight:600;font-size:14px;transition:.15s;cursor:pointer}
+.nav a svg{width:19px;height:19px;flex:0 0 19px;stroke-width:2}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav a.active{background:var(--red);color:#fff;box-shadow:0 6px 16px rgba(215,25,32,.35)}
+.nav a .badge{margin-left:auto;background:rgba(255,255,255,.14);border-radius:20px;font-size:11px;padding:2px 8px;font-weight:700}
+.nav a.active .badge{background:rgba(255,255,255,.25)}
+.side-foot{margin-top:auto;padding:16px 14px 20px}
+.side-user{display:flex;align-items:center;gap:11px;padding:12px;background:rgba(255,255,255,.05);border-radius:12px}
+.side-user .av{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--red),#ff5a5f);display:grid;place-items:center;font-weight:800;flex:0 0 38px}
+.side-user .info{min-width:0}
+.side-user .info b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-user .info span{font-size:11.5px;color:#8b96a3}
+.side-user .logout{margin-left:auto;background:none;border:0;color:#8b96a3;cursor:pointer;padding:6px;border-radius:8px;display:grid;place-items:center}
+.side-user .logout:hover{color:#fff;background:rgba(255,255,255,.08)}
+
+.main{min-width:0;display:flex;flex-direction:column}
+
+/* ===== Topbar ===== */
+.topbar{position:sticky;top:0;z-index:20;background:rgba(245,247,249,.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:14px 30px}
+.hamburger{display:none;background:#fff;border:1px solid var(--line);border-radius:10px;width:40px;height:40px;place-items:center;cursor:pointer}
+.search{flex:1;max-width:460px;position:relative}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--faint)}
+.search input{width:100%;height:44px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 14px 0 42px;font-size:14px;outline:0;transition:.15s;box-shadow:var(--shadow-sm)}
+.search input:focus{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:10px}
+.icon-btn{width:44px;height:44px;border:1px solid var(--line);background:#fff;border-radius:12px;display:grid;place-items:center;cursor:pointer;color:var(--muted);box-shadow:var(--shadow-sm);transition:.15s;position:relative}
+.icon-btn:hover{color:var(--text);border-color:#cfd6dc}
+.icon-btn .dot{position:absolute;top:10px;right:11px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid #fff}
+
+/* ===== Content ===== */
+.content{padding:26px 30px 60px;max-width:1400px;width:100%}
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.page-head h1{margin:0;font-size:27px;font-weight:800;letter-spacing:-.5px}
+.page-head p{margin:6px 0 0;color:var(--muted);font-size:14px}
+
+.btn{border:0;border-radius:12px;padding:0 20px;height:46px;font-weight:700;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.15s;white-space:nowrap}
+.btn svg{width:18px;height:18px;stroke-width:2.2}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.red{background:var(--red);color:#fff;box-shadow:0 8px 20px rgba(215,25,32,.28)}
+.btn.red:hover:not(:disabled){background:var(--red-dark);transform:translateY(-1px)}
+.btn.ghost{background:#fff;color:var(--text);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.btn.ghost:hover{border-color:#cfd6dc}
+.btn.dark{background:var(--dark);color:#fff}
+.btn.dark:hover{background:var(--dark-2)}
+.btn.sm{height:38px;padding:0 14px;font-size:13px;border-radius:10px}
+
+/* ===== Stats ===== */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.stat .ic{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;margin-bottom:14px}
+.stat .ic svg{width:21px;height:21px;stroke-width:2}
+.stat .lbl{color:var(--muted);font-size:13px;font-weight:600}
+.stat .val{font-size:30px;font-weight:800;letter-spacing:-1px;margin-top:2px;line-height:1.1}
+.stat .val small{font-size:13px;font-weight:600;color:var(--faint);letter-spacing:0}
+.ic.r{background:var(--red-soft);color:var(--red)}
+.ic.g{background:var(--green-soft);color:var(--green)}
+.ic.a{background:var(--amber-soft);color:var(--amber)}
+.ic.b{background:var(--blue-soft);color:var(--blue)}
+
+/* ===== Toolbar / filters ===== */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:20px;padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;box-shadow:var(--shadow-sm)}
+.chip:hover{border-color:#cfd6dc;color:var(--text)}
+.chip.active{background:var(--dark);color:#fff;border-color:var(--dark)}
+.view-toggle{margin-left:auto;display:flex;gap:4px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:4px;box-shadow:var(--shadow-sm)}
+.view-toggle button{border:0;background:none;width:36px;height:34px;border-radius:8px;display:grid;place-items:center;cursor:pointer;color:var(--faint)}
+.view-toggle button svg{width:18px;height:18px}
+.view-toggle button.active{background:var(--soft);color:var(--red);box-shadow:var(--shadow-sm)}
+
+/* ===== Property grid ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:18px}
+.grid.list-mode{grid-template-columns:1fr}
+.pcard{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm);transition:.18s;display:flex;flex-direction:column}
+.pcard:hover{box-shadow:var(--shadow);transform:translateY(-3px);border-color:#dbe1e7}
+.pcard .thumb{position:relative;aspect-ratio:16/10;background:#e9edf1 center/cover no-repeat}
+.pcard .thumb .noimg{position:absolute;inset:0;display:grid;place-items:center;color:var(--faint)}
+.pcard .thumb .noimg svg{width:40px;height:40px}
+.badges{position:absolute;top:12px;left:12px;display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;backdrop-filter:blur(6px);letter-spacing:.2px}
+.tag.pub{background:rgba(15,157,88,.92);color:#fff}
+.tag.draft{background:rgba(23,29,36,.75);color:#fff}
+.tag.type{background:rgba(255,255,255,.92);color:var(--text)}
+.pcard .fav{position:absolute;top:10px;right:10px;width:34px;height:34px;border:0;border-radius:9px;background:rgba(255,255,255,.92);display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.pcard .fav:hover{color:var(--red)}
+.pcard .body{padding:15px 16px 16px;display:flex;flex-direction:column;gap:10px;flex:1}
+.pcard .price{font-size:20px;font-weight:800;letter-spacing:-.5px}
+.pcard .price small{font-size:12px;color:var(--muted);font-weight:600}
+.pcard .ttl{font-size:14.5px;font-weight:700;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pcard .loc{display:flex;align-items:center;gap:5px;color:var(--muted);font-size:12.5px}
+.pcard .loc svg{width:14px;height:14px;flex:0 0 14px}
+.pcard .specs{display:flex;gap:14px;padding-top:11px;border-top:1px solid var(--line-2);color:var(--muted);font-size:12.5px;font-weight:600;margin-top:auto}
+.pcard .specs span{display:flex;align-items:center;gap:5px}
+.pcard .specs svg{width:15px;height:15px;color:var(--faint)}
+.pcard .actions{display:flex;gap:8px;padding:0 16px 16px}
+.pcard .actions .btn{flex:1;justify-content:center}
+
+/* list mode adjustments */
+.grid.list-mode .pcard{flex-direction:row;align-items:stretch}
+.grid.list-mode .pcard .thumb{width:230px;flex:0 0 230px;aspect-ratio:auto}
+.grid.list-mode .pcard .body{flex:1}
+.grid.list-mode .pcard .actions{flex-direction:column;justify-content:center;padding:16px;width:150px}
+
+/* ===== Empty / loading ===== */
+.empty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--muted)}
+.empty .circle{width:80px;height:80px;border-radius:50%;background:var(--red-soft);color:var(--red);display:grid;place-items:center;margin:0 auto 18px}
+.empty .circle svg{width:36px;height:36px}
+.empty h3{margin:0 0 6px;color:var(--text);font-size:19px}
+.empty p{margin:0 0 20px}
+.skeleton{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.skeleton .sk{background:linear-gradient(90deg,#eef1f4 25%,#f6f8fa 50%,#eef1f4 75%);background-size:200% 100%;animation:sh 1.3s infinite}
+@keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ===== Login ===== */
+.login-wrap{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(1200px 600px at 20% -10%,#252d37,transparent),var(--dark)}
+.login-card{width:100%;max-width:410px;background:#fff;border-radius:20px;padding:38px 34px;box-shadow:var(--shadow-lg)}
+.login-card .lbrand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.login-card .lbrand .mark{width:44px;height:44px;border-radius:12px;background:var(--red);display:grid;place-items:center;color:#fff;font-weight:900;font-size:19px;box-shadow:0 8px 20px rgba(215,25,32,.35)}
+.login-card .lbrand b{font-size:18px;font-weight:900;letter-spacing:.3px}
+.login-card .lbrand small{display:block;font-size:10.5px;letter-spacing:2px;color:var(--faint);font-weight:700;margin-top:3px}
+.login-card h1{margin:0 0 6px;font-size:23px;font-weight:800}
+.login-card>p{margin:0 0 24px;color:var(--muted);font-size:14px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:700;margin-bottom:8px}
+.field input,.f-inp{width:100%;height:48px;border:1px solid #cbd3da;border-radius:12px;padding:0 15px;font:inherit;font-size:14px;outline:0;transition:.15s;background:#fff;color:var(--text)}
+.field input:focus{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
+.login-card .btn{width:100%;justify-content:center;height:50px;margin-top:6px}
+.msg{font-size:13px;margin-top:14px;min-height:18px;color:var(--red)}
+
+/* ===== Drawer (form) ===== */
+.overlay{position:fixed;inset:0;background:rgba(23,29,36,.5);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:.25s;z-index:40}
+.overlay.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:min(640px,100%);background:var(--bg);box-shadow:var(--shadow-lg);transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);z-index:41;display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.drawer-head{padding:22px 26px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0}
+.drawer-head h2{margin:0;font-size:20px;font-weight:800}
+.drawer-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.drawer-close{width:40px;height:40px;border:1px solid var(--line);background:#fff;border-radius:11px;display:grid;place-items:center;cursor:pointer;color:var(--muted)}
+.drawer-close:hover{color:var(--text);border-color:#cfd6dc}
+.drawer-body{overflow-y:auto;padding:22px 26px;flex:1}
+.drawer-foot{padding:16px 26px;background:#fff;border-top:1px solid var(--line);display:flex;gap:12px;position:sticky;bottom:0}
+.drawer-foot .btn{flex:1;justify-content:center}
+
+.fsection{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.fsection-head{display:flex;gap:11px;align-items:center;margin-bottom:16px}
+.fsection-head .n{width:32px;height:32px;border-radius:9px;background:var(--red-soft);color:var(--red);display:grid;place-items:center;font-weight:800;flex:0 0 32px}
+.fsection-head h3{margin:0;font-size:15.5px;font-weight:800}
+.fsection-head p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+.fgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.fgrid .full{grid-column:1/-1}
+.fgrid .f label,.fblock label{display:block;font-size:12.5px;font-weight:700;margin-bottom:7px;color:#3a4650}
+.req{color:var(--red)}
+.f-inp:focus,textarea.f-inp:focus,select.f-inp:focus{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
+textarea.f-inp{height:auto;min-height:120px;padding:12px 15px;resize:vertical;line-height:1.5}
+select.f-inp{appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7885' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 14px center;padding-right:38px}
+.money{display:flex;align-items:center;border:1px solid #cbd3da;border-radius:12px;overflow:hidden;transition:.15s;background:#fff}
+.money:focus-within{border-color:var(--red);box-shadow:0 0 0 4px var(--red-soft)}
+.money span{padding:0 12px;color:var(--muted);font-weight:700;font-size:13px;background:var(--soft);align-self:stretch;display:flex;align-items:center;border-right:1px solid var(--line)}
+.money input{border:0;height:48px;flex:1;padding:0 14px;outline:0;font:inherit;font-size:14px;background:none;color:var(--text)}
+.seg{display:flex;gap:8px}
+.seg input{position:absolute;opacity:0;width:0}
+.seg label{flex:1;text-align:center;border:1px solid #cbd3da;border-radius:12px;padding:13px;font-weight:700;cursor:pointer;transition:.15s;color:var(--muted);margin:0}
+.seg input:checked+label{border-color:var(--red);background:var(--red-soft);color:var(--red)}
+.counter{display:flex;align-items:center;border:1px solid #cbd3da;border-radius:12px;overflow:hidden}
+.counter button{width:46px;height:48px;border:0;background:var(--soft);font-size:20px;font-weight:700;color:var(--muted);cursor:pointer}
+.counter button:hover{background:#eef1f4;color:var(--text)}
+.counter input{border:0;flex:1;text-align:center;height:48px;outline:0;font:inherit;font-weight:700;font-size:15px;background:none;-moz-appearance:textfield}
+.counter input::-webkit-outer-spin-button,.counter input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.counter-unit{font-size:11.5px;color:var(--muted);text-align:center;margin-top:6px;font-weight:600}
+.feats{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.feat{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:10px;padding:11px 12px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s}
+.feat:hover{border-color:#cfd6dc}
+.feat input{width:17px;height:17px;accent-color:var(--red);flex:0 0 17px}
+.feat.on{border-color:var(--red);background:var(--red-soft);color:var(--red)}
+
+.drop{border:2px dashed #cbd3da;border-radius:14px;padding:26px;text-align:center;cursor:pointer;transition:.15s;background:var(--soft)}
+.drop:hover,.drop.drag{border-color:var(--red);background:var(--red-soft)}
+.drop svg{width:34px;height:34px;color:var(--red);margin-bottom:8px}
+.drop b{display:block;font-size:14px}
+.drop small{color:var(--muted)}
+.photos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.photo{position:relative;aspect-ratio:1;border-radius:11px;overflow:hidden;border:1px solid var(--line)}
+.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.photo button{position:absolute;top:5px;right:5px;width:24px;height:24px;border:0;border-radius:7px;background:rgba(23,29,36,.75);color:#fff;cursor:pointer;display:grid;place-items:center;font-size:15px;line-height:1}
+.photo .cover{position:absolute;bottom:5px;left:5px;background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
+
+.hint{font-size:12.5px;margin-top:8px;color:var(--muted)}
+.hint.ok{color:var(--green)}
+.hint.warn{color:var(--amber)}
+
+/* ===== Toast ===== */
+.toast{position:fixed;bottom:26px;left:50%;transform:translate(-50%,120%);background:var(--dark);color:#fff;padding:13px 20px;border-radius:12px;font-weight:600;font-size:14px;box-shadow:var(--shadow-lg);z-index:60;transition:.3s;display:flex;align-items:center;gap:10px;max-width:90vw}
+.toast.show{transform:translate(-50%,0)}
+.toast.ok{background:var(--green)}
+.toast.err{background:var(--red)}
+.toast svg{width:19px;height:19px;flex:0 0 19px}
+
+@media(max-width:1000px){
+  .shell{grid-template-columns:1fr}
+  .sidebar{position:fixed;left:0;top:0;z-index:50;width:260px;transform:translateX(-100%);transition:.25s}
+  .sidebar.open{transform:none}
+  .hamburger{display:grid}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .content{padding:22px 18px 50px}
+  .topbar{padding:12px 18px}
+}
+@media(max-width:560px){
+  .stats{grid-template-columns:1fr}
+  .fgrid{grid-template-columns:1fr}
+  .photos{grid-template-columns:repeat(3,1fr)}
+  .grid.list-mode .pcard{flex-direction:column}
+  .grid.list-mode .pcard .thumb{width:100%;flex:auto;aspect-ratio:16/10}
+  .grid.list-mode .pcard .actions{flex-direction:row;width:auto}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="toast" class="toast"></div>
+
+<script>
+const SUPA='https://jpdfynaioepcmgqlqlht.supabase.co';
+const KEY='sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03';
+const db=supabase.createClient(SUPA,KEY);
+
+let ITEMS=[];           // all properties
+let VIEW='grid';        // grid | list
+let FILTER='all';       // all | published | draft | sale | rent
+let QUERY='';
+let editId='';
+let existingPhotos=[];   // urls already saved
+let selectedFiles=[];    // File[] new uploads
+
+const FEATURES=['Piscina','Academia','Portaria 24h','Elevador','Churrasqueira','Salão de festas','Playground','Sauna','Quadra','Pet friendly','Varanda','Mobiliado'];
+const TYPES=['Apartamento','Casa','Studio','Cobertura','Sobrado','Kitnet','Terreno','Sala comercial','Galpão','Outro'];
+
+/* ---------- helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:0,maximumFractionDigits:0});
+const fmt=v=>Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const moneyVal=v=>Number(String(v||'').replace(/\./g,'').replace(',','.'))||0;
+function moneyMask(e){let n=moneyVal(e.value);e.value=n?fmt(n):''}
+const initials=s=>String(s||'?').trim().slice(0,2).toUpperCase();
+
+function toast(text,type=''){
+  const e=$('#toast');
+  const ic=type==='ok'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>'
+    :type==='err'?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>':'';
+  e.innerHTML=ic+'<span>'+esc(text)+'</span>';
+  e.className='toast show '+type;
+  clearTimeout(window.__t);window.__t=setTimeout(()=>e.className='toast',4000);
+}
+
+/* ---------- SVG icons ---------- */
+const I={
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>',
+  building:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 8h1M14 8h1M9 12h1M14 12h1M9 16h1M14 16h1"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 3 4-5"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+  logout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>',
+  bed:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5M2 18v2M22 18v2M2 13V7M6 11V9a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+  bath:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12V6a2 2 0 0 1 2-2 2 2 0 0 1 2 2M4 12h17v2a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4v-2ZM6 22l-1-2M18 22l1-2"/></svg>',
+  car:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l1.5-4.5A2 2 0 0 1 8.4 7h7.2a2 2 0 0 1 1.9 1.5L19 13M5 13h14v4H5zM7 17v2M17 17v2"/><circle cx="7.5" cy="15" r=".5"/><circle cx="16.5" cy="15" r=".5"/></svg>',
+  area:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>',
+  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeoff:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9.9 4.2A9.8 9.8 0 0 1 12 4c6.5 0 10 8 10 8a17 17 0 0 1-2.2 3.2M6.6 6.6A17 17 0 0 0 2 12s3.5 8 10 8a9.8 9.8 0 0 0 4.2-.9"/><path d="M3 3l18 18"/></svg>',
+  upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5M12 3v12"/></svg>',
+  photo:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>',
+  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M18.4 5.6l-2.8 2.8M8.4 15.6l-2.8 2.8"/></svg>',
+};
+
+/* ================= AUTH ================= */
+async function boot(){
+  const {data:{session}}=await db.auth.getSession();
+  session?renderApp(session):renderLogin();
+}
+db.auth.onAuthStateChange((_e,s)=>{ if(!s) renderLogin(); });
+
+function renderLogin(msg=''){
+  document.body.classList.remove('has-app');
+  $('#root').innerHTML=`
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="lbrand"><div class="mark">V</div><div><b>VSN IMÓVEIS</b><small>PAINEL DO VENDEDOR</small></div></div>
+      <h1>Bem-vindo de volta</h1>
+      <p>Entre com seu e-mail e senha para gerenciar seus anúncios.</p>
+      <div class="field"><label>E-mail</label><input id="em" type="email" placeholder="voce@vsnimoveis.com" autocomplete="username"></div>
+      <div class="field"><label>Senha</label><input id="pw" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter'&&!event.isComposing)doLogin()"></div>
+      <button class="btn red" onclick="doLogin()">Entrar</button>
+      <div id="msg" class="msg">${esc(msg)}</div>
+    </div>
+  </div>`;
+  setTimeout(()=>$('#em')?.focus(),50);
+}
+async function doLogin(){
+  const em=$('#em').value.trim(),pw=$('#pw').value,m=$('#msg');
+  if(!em||!pw){m.textContent='Preencha e-mail e senha.';return}
+  m.style.color='var(--muted)';m.textContent='Entrando...';
+  const {data,error}=await db.auth.signInWithPassword({email:em,password:pw});
+  if(error){m.style.color='var(--red)';m.textContent='Não foi possível entrar: '+error.message;return}
+  renderApp(data.session);
+}
+async function logout(){ await db.auth.signOut(); renderLogin(); }
+
+/* ================= APP SHELL ================= */
+function renderApp(session){
+  const email=session.user.email;
+  $('#root').innerHTML=`
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand"><div class="mark">V</div><div class="nm">VSN IMÓVEIS<small>VENDEDOR</small></div></div>
+      <nav class="nav">
+        <div class="nav-label">Menu</div>
+        <a class="active" data-nav="imoveis" onclick="setFilter('all')">${I.building}<span>Meus imóveis</span><span class="badge" id="navCount">0</span></a>
+        <a onclick="openForm()">${I.plus}<span>Novo imóvel</span></a>
+        <a href="/index.html" target="_blank">${I.home}<span>Ver site</span></a>
+        <div class="nav-label">Status</div>
+        <a onclick="setFilter('published')">${I.eye}<span>Publicados</span><span class="badge" id="navPub">0</span></a>
+        <a onclick="setFilter('draft')">${I.edit}<span>Rascunhos</span><span class="badge" id="navDraft">0</span></a>
+      </nav>
+      <div class="side-foot">
+        <div class="side-user">
+          <div class="av">${initials(email)}</div>
+          <div class="info"><b>${esc(email.split('@')[0])}</b><span>${esc(email)}</span></div>
+          <button class="logout" title="Sair" onclick="logout()">${I.logout}</button>
+        </div>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')">${I.list}</button>
+        <div class="search">${I.search}<input id="q" type="search" placeholder="Buscar por título, bairro, código..." oninput="onSearch(this.value)"></div>
+        <div class="top-actions">
+          <button class="icon-btn" title="Notificações">${I.bell}<span class="dot"></span></button>
+          <button class="btn red" onclick="openForm()">${I.plus}<span>Novo imóvel</span></button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="page-head">
+          <div><h1 id="pageTitle">Meus imóveis</h1><p id="pageSub">Gerencie seus anúncios, fotos e publicações.</p></div>
+        </div>
+        <div class="stats" id="stats"></div>
+        <div class="toolbar">
+          <div class="chips" id="chips"></div>
+          <div class="view-toggle">
+            <button id="vGrid" class="active" onclick="setView('grid')" title="Grade">${I.grid}</button>
+            <button id="vList" onclick="setView('list')" title="Lista">${I.list}</button>
+          </div>
+        </div>
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </div>
+  <div class="overlay" id="overlay" onclick="closeForm()"></div>
+  <aside class="drawer" id="drawer"></aside>`;
+  loadProperties();
+}
+
+/* ================= DATA ================= */
+async function loadProperties(){
+  renderSkeletons();
+  const {data,error}=await db.from('properties').select('*').order('created_at',{ascending:false});
+  if(error){ $('#grid').innerHTML='<div class="empty"><h3>Erro ao carregar</h3><p>'+esc(error.message)+'</p></div>'; return; }
+  ITEMS=data||[];
+  renderStats();renderChips();renderGrid();
+}
+
+function counts(){
+  const pub=ITEMS.filter(x=>x.published).length;
+  const sale=ITEMS.filter(x=>x.for_sale??x.transaction_type!=='rent').length;
+  const rent=ITEMS.filter(x=>x.for_rent??x.transaction_type==='rent').length;
+  return {total:ITEMS.length,pub,draft:ITEMS.length-pub,sale,rent};
+}
+
+function renderStats(){
+  const c=counts();
+  $('#navCount').textContent=c.total;
+  $('#navPub').textContent=c.pub;
+  $('#navDraft').textContent=c.draft;
+  $('#stats').innerHTML=`
+    <div class="stat"><div class="ic r">${I.building}</div><div class="lbl">Total de imóveis</div><div class="val">${c.total}</div></div>
+    <div class="stat"><div class="ic g">${I.eye}</div><div class="lbl">Publicados</div><div class="val">${c.pub}</div></div>
+    <div class="stat"><div class="ic a">${I.edit}</div><div class="lbl">Rascunhos</div><div class="val">${c.draft}</div></div>
+    <div class="stat"><div class="ic b">${I.chart}</div><div class="lbl">Venda / Locação</div><div class="val">${c.sale}<small> / ${c.rent}</small></div></div>`;
+}
+
+function renderChips(){
+  const c=counts();
+  const defs=[['all','Todos',c.total],['published','Publicados',c.pub],['draft','Rascunhos',c.draft],['sale','À venda',c.sale],['rent','Locação',c.rent]];
+  $('#chips').innerHTML=defs.map(([k,label,n])=>`<button class="chip ${FILTER===k?'active':''}" onclick="setFilter('${k}')">${label} · ${n}</button>`).join('');
+}
+
+function setFilter(f){
+  FILTER=f;
+  const titles={all:'Meus imóveis',published:'Imóveis publicados',draft:'Rascunhos',sale:'Imóveis à venda',rent:'Imóveis para locação'};
+  $('#pageTitle').textContent=titles[f]||'Meus imóveis';
+  $$('.nav a').forEach(a=>a.classList.remove('active'));
+  document.getElementById('sidebar')?.classList.remove('open');
+  renderChips();renderGrid();
+}
+function setView(v){ VIEW=v; $('#vGrid').classList.toggle('active',v==='grid'); $('#vList').classList.toggle('active',v==='list'); renderGrid(); }
+function onSearch(v){ QUERY=v.toLowerCase().trim(); renderGrid(); }
+
+function filtered(){
+  return ITEMS.filter(x=>{
+    const sale=x.for_sale??x.transaction_type!=='rent', rent=x.for_rent??x.transaction_type==='rent';
+    if(FILTER==='published'&&!x.published)return false;
+    if(FILTER==='draft'&&x.published)return false;
+    if(FILTER==='sale'&&!sale)return false;
+    if(FILTER==='rent'&&!rent)return false;
+    if(QUERY){
+      const hay=[x.title,x.neighborhood,x.city,x.code,x.property_type,x.condominium_name].join(' ').toLowerCase();
+      if(!hay.includes(QUERY))return false;
+    }
+    return true;
+  });
+}
+
+function renderSkeletons(){
+  $('#grid').className='grid';
+  $('#grid').innerHTML=Array.from({length:6}).map(()=>`
+    <div class="skeleton"><div class="sk" style="aspect-ratio:16/10"></div>
+    <div style="padding:16px"><div class="sk" style="height:20px;width:50%;border-radius:6px"></div>
+    <div class="sk" style="height:14px;width:90%;border-radius:6px;margin-top:12px"></div>
+    <div class="sk" style="height:14px;width:60%;border-radius:6px;margin-top:8px"></div></div></div>`).join('');
+}
+
+function renderGrid(){
+  const list=filtered();
+  $('#grid').className='grid'+(VIEW==='list'?' list-mode':'');
+  if(!list.length){
+    $('#grid').innerHTML=`<div class="empty">
+      <div class="circle">${I.building}</div>
+      <h3>${QUERY||FILTER!=='all'?'Nenhum imóvel encontrado':'Nenhum imóvel cadastrado ainda'}</h3>
+      <p>${QUERY||FILTER!=='all'?'Tente ajustar a busca ou os filtros.':'Comece cadastrando seu primeiro anúncio.'}</p>
+      <button class="btn red" onclick="openForm()" style="display:inline-flex">${I.plus}Cadastrar imóvel</button>
+    </div>`;
+    return;
+  }
+  $('#grid').innerHTML=list.map(card).join('');
+}
+
+function card(x){
+  const sale=x.for_sale??x.transaction_type!=='rent';
+  const price=sale?x.price:x.rent_price||x.price;
+  const cover=(x.photos&&x.photos[0])||'';
+  const specs=[];
+  if(x.bedrooms)specs.push(`<span>${I.bed}${x.bedrooms}</span>`);
+  if(x.bathrooms)specs.push(`<span>${I.bath}${x.bathrooms}</span>`);
+  if(x.parking)specs.push(`<span>${I.car}${x.parking}</span>`);
+  if(x.area)specs.push(`<span>${I.area}${x.area}m²</span>`);
+  const loc=[x.neighborhood,x.city].filter(Boolean).join(', ')||'Localização não informada';
+  return `<article class="pcard">
+    <div class="thumb" style="${cover?`background-image:url('${esc(cover)}')`:''}">
+      ${cover?'':`<div class="noimg">${I.photo}</div>`}
+      <div class="badges">
+        <span class="tag ${x.published?'pub':'draft'}">${x.published?'Publicado':'Rascunho'}</span>
+        <span class="tag type">${sale?'Venda':'Locação'}</span>
+      </div>
+    </div>
+    <div class="body">
+      <div class="price">${money(price)}${sale?'':' <small>/mês</small>'}</div>
+      <div class="ttl">${esc(x.title||'Sem título')}</div>
+      <div class="loc">${I.pin}${esc(loc)}</div>
+      ${specs.length?`<div class="specs">${specs.join('')}</div>`:''}
+    </div>
+    <div class="actions">
+      <button class="btn ghost sm" onclick="edit('${x.id}')">${I.edit}Editar</button>
+      <button class="btn ${x.published?'ghost':'dark'} sm" onclick="togglePub('${x.id}')">${x.published?I.eyeoff:I.eye}${x.published?'Ocultar':'Publicar'}</button>
+    </div>
+  </article>`;
+}
+
+async function togglePub(id){
+  const item=ITEMS.find(x=>x.id===id);if(!item)return;
+  const {error}=await db.from('properties').update({published:!item.published}).eq('id',id);
+  if(error){toast('Erro: '+error.message,'err');return}
+  item.published=!item.published;
+  toast(item.published?'Imóvel publicado.':'Imóvel ocultado.','ok');
+  renderStats();renderChips();renderGrid();
+}
+
+async function edit(id){
+  const {data,error}=await db.from('properties').select('*').eq('id',id).single();
+  if(error){toast(error.message,'err');return}
+  openForm(data);
+}
+
+/* ================= FORM (DRAWER) ================= */
+function openForm(x={}){
+  editId=x.id||'';
+  existingPhotos=[...(x.photos||[])];
+  selectedFiles=[];
+  const sale=x.for_sale??(x.transaction_type?x.transaction_type!=='rent':true);
+  const rent=x.for_rent??(x.transaction_type==='rent');
+  $('#drawer').innerHTML=`
+    <div class="drawer-head">
+      <div><h2>${editId?'Editar imóvel':'Novo imóvel'}</h2><p>${editId?'Atualize os dados do anúncio.':'Preencha os dados do anúncio.'}</p></div>
+      <button class="drawer-close" onclick="closeForm()">${I.x}</button>
+    </div>
+    <form id="pform" class="drawer-body" onsubmit="save(event)">
+      <div class="fsection">
+        <div class="fsection-head"><div class="n">1</div><div><h3>Dados do imóvel</h3><p>Informações básicas do anúncio.</p></div></div>
+        <div class="fgrid">
+          <div class="f full"><label>Título <span class="req">*</span></label><input class="f-inp" name="title" required placeholder="Ex.: Apartamento moderno no Morumbi" value="${esc(x.title)}"></div>
+          <div class="f"><label>Código</label><input class="f-inp" name="code" placeholder="VSN1234" value="${esc(x.code)}"></div>
+          <div class="f"><label>Tipo do imóvel</label><select class="f-inp" name="property_type">${TYPES.map(t=>`<option ${x.property_type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+          <div class="f full"><label>Finalidade <span class="req">*</span></label>
+            <div class="seg">
+              <input id="fsale" type="checkbox" name="for_sale" ${sale?'checked':''}><label for="fsale">Venda</label>
+              <input id="frent" type="checkbox" name="for_rent" ${rent?'checked':''}><label for="frent">Locação</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fsection">
+        <div class="fsection-head"><div class="n">2</div><div><h3>Valores</h3><p>Preços, condomínio e IPTU.</p></div></div>
+        <div class="fgrid">
+          <div class="f"><label>Preço de venda</label><div class="money"><span>R$</span><input name="price" onblur="moneyMask(this)" value="${x.price?fmt(x.price):''}"></div></div>
+          <div class="f"><label>Valor locação</label><div class="money"><span>R$</span><input name="rent_price" onblur="moneyMask(this)" value="${x.rent_price?fmt(x.rent_price):''}"></div></div>
+          <div class="f"><label>Condomínio</label><div class="money"><span>R$</span><input name="condo_fee" onblur="moneyMask(this)" value="${x.condo_fee?fmt(x.condo_fee):''}"></div></div>
+          <div class="f"><label>IPTU (ano)</label><div class="money"><span>R$</span><input name="iptu" onblur="moneyMask(this)" value="${x.iptu?fmt(x.iptu):''}"></div></div>
+        </div>
+      </div>
+
+      <div class="fsection">
+        <div class="fsection-head"><div class="n">3</div><div><h3>Características</h3><p>Área e cômodos.</p></div></div>
+        <div class="fgrid">
+          <div class="f"><label>Área (m²)</label><input class="f-inp" name="area" type="number" min="0" value="${x.area||''}"></div>
+          <div class="f"><label>Dormitórios</label>${counter('bedrooms',x.bedrooms,'dorm.')}</div>
+          <div class="f"><label>Suítes</label>${counter('suites',x.suites,'suítes')}</div>
+          <div class="f"><label>Banheiros</label>${counter('bathrooms',x.bathrooms,'banh.')}</div>
+          <div class="f"><label>Vagas</label>${counter('parking',x.parking,'vagas')}</div>
+        </div>
+      </div>
+
+      <div class="fsection">
+        <div class="fsection-head"><div class="n">4</div><div><h3>Localização</h3><p>Preencha o CEP para completar o endereço.</p></div></div>
+        <div class="fgrid">
+          <div class="f"><label>CEP</label><input class="f-inp" name="cep" oninput="cepMask(this)" onblur="lookupCep()" placeholder="00000-000" value="${esc(x.cep)}"></div>
+          <div class="f"><label>Número</label><input class="f-inp" name="number" value="${esc(x.number)}"></div>
+          <div class="f full"><label>Endereço</label><input class="f-inp" name="address" value="${esc(x.address)}"></div>
+          <div class="f"><label>Bairro</label><input class="f-inp" name="neighborhood" value="${esc(x.neighborhood)}"></div>
+          <div class="f"><label>Complemento</label><input class="f-inp" name="complement" value="${esc(x.complement)}"></div>
+          <div class="f"><label>Cidade</label><input class="f-inp" name="city" value="${esc(x.city)}"></div>
+          <div class="f"><label>Estado</label><input class="f-inp" name="state" maxlength="2" style="text-transform:uppercase" value="${esc(x.state)}"></div>
+          <div class="f full"><label>Condomínio / Edifício</label><input class="f-inp" name="condominium_name" value="${esc(x.condominium_name)}"></div>
+          <div class="full" id="cepmsg" class="hint"></div>
+        </div>
+      </div>
+
+      <div class="fsection">
+        <div class="fsection-head"><div class="n">5</div><div><h3>Comodidades</h3><p>Selecione o que o imóvel oferece.</p></div></div>
+        <div class="feats">
+          ${FEATURES.map(f=>{const on=(x.features||[]).includes(f);return `<label class="feat ${on?'on':''}"><input type="checkbox" name="feature" value="${f}" ${on?'checked':''} onchange="this.closest('.feat').classList.toggle('on',this.checked)">${f}</label>`}).join('')}
+        </div>
+      </div>
+
+      <div class="fsection">
+        <div class="fsection-head"><div class="n">6</div><div><h3>Descrição</h3><p>Detalhe o anúncio para os interessados.</p></div></div>
+        <div class="fblock"><textarea class="f-inp" name="description" placeholder="Descreva o imóvel, o bairro e os diferenciais...">${esc(x.description)}</textarea></div>
+      </div>
+
+      <div class="fsection">
+        <div class="fsection-head"><div class="n">7</div><div><h3>Fotos</h3><p>A primeira foto será a capa do anúncio.</p></div></div>
+        <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+          ${I.upload}<b>Clique ou arraste as fotos aqui</b><small>JPG, PNG ou WEBP · até 10MB cada</small>
+        </div>
+        <input id="file" type="file" accept="image/*" multiple hidden onchange="pick(this.files)">
+        <div class="photos" id="photos"></div>
+      </div>
+    </form>
+    <div class="drawer-foot">
+      <button class="btn ghost" onclick="closeForm()">Cancelar</button>
+      <button class="btn red" id="savebtn" onclick="save(event)">${editId?'Salvar alterações':'Cadastrar imóvel'}</button>
+    </div>`;
+  $('#overlay').classList.add('open');
+  $('#drawer').classList.add('open');
+  document.body.style.overflow='hidden';
+  setupDrop();renderPhotos();
+  setTimeout(()=>$('[name=title]')?.focus(),300);
+}
+function closeForm(){
+  $('#overlay').classList.remove('open');
+  $('#drawer').classList.remove('open');
+  document.body.style.overflow='';
+}
+
+function counter(name,v,unit){
+  return `<div class="counter">
+    <button type="button" onclick="adjust('${name}',-1)" aria-label="Diminuir">−</button>
+    <input id="c-${name}" name="${name}" type="number" min="0" value="${v||0}">
+    <button type="button" onclick="adjust('${name}',1)" aria-label="Aumentar">+</button>
+  </div><div class="counter-unit">${unit}</div>`;
+}
+function adjust(n,d){const i=$('#c-'+n);if(i)i.value=Math.max(0,(parseInt(i.value)||0)+d)}
+
+function cepMask(i){let v=i.value.replace(/\D/g,'').slice(0,8);i.value=v.length>5?v.slice(0,5)+'-'+v.slice(5):v}
+async function lookupCep(){
+  const f=$('#pform'),cep=f.cep.value.replace(/\D/g,''),m=$('#cepmsg');
+  if(cep.length!==8)return;
+  m.className='hint';m.textContent='Consultando CEP...';
+  try{
+    const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');
+    const d=await r.json();
+    if(d.erro)throw Error('CEP não encontrado.');
+    if(!f.address.value)f.address.value=d.logradouro||'';
+    if(!f.neighborhood.value)f.neighborhood.value=d.bairro||'';
+    f.city.value=d.localidade||'';f.state.value=d.uf||'';
+    m.className='hint ok';m.textContent='✓ Endereço preenchido pelo CEP.';
+  }catch(e){m.className='hint warn';m.textContent=e.message}
+}
+
+/* ---------- photos ---------- */
+function setupDrop(){
+  const z=$('#drop');if(!z)return;
+  ['dragenter','dragover'].forEach(v=>z.addEventListener(v,e=>{e.preventDefault();z.classList.add('drag')}));
+  ['dragleave','drop'].forEach(v=>z.addEventListener(v,e=>{e.preventDefault();z.classList.remove('drag')}));
+  z.addEventListener('drop',e=>pick(e.dataTransfer.files));
+}
+function pick(files){
+  const valid=[...files].filter(f=>f.size<=10*1024*1024&&/^image\//.test(f.type));
+  if(valid.length!==[...files].length)toast('Alguns arquivos foram ignorados (formato ou tamanho).','err');
+  selectedFiles=[...selectedFiles,...valid];
+  renderPhotos();
+}
+function renderPhotos(){
+  const e=$('#photos');if(!e)return;
+  const ex=existingPhotos.map((u,i)=>`<div class="photo"><img src="${esc(u)}">${i===0&&!selectedFiles.length?'<span class="cover">Capa</span>':''}<button type="button" onclick="rmExisting(${i})">×</button></div>`);
+  const nw=selectedFiles.map((f,i)=>`<div class="photo"><img src="${URL.createObjectURL(f)}">${(i===0&&!existingPhotos.length)?'<span class="cover">Capa</span>':''}<button type="button" onclick="rmNew(${i})">×</button></div>`);
+  e.innerHTML=[...ex,...nw].join('');
+}
+function rmExisting(i){existingPhotos.splice(i,1);renderPhotos()}
+function rmNew(i){selectedFiles.splice(i,1);renderPhotos()}
+
+async function uploadPhotos(){
+  const urls=[];
+  for(const f of selectedFiles){
+    const path='properties/'+(editId||crypto.randomUUID())+'/'+crypto.randomUUID()+'-'+f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const {error}=await db.storage.from('property-photos').upload(path,f,{upsert:false});
+    if(error)throw error;
+    urls.push(db.storage.from('property-photos').getPublicUrl(path).data.publicUrl);
+  }
+  return urls;
+}
+
+/* ---------- save ---------- */
+async function save(ev){
+  ev.preventDefault();
+  const f=$('#pform'),btn=$('#savebtn');
+  const sale=f.for_sale.checked,rent=f.for_rent.checked;
+  if(!f.title.value.trim()){toast('Informe o título do imóvel.','err');f.title.focus();return}
+  if(!sale&&!rent){toast('Selecione Venda ou Locação.','err');return}
+  btn.disabled=true;btn.textContent='Salvando...';
+  try{
+    const newUrls=await uploadPhotos();
+    const obj={
+      title:f.title.value.trim(),
+      code:f.code.value.trim()||null,
+      transaction_type:sale?'sale':'rent',
+      for_sale:sale,for_rent:rent,
+      property_type:f.property_type.value,
+      price:sale?moneyVal(f.price.value):0,
+      rent_price:rent?moneyVal(f.rent_price.value):0,
+      condo_fee:moneyVal(f.condo_fee.value),
+      iptu:moneyVal(f.iptu.value),
+      area:Number(f.area.value||0),
+      bedrooms:Number(f.bedrooms.value||0),
+      suites:Number(f.suites.value||0),
+      bathrooms:Number(f.bathrooms.value||0),
+      parking:Number(f.parking.value||0),
+      cep:f.cep.value.trim(),address:f.address.value.trim(),number:f.number.value.trim(),
+      neighborhood:f.neighborhood.value.trim(),complement:f.complement.value.trim()||null,
+      city:f.city.value.trim(),state:f.state.value.trim().toUpperCase(),
+      condominium_name:f.condominium_name.value.trim()||null,
+      description:f.description.value.trim(),
+      features:[...f.querySelectorAll('[name=feature]:checked')].map(x=>x.value),
+      photos:[...existingPhotos,...newUrls]
+    };
+    const q=editId?await db.from('properties').update(obj).eq('id',editId):await db.from('properties').insert(obj);
+    if(q.error)throw q.error;
+    toast(editId?'Alterações salvas.':'Imóvel cadastrado com sucesso.','ok');
+    closeForm();
+    await loadProperties();
+  }catch(e){
+    toast('Erro ao salvar: '+e.message,'err');
+    btn.disabled=false;btn.textContent=editId?'Salvar alterações':'Cadastrar imóvel';
+  }
+}
+
+boot();
+</script>
+</body>
+</html>
