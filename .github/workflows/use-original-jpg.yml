@@ -1,0 +1,39 @@
+name: Use original founder JPG
+
+on:
+  push:
+    paths:
+      - '.github/workflows/use-original-jpg.yml'
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract embedded original JPEG
+        run: |
+          python - <<'PY'
+          import base64, re
+          from pathlib import Path
+          svg = Path('vinicius-vsn.svg').read_text(encoding='utf-8')
+          m = re.search(r'href="data:image/jpeg;base64,([^"]+)"', svg)
+          if not m:
+              raise SystemExit('Embedded JPEG not found in vinicius-vsn.svg')
+          Path('vinicius-vsn.jpg').write_bytes(base64.b64decode(m.group(1)))
+          print('Extracted exact embedded JPEG:', Path('vinicius-vsn.jpg').stat().st_size, 'bytes')
+          PY
+          sed -i 's#/vinicius-vsn\.svg#/vinicius-vsn.jpg#g' index.html
+      - name: Commit JPG and switch Home
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add vinicius-vsn.jpg index.html
+          git commit -m 'Usa JPG original da foto do Vinicius'
+          git push
+      - name: Remove one-time workflow
+        run: |
+          git rm .github/workflows/use-original-jpg.yml
+          git commit -m 'Remove workflow temporario da foto'
+          git push
