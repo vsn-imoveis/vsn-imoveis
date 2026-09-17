@@ -21,12 +21,14 @@ jobs:
               raise SystemExit('CSS da foto não encontrado')
           p.write_text(s2)
           PY
-      - name: Commit e remover workflow
+      - name: Commit e publicar
         run: |
           git config user.name "vsn-imoveis"
           git config user.email "vsnimoveis@gmail.com"
-          git add index.html
+          git add index.html .github/workflows/fix-founder-jpg-display.yml
           git commit -m "Ajusta exibição da foto JPG original"
           git rm .github/workflows/fix-founder-jpg-display.yml
           git commit -m "Remove workflow temporário"
-          git push
+          git fetch origin main
+          git rebase origin/main
+          git push origin HEAD:main
