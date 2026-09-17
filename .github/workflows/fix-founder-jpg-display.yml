@@ -11,13 +11,15 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p = Path('index.html')
           s = p.read_text()
-          old = '.founder-photo{width:100%;max-width:432px;height:auto;justify-self:end;object-fit:contain;object-position:center center;border-radius:16px;box-shadow:0 18px 45px rgba(11,41,64,.14)}'
+          pattern = r'\.founder-photo\{[^}]*\}'
           new = '.founder-photo{display:block;width:432px;max-width:100%;height:auto;justify-self:end;object-fit:contain;object-position:center center;border-radius:16px;box-shadow:0 18px 45px rgba(11,41,64,.14)}'
-          if old not in s:
-              raise SystemExit('CSS alvo não encontrado')
-          p.write_text(s.replace(old, new, 1))
+          s2, n = re.subn(pattern, new, s, count=1)
+          if n != 1:
+              raise SystemExit('CSS da foto não encontrado')
+          p.write_text(s2)
           PY
       - name: Commit e remover workflow
         run: |
