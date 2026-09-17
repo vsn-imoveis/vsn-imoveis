@@ -1,0 +1,26 @@
+name: Replace founder image
+on:
+  push:
+    paths:
+      - '.github/workflows/replace-founder-image.yml'
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install new JPG and update Home
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BLOB_SHA: 1978d19c8dcf263fe42b9b17bb1dbfe8059263dd
+        run: |
+          curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/vsn-imoveis/vsn-imoveis/git/blobs/$BLOB_SHA" | jq -r .content | tr -d '\n' | base64 -d > vinicius-vsn.jpg
+          sed -i 's#/vinicius-vsn.svg#/vinicius-vsn.jpg#g' index.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add vinicius-vsn.jpg index.html
+          git commit -m 'Substitui foto do fundador por JPG'
+          git rm .github/workflows/replace-founder-image.yml
+          git commit -m 'Remove workflow temporário'
+          git push
