@@ -1,0 +1,30 @@
+name: Publicar estado atual
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gerar novo commit para disparar o deploy
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          if not s.endswith('\n'):
+              s += '\n'
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit e remover workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/publish-current-state.yml
+          git add index.html .github/workflows/publish-current-state.yml
+          git diff --cached --quiet || git commit -m "chore: publicar estado atual do site"
+          git push
