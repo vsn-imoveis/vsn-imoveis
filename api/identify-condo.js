@@ -8,9 +8,15 @@ export default async function handler(req,res){
   }
 
   try{
-    if(req.method!=='POST') return res.status(405).json({error:'Método não permitido'});
+    const input=req.method==='GET'
+      ? req.query||{}
+      : req.body||{};
 
-    const {address,number,cep,city,state}=req.body||{};
+    if(req.method!=='POST' && req.method!=='GET'){
+      return res.status(405).json({error:'Método não permitido'});
+    }
+
+    const {address,number,cep,city,state}=input;
     if(!address||!number) return res.status(400).json({error:'Informe endereço e número.'});
 
     const cepClean=String(cep||'').replace(/\D/g,'');
