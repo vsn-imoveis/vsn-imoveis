@@ -50,8 +50,9 @@ export default async function handler(req,res){
     // Consultas em camadas: endereço exato + portais imobiliários que costumam
     // indexar o nome do condomínio. Isso evita depender de um único resultado genérico.
     const baseQueries=[
+      `"${cepClean}" "${address}" "${number}" condomínio ${city||''}`,
+      `"${cepClean}" "${address}" "${number}" residencial`,
       `"${address}" "${number}" condomínio ${city||''}`,
-      `"${address}, ${number}" condomínio residencial`,
       `"${address}" "${number}" apartamento condomínio`
     ];
     const priorityDomains=[
@@ -96,9 +97,11 @@ export default async function handler(req,res){
       }catch(_){ return []; }
     };
 
+    const cepClean=String(cep||'').replace(/\D/g,'');
     const googleQueries=[
-      `"${address}" "${number}" condomínio ${city||''}`,
-      `"${address}, ${number}" condomínio residencial`
+      `"${cepClean}" "${address}" "${number}" condomínio ${city||''}`,
+      `"${cepClean}" "${address}" "${number}" residencial`,
+      `"${address}" "${number}" condomínio ${city||''}`
     ];
     const googleBatches=await Promise.all(googleQueries.map(googleSearch));
     for(const batch of googleBatches) results.push(...batch);
