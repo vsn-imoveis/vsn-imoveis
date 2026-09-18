@@ -4,62 +4,135 @@ export default async function handler(req,res){
     const {address,number,cep,city,state}=req.body||{};
     if(!address||!number) return res.status(400).json({error:'Informe endereço e número.'});
 
-    const clean=s=>String(s||'').replace(/<[^>]*>/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/\\s+/g,' ').trim();
-    const norm=s=>String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/\\bestr\\.?\\b/g,'estrada').replace(/\\br\\.?\\b/g,'rua').replace(/\\bav\\.?\\b/g,'avenida').replace(/[^a-z0-9]+/g,' ').trim();
-    const cepClean=String(cep||'').replace(/\\D/g,'');
-    const exact=`${address}, ${number}`;
-    const queries=[
-      `"${cepClean}" "${address}" "${number}" condomínio ${city||''}`,
-      `"${exact}" condomínio`
-    ];
-
-    const search=async q=>{
-      const url='https://www.google.com/search?q='+encodeURIComponent(q)+'&hl=pt-BR&gl=br&num=10';
-      const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),5500);
-      try{
-        const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0'},signal:ctrl.signal});
-        if(!r.ok)return [];
-        const html=await r.text();
-        const out=[]; const re=/<a href="(https?:\\/\\/[^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi;
-        let m;
-        while((m=re.exec(html))&&out.length<10){
-          if(/google\\./i.test(m[1]))continue;
-          const title=clean(m[2]);
-          if(title.length>3)out.push({title,url:m[1],text:clean(m[2])});
-        }
-        return out;
-      }finally{clearTimeout(timer)}
-    };
-
-    const batches=await Promise.all(queries.map(search));
-    const results=batches.flat();
-    const street=norm(address), num=String(number).trim(), cepN=cepClean;
-    const scored=results.map(x=>{
-      const t=norm(x.title+' '+x.text); let score=0;
-      if(cepN && t.includes(cepN))score+=100;
-      if(street && t.includes(street))score+=80;
-      if(num && t.includes(norm(num)))score+=80;
-      if(/condominio|residencial|residence|parque das orquideas|liber park/i.test(t))score+=40;
-      return {...x,score};
-    }).sort((a,b)=>b.score-a.score);
-
-    const best=scored.find(x=>x.score>=120 && /condominio|residencial|residence/i.test(norm(x.title+' '+x.text)));
-    if(!best)return res.status(200).json({
-      condominium_name:'',confidence:'baixa',features:[],
-      evidence:`Busca realizada com CEP + endereço + número, mas não houve correspondência suficiente para ${exact}.`,
-      sources:scored.slice(0,5)
+    const apiKey=process.env.OPENAI_API_KEY;
+    if(!apiKey) return res.status(500).json({
+      error:'OPENAI_API_KEY não configurada na Vercel.',
+      debug:{request:{address,number,cep,city,state}}
     });
 
-    let name=clean(best.title);
-    name=name.replace(/\\s*[|–—-].*$/,'').trim();
+    const cepClean=String(cep||'').replace(/\D/g,'');
+    const exactAddress=[address,number,city,state].filter(Boolean).join(', ');
+    const searchInstruction=[
+      'Identifique com precisão o condomínio localizado neste endereço.',
+      `Endereço: ${address}, ${number}`,
+      `CEP: ${cepClean||'não informado'}`,
+      `Cidade: ${city||'não informada'}`,
+      `Estado: ${state||'não informado'}`,
+      '',
+      'Use busca na web. Priorize fontes imobiliárias e documentos públicos que mostrem explicitamente o endereço e o número.',
+      'Não invente o nome. Se houver nomes variantes, informe o nome principal e as variantes.',
+      'Retorne SOMENTE JSON válido neste formato:',
+      '{',
+      '  "condominium_name": "nome principal ou vazio",',
+      '  "name_variants": ["variantes"],',
+      '  "confidence": "alta|media|baixa",',
+      '  "evidence": "explicação curta baseada nas fontes",',
+      '  "sources": [{"title":"...","url":"...","evidence":"..."}]',
+      '}'
+    ].join('\n');
+
+    const r=await fetch('https://api.openai.com/v1/responses',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+apiKey
+      },
+      body:JSON.stringify({
+        model:'gpt-5.6-luna',
+        tools:[{type:'web_search_preview'}],
+        input:searchInstruction,
+        max_output_tokens:1800
+      })
+    });
+
+    const raw=await r.text();
+    let data;
+    try{data=JSON.parse(raw)}catch(_){
+      return res.status(502).json({
+        error:'A OpenAI retornou uma resposta não-JSON.',
+        debug:{request:{address,number,cep,city,state},http_status:r.status,raw:raw.slice(0,4000)}
+      });
+    }
+
+    if(!r.ok){
+      return res.status(502).json({
+        error:data?.error?.message||'Falha na OpenAI.',
+        debug:{
+          request:{address,number,cep,city,state},
+          openai_status:r.status,
+          openai_error:data?.error||data
+        }
+      });
+    }
+
+    const outputText=String(data.output_text||'').trim();
+    let result;
+    try{result=JSON.parse(outputText)}catch(_){
+      const m=outputText.match(/\{[\s\S]*\}/);
+      if(m){try{result=JSON.parse(m[0])}catch(__){}}
+    }
+    if(!result||typeof result!=='object'){
+      result={
+        condominium_name:'',
+        name_variants:[],
+        confidence:'baixa',
+        evidence:'A busca foi executada, mas a resposta não veio no formato esperado.',
+        sources:[]
+      };
+    }
+
+    const searchCalls=[];
+    const walk=v=>{
+      if(!v||typeof v!=='object')return;
+      if(v.type==='web_search_call')searchCalls.push({
+        id:v.id||null,
+        status:v.status||null,
+        action:v.action||null
+      });
+      if(Array.isArray(v))v.forEach(walk);
+      else Object.values(v).forEach(walk);
+    };
+    walk(data.output);
+
+    const annotations=[];
+    const walkAnn=v=>{
+      if(!v||typeof v!=='object')return;
+      if(Array.isArray(v))return v.forEach(walkAnn);
+      if(v.type==='url_citation')annotations.push({
+        title:v.title||null,
+        url:v.url||null,
+        start_index:v.start_index,
+        end_index:v.end_index
+      });
+      Object.values(v).forEach(walkAnn);
+    };
+    walkAnn(data.output);
+
     return res.status(200).json({
-      condominium_name:name,
-      confidence:'alta',
-      features:[],
-      evidence:`Endereço consultado: ${exact}. CEP: ${cepClean||'não informado'}. Resultado encontrado em busca pública.`,
-      sources:scored.slice(0,5)
+      condominium_name:String(result.condominium_name||'').trim(),
+      name_variants:Array.isArray(result.name_variants)?result.name_variants:[],
+      confidence:String(result.confidence||'baixa'),
+      evidence:String(result.evidence||''),
+      sources:Array.isArray(result.sources)?result.sources:[],
+      debug:{
+        request:{
+          address,number,cep:cepClean,city,state,
+          exact_address:exactAddress
+        },
+        openai:{
+          model:'gpt-5.6-luna',
+          response_id:data.id||null,
+          search_calls:searchCalls,
+          url_citations:annotations
+        },
+        returned_text:outputText
+      }
     });
   }catch(e){
-    return res.status(500).json({error:'Erro interno da API.',details:String(e?.message||e)});
+    return res.status(500).json({
+      error:'Erro interno da API.',
+      details:String(e?.message||e),
+      debug:{stage:'identify-condo'}
+    });
   }
 }
