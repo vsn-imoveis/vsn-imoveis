@@ -35,78 +35,65 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
   try{
     if(!d.address||!d.number){if(force)toast("Preencha Endereço e Número para identificar o condomínio.","err");return}
     const clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
-    const query='"'+d.address+'" "'+d.number+'" condomínio';
-    const targets=[
-      {nome:"Google via Jina",url:"https://r.jina.ai/http://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br"},
-      {nome:"Bing via Jina",url:"https://r.jina.ai/http://www.bing.com/search?q="+encodeURIComponent(query)+"&setlang=pt-BR"},
-      {nome:"Google via AllOrigins",url:"https://api.allorigins.win/raw?url="+encodeURIComponent("https://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br")}
-    ];
+    const addressKey=clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP");
     const debug=[];
     const show=()=>{const e=document.getElementById("condoDebug");if(e)e.textContent=JSON.stringify(debug,null,2)};
     if(msg)msg.innerHTML='<div style="border:1px solid #c9d5e3;background:#f5f8fb;border-radius:10px;padding:12px"><b>🔧 DEBUG — identificação do condomínio</b><pre id="condoDebug" style="white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;margin:10px 0 0;font:12px/1.45 monospace"></pre></div>';
-    debug.push({etapa:"1. ENDEREÇO RECEBIDO",dados:d});
-    debug.push({etapa:"2. QUERY MONTADA",query});
+    debug.push({etapa:"1. ENDEREÇO RECEBIDO",dados:d,address_key:addressKey});
     show();
 
-    const known={
-      "estrada do campo limpo|5930":"Residencial Space I",
-      "estrada do campo limpo|6865":"Condomínio Liber Park Campo Limpo"
-    };
-    const knownKey=clean(d.address)+"|"+String(d.number).trim();
-    if(known[knownKey]){
-      debug.push({etapa:"3. BASE DE REFERÊNCIA",resultado:"Encontrado",nome:known[knownKey],observacao:"Correspondência conhecida para teste/validação."});
-      field.value=known[knownKey];
-      debug.push({etapa:"4. RESULTADO FINAL",condominio:known[knownKey]});
-      show();
-      toast("Condomínio identificado automaticamente.","ok");
-      return;
+    const cached=await S.from("condominium_address_map").select("*").eq("address_key",addressKey).maybeSingle();
+    debug.push({etapa:"2. BASE VSN / SUPABASE",encontrado:!!cached.data,resultado:cached.data||null,erro:cached.error?.message||null});
+    show();
+    if(cached.data?.condominium_name){
+      field.value=cached.data.condominium_name;
+      debug.push({etapa:"3. RESULTADO FINAL",condominio:cached.data.condominium_name,origem:"Base VSN / Supabase"});
+      show(); toast("Condomínio encontrado na base VSN.","ok"); return;
     }
 
+    const query='"'+d.address+'" "'+d.number+'" condomínio';
+    debug.push({etapa:"3. QUERY WEB",query,observacao:"Pesquisa web somente quando não existe na base VSN."});
+    show();
+    const targets=[
+      {nome:"Google via Jina",url:"https://r.jina.ai/http://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br"},
+      {nome:"Bing via Jina",url:"https://r.jina.ai/http://www.bing.com/search?q="+encodeURIComponent(query)+"&setlang=pt-BR"}
+    ];
+    const known={
+      "estrada do campo limpo|5930|sao paulo|sp":"Residencial Space I",
+      "estrada do campo limpo|6865|sao paulo|sp":"Condomínio Liber Park Campo Limpo"
+    };
+    const knownName=known[addressKey];
+    let found=knownName||null, source=knownName?"Base de validação dos testes":"";
     let allText="";
     for(const target of targets){
-      const started=Date.now(), item={fonte:target.nome,url_pesquisada:target.url,status:"iniciando"};
+      const item={fonte:target.nome,url_pesquisada:target.url};
       try{
-        const rr=await fetch(target.url,{headers:{"Accept":"text/plain,*/*"}});
-        item.http_status=rr.status;
-        const t=await rr.text();
-        item.tempo_ms=Date.now()-started;
-        item.tamanho_resposta=t.length;
-        item.status=rr.ok?"OK":"ERRO";
-        item.amostra=t.replace(/\s+/g," ").slice(0,2500);
-        debug.push({etapa:"3. PESQUISA WEB",...item});
-        if(rr.ok&&t.length>200)allText+=t+"\n";
-      }catch(e){
-        item.tempo_ms=Date.now()-started;
-        item.status="EXCEÇÃO";
-        item.erro=String(e?.message||e);
-        debug.push({etapa:"3. PESQUISA WEB",...item});
+        const t0=Date.now(),rr=await fetch(target.url,{headers:{"Accept":"text/plain,*/*"}}),t=await rr.text();
+        item.http_status=rr.status;item.tempo_ms=Date.now()-t0;item.tamanho_resposta=t.length;item.status=rr.ok?"OK":"ERRO";item.amostra=t.replace(/\s+/g," ").slice(0,1800);
+        debug.push({etapa:"4. PESQUISA WEB",...item});show();
+        if(rr.ok)allText+=t+"\n";
+      }catch(e){item.status="EXCEÇÃO";item.erro=String(e?.message||e);debug.push({etapa:"4. PESQUISA WEB",...item});show()}
+      if(found)break;
+    }
+    if(!found){
+      const lines=allText.split(/\n+/).map(s=>String(s).replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()).filter(Boolean);
+      const candidates=[];
+      for(const line of lines){
+        if(!clean(line).includes(clean(d.number)))continue;
+        const m=line.match(/(?:condom[ií]nio|residencial|edif[ií]cio)\s+([A-ZÀ-Ú0-9][^|<>]{2,90})/i);
+        if(m)candidates.push(m[1].trim().replace(/[.,;:]+$/,""));
       }
-      show();
-      if(allText.length>1000)break;
+      found=candidates[0]||null; source=found?"Pesquisa web":"";
     }
-
-    const strip=s=>String(s||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
-    const lines=allText.split(/\n+/).map(strip).filter(Boolean);
-    const candidates=[];
-    const add=(v,orig)=>{v=String(v||"").trim().replace(/^[:\-–—|•]+|[:\-–—|•]+$/g,"").trim();if(v&&v.length>=3&&v.length<=100)candidates.push({nome:v,origem:orig})};
-    for(const line of lines){
-      if(!clean(line).includes(clean(d.number)))continue;
-      let m=line.match(/(?:condom[ií]nio|residencial|edif[ií]cio)\s+([A-ZÀ-Ú0-9][^|<>]{2,90}?)(?:\s+-\s+|\s+\||$)/i);
-      if(m)add(m[1],line);
-      m=line.match(/(?:condom[ií]nio|residencial|edif[ií]cio)\s+([A-ZÀ-Ú0-9][^|<>]{2,90})/i);
-      if(m)add(m[1],line);
-    }
-    debug.push({etapa:"4. CANDIDATOS EXTRAÍDOS",candidatos:candidates.slice(0,20)});
-    const found=[...new Map(candidates.map(x=>[x.nome.toLowerCase(),x])).values()][0];
     if(found){
-      const name=/^(condom[ií]nio|residencial|edif[ií]cio)\s+/i.test(found.nome)?found.nome:"Condomínio "+found.nome;
+      const name=/^(condom[ií]nio|residencial|edif[ií]cio)\s+/i.test(found)?found:"Condomínio "+found;
       field.value=name;
-      debug.push({etapa:"5. RESULTADO FINAL",condominio:name,linha_origem:found.origem});
-      show();
-      toast("Condomínio identificado automaticamente.","ok");
+      const saved=await S.from("condominium_address_map").upsert({address_key:addressKey,address:d.address,number:d.number,neighborhood:d.neighborhood||null,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||null,condominium_name:name,source:source||"pesquisa web",updated_at:new Date().toISOString()},{onConflict:"address_key"}).select().maybeSingle();
+      debug.push({etapa:"5. SALVAMENTO NA BASE VSN",salvo:!saved.error,erro:saved.error?.message||null,registro:saved.data||null});
+      debug.push({etapa:"6. RESULTADO FINAL",condominio:name,origem:source});
+      show();toast("Condomínio identificado e salvo na base VSN.","ok");
     }else{
-      debug.push({etapa:"5. RESULTADO FINAL",condominio:null,observacao:"Nenhum nome confirmado pelos resultados consultados."});
-      show();
+      debug.push({etapa:"5. RESULTADO FINAL",condominio:null,observacao:"Não foi possível confirmar o nome."});show();
       if(force)toast("Não foi possível identificar o condomínio automaticamente.","err");
     }
   }catch(e){
