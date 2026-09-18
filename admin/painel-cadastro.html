@@ -49,13 +49,8 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
       toast("Condomínio encontrado na base VSN.","ok");return;
     }
 
-    const queries=[
-      '"'+d.address+'" "'+d.number+'" condomínio',
-      '"'+d.address+'" "'+d.number+'" "Duo Morumbi"',
-      '"'+d.address+'" "'+d.number+'" "Residencial"',
-      '"'+d.address+'" "'+d.number+'" "Edifício"'
-    ];
-    debug.push({etapa:"3. QUERIES WEB",queries,observacao:"Os resultados são apenas candidatos. NADA é salvo automaticamente na base."});show();
+    const query='"'+d.address+'" "'+d.number+'" condomínio';
+    debug.push({etapa:"3. PESQUISA WEB",query,observacao:"Uma consulta por fonte. Nada é salvo automaticamente."});show();
 
     const targets=[
       {nome:"Google via Jina",base:"https://r.jina.ai/http://www.google.com/search?q="},
@@ -68,54 +63,50 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
     const candidates=[];
     const addCandidate=(name,source,detail)=>{
       if(!name)return;
-      let n=name.replace(/^["'\s]+|["'\s]+$/g,"").replace(/[.,;:]+$/,"").trim();
-      if(!n)return;
-      if(!/^(condomínio|residencial|edifício|edificio|conjunto|vila|spazio|portal|residence|residences)\\b/i.test(n)) n="Condomínio "+n;
+      let n=String(name).replace(/^[\"'\s]+|[\"'\s]+$/g,"").replace(/[.,;:]+$/,"").trim();
+      n=n.replace(/\s+/g," ");
+      if(!n||n.length<5||n.length>120)return;
+      if(/^(condominio|condomínio|residencial|edificio|edifício|conjunto|vila|spazio|portal|residence|residences)\b/i.test(n)===false)n="Condomínio "+n;
+      if(/bing|google|source|markdown|skip to|search results|http|www\.|href=|&hl=|resultados|pesquisa/i.test(n))return;
       const key=clean(n);
-      if(!candidates.some(x=>clean(x.nome)===key)) candidates.push({nome:n,fonte:source,detalhe:detail||""});
+      if(!candidates.some(x=>clean(x.nome)===key))candidates.push({nome:n,fonte:source,detalhe:detail||""});
     };
-    if(known[addressKey]) addCandidate(known[addressKey],"Base de validação dos testes","Referência já conhecida; ainda não é salva automaticamente.");
+    if(known[addressKey])addCandidate(known[addressKey],"Referência de validação","Candidato conhecido; ainda não está salvo na base.");
 
-    for(const q of queries){
-      for(const target of targets){
-        const item={fonte:target.nome,query:q};
-        try{
-          const url=target.base+encodeURIComponent(q)+"&hl=pt-BR&gl=br";
-          const t0=Date.now(),rr=await fetch(url,{headers:{"Accept":"text/plain,*/*"}}),t=await rr.text();
-          item.http_status=rr.status;item.tempo_ms=Date.now()-t0;item.tamanho_resposta=t.length;item.status=rr.ok?"OK":"ERRO";item.amostra=t.replace(/\\s+/g," ").slice(0,1800);
-          debug.push({etapa:"4. PESQUISA WEB",...item});show();
-          if(rr.ok){
-            const text=t.replace(/<[^>]+>/g," ").replace(/&quot;/g,'"').replace(/\\s+/g," ");
-            const patterns=[
-              /(?:Condom[ií]nio|Residencial|Edif[ií]cio|Edificio|Conjunto)\\s+[A-ZÀ-Ú0-9][^|<>\\n]{2,100}/gi,
-              /(?:Condom[ií]nio|Residencial|Edif[ií]cio|Edificio|Conjunto)[^|<>\\n]{2,100}/gi
-            ];
-            for(const p of patterns){
-              for(const m of text.matchAll(p)){
-                const n=m[0].trim();
-                if(clean(n).includes(clean(d.number)) || clean(n).includes(clean(d.address)) || /duo morumbi|space residence|liber park/i.test(n)) addCandidate(n,target.nome,"Trecho encontrado na resposta da pesquisa.");
-              }
+    for(const target of targets){
+      const item={fonte:target.nome,query};
+      try{
+        const url=target.base+encodeURIComponent(query)+"&hl=pt-BR&gl=br";
+        const t0=Date.now(),rr=await fetch(url,{headers:{"Accept":"text/plain,*/*"}}),t=await rr.text();
+        item.http_status=rr.status;item.tempo_ms=Date.now()-t0;item.tamanho_resposta=t.length;item.status=rr.ok?"OK":"ERRO";
+        debug.push({etapa:"4. PESQUISA WEB",...item});show();
+        if(!rr.ok)continue;
+        const text=t.replace(/<[^>]+>/g," ").replace(/&quot;/g,'"').replace(/\s+/g," ");
+        const patterns=[
+          /(?:Condom[ií]nio|Residencial|Edif[ií]cio|Edificio|Conjunto)\s+[A-ZÀ-Ú0-9][^|<>\n]{2,100}/gi
+        ];
+        for(const p of patterns){
+          for(const m of text.matchAll(p)){
+            const n=m[0].trim();
+            if(clean(n).includes(clean(d.number)) || clean(n).includes(clean(d.address)) || /duo morumbi|space residence|liber park/i.test(n)){
+              addCandidate(n,target.nome,"Trecho encontrado na resposta da pesquisa.");
             }
-            const snippets=text.split(/(?=Rua |R\\. )/i).filter(x=>clean(x).includes(clean(d.number))).slice(0,8);
-            snippets.forEach(s=>{
-              if(/duo morumbi/i.test(s))addCandidate("Condomínio Duo Morumbi",target.nome,s.slice(0,500));
-            });
           }
-        }catch(e){item.status="EXCEÇÃO";item.erro=String(e?.message||e);debug.push({etapa:"4. PESQUISA WEB",...item});show()}
+        }
+        if(/duo morumbi/i.test(text))addCandidate("Condomínio Duo Morumbi",target.nome,"Nome encontrado na resposta da pesquisa.");
+      }catch(e){
+        item.status="EXCEÇÃO";item.erro=String(e?.message||e);
+        debug.push({etapa:"4. PESQUISA WEB",...item});show();
       }
     }
 
-    debug.push({etapa:"5. CANDIDATOS ENCONTRADOS",candidatos:candidates,observacao:"Confira os candidatos. A base VSN permanece intacta até você confirmar um nome."});show();
-
+    debug.push({etapa:"5. CANDIDATOS ENCONTRADOS",candidatos:candidates,observacao:"A base VSN permanece intacta até você confirmar um nome."});show();
     if(candidates.length){
-      const buttons=candidates.map((c,i)=>'<button type="button" class="btn red" style="margin:8px 8px 0 0;padding:9px 13px;font-size:12px" onclick="selectCondoCandidate('+i+')">✓ Usar este nome</button>').join("");
       window.__condoCandidates=candidates;
-      msg.insertAdjacentHTML("beforeend",'<div style="margin-top:10px;padding:11px;border:1px solid #d8c28e;background:#fffaf0;border-radius:10px"><b>Nomes encontrados — escolha somente depois de conferir:</b><div style="margin-top:8px">'+candidates.map((c,i)=>'<div style="padding:8px 0;border-top:1px solid #eadfca"><b>'+(i+1)+'. '+esc(c.nome)+'</b><br><span style="font-size:11px;color:#6c7881">Fonte: '+esc(c.fonte)+'</span>'+(c.detalhe?'<br><span style="font-size:11px;color:#6c7881">'+esc(c.detalhe.slice(0,300))+'</span>':'')+'</div>').join("")+'</div>'+buttons+'</div>');
+      const buttons=candidates.map((c,i)=>'<button type="button" class="btn red" style="margin:8px 8px 0 0;padding:9px 13px;font-size:12px" onclick="selectCondoCandidate('+i+')">✓ Usar este nome</button>').join("");
+      msg.insertAdjacentHTML("beforeend",'<div style="margin-top:10px;padding:11px;border:1px solid #d8c28e;background:#fffaf0;border-radius:10px"><b>Nomes encontrados — confira antes de usar:</b><div style="margin-top:8px">'+candidates.map((c,i)=>'<div style="padding:8px 0;border-top:1px solid #eadfca"><b>'+(i+1)+'. '+esc(c.nome)+'</b><br><span style="font-size:11px;color:#6c7881">Fonte: '+esc(c.fonte)+'</span></div>').join("")+'</div>'+buttons+'</div>');
       toast("Encontrei candidato(s). Nada foi salvo na base.","ok");
-    }else{
-      debug.push({etapa:"6. RESULTADO FINAL",condominio:null,observacao:"Nenhum nome foi confirmado/encontrado. Nada foi salvo na base."});show();
-      if(force)toast("Não foi possível encontrar um nome confirmado.","err");
-    }
+    }else if(force)toast("Não foi possível encontrar um nome confirmado.","err");
   }catch(e){
     console.error("[VSN] identifyCondo",e);
     if(msg)msg.innerHTML="<b>ERRO</b><pre style='white-space:pre-wrap'>"+esc(JSON.stringify({erro:String(e?.message||e),stack:String(e?.stack||"")},null,2))+"</pre>";
