@@ -74,7 +74,7 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
   if(msg)msg.textContent="🔎 Pesquisando na internet...";
   try{
     const query=[d.address,d.number,d.neighborhood,d.city,d.state].filter(Boolean).join(", ");
-    const r=await fetch("/api/search-web.js?q="+encodeURIComponent(query));
+    const r=await fetch("/api/identify-condo.js?q="+encodeURIComponent(query));
     const j=await r.json();
     if(!r.ok){msg.innerHTML="<b>Erro da pesquisa:</b> "+esc(j.error||"Falha");return}
     if(j.first_link){
