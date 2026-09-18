@@ -8,9 +8,7 @@ export default async function handler(req, res) {
   const body = req.method === 'POST' ? (req.body || {}) : {};
   const query = String(req.query?.q ?? body.q ?? '').trim();
 
-  if (!query) {
-    return res.status(400).json({ error: 'Informe a pesquisa em q.' });
-  }
+  if (!query) return res.status(400).json({ error: 'Informe a pesquisa em q.' });
 
   try {
     const googleUrl = 'https://www.google.com/search?' + new URLSearchParams({
@@ -25,34 +23,40 @@ export default async function handler(req, res) {
       redirect: 'follow'
     });
 
-    if (!response.ok) return res.status(502).json({ error: 'Google HTTP ' + response.status });
-
     const html = await response.text();
+
+    if (!response.ok) {
+      return res.status(502).json({
+        error: 'Falha na busca',
+        google_status: response.status,
+        google_url: googleUrl,
+        response_preview: html.slice(0, 1000)
+      });
+    }
+
     const clean = s => String(s || '')
       .replace(/<[^>]*>/g, ' ')
       .replace(/&amp;/g, '&').replace(/&quot;/g, '"')
       .replace(/&#39;|&#x27;/g, "'").replace(/&nbsp;/g, ' ')
-      .replace(/\\s+/g, ' ').trim();
+      .replace(/\s+/g, ' ').trim();
 
     const results = [];
     const seen = new Set();
-    const blocks = html.match(/<a[^>]+href="([^"]+)"[^>]*>[\\s\\S]*?<h3[^>]*>([\\s\\S]*?)<\\/h3>[\\s\\S]*?<\\/a>/gi) || [];
+    const blocks = html.match(/<a[^>]+href="([^"]+)"[^>]*>[\s\S]*?<h3[^>]*>([\s\S]*?)<\/h3>[\s\S]*?<\/a>/gi) || [];
 
     for (const block of blocks) {
       const href = block.match(/<a[^>]+href="([^"]+)"/i)?.[1] || '';
-      const titleRaw = block.match(/<h3[^>]*>([\\s\\S]*?)<\\/h3>/i)?.[1] || '';
+      const titleRaw = block.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i)?.[1] || '';
       let url = href;
 
       if (url.startsWith('/url?q=')) url = url.slice(7).split('&')[0];
       try { url = decodeURIComponent(url); } catch {}
 
-      if (!/^https?:\\/\\//i.test(url)) continue;
+      if (!/^https?:\/\//i.test(url)) continue;
 
       try {
-        if (/google\\./i.test(new URL(url).hostname)) continue;
-      } catch {
-        continue;
-      }
+        if (/google\./i.test(new URL(url).hostname)) continue;
+      } catch { continue; }
 
       const title = clean(titleRaw);
       if (!title || seen.has(url)) continue;
@@ -66,7 +70,13 @@ export default async function handler(req, res) {
       query,
       provider: 'Google',
       first_result: results[0] || null,
-      results
+      results,
+      debug: {
+        google_status: response.status,
+        google_url: googleUrl,
+        html_length: html.length,
+        h3_blocks: blocks.length
+      }
     });
   } catch (e) {
     return res.status(500).json({
