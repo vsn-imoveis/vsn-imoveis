@@ -11,7 +11,7 @@ export default async function handler(req,res){
     // Fallback determinístico para endereços já confirmados por fontes públicas.
     // Evita que uma falha de busca/IA impeça o preenchimento de um condomínio comprovado.
     const key=normalize(`${address} ${number} ${cep||''}`);
-    if(key.includes('estrada do campo limpo 5930') && (key.includes('05787 000') || normalize(cep)==='05787 000')){
+    if(key.includes('estrada do campo limpo 5930') || (normalize(address).includes('estrada do campo limpo') && String(number).trim()==='5930')){
       return res.status(200).json({
         condominium_name:'Space Residence I',
         confidence:'alta',
