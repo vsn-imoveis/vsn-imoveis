@@ -138,9 +138,13 @@ export default async function handler(req,res){
       return {...x,score};
     }).sort((a,b)=>b.score-a.score);
 
-    const best=scored.find(x=>x.score>=120 && /condominio|residencial|residence|space residence|parque das orquideas/i.test(`${x.title} ${x.snippet}`));
+    // Quando o buscador retorna uma página de condomínio com o endereço exato,
+    // mas o snippet não contém literalmente todos os elementos do endereço,
+    // aceitamos também uma correspondência forte por número + termos de condomínio.
+    const best=scored.find(x=>x.score>=120 && /condominio|residencial|residence|space residence|parque das orquideas/i.test(`${x.title} ${x.snippet}`))
+      || scored.find(x=>x.score>=70 && /condominio|residencial|residence|space residence/i.test(`${x.title} ${x.snippet}`) && normalize(`${x.title} ${x.snippet}`).includes(normalize(String(number))));
     if(!best){
-      return res.status(200).json({condominium_name:'',confidence:'baixa',features:[],evidence:`Não encontramos evidência pública suficiente para o endereço exato ${location}.`,sources:scored.slice(0,5).map(x=>({title:x.title,url:x.url,evidence:x.snippet}))});
+      return res.status(200).json({condominium_name:'',confidence:'baixa',features:[],evidence:`Não encontramos evidência pública suficiente para o endereço exato ${location}.`,sources:scored.slice(0,8).map(x=>({title:x.title,url:x.url,evidence:x.snippet}))});
     }
 
     const evidence=scored.filter(x=>x.score>=70).slice(0,8);
