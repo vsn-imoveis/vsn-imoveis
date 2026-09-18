@@ -14,7 +14,7 @@ export default async function handler(req,res){
   const query=[address,number,cepClean,city,state,'condomínio'].filter(Boolean).join(' ');
 
   try{
-    const url='https://www.bing.com/search?'+new URLSearchParams({
+    const url='https://cn.bing.com/search?'+new URLSearchParams({
       format:'rss',
       q:query
     }).toString();
