@@ -195,8 +195,32 @@ export default async function handler(req,res){
     let name='';
     for(const p of [/condominio\s+(space residence(?:\s+i|\s+ii)?)/i,/condominio\s+(space residence\\s*-\\s*parque das orquideas)/i,/residencial\s+(space residence(?:\s+i|\s+ii)?)/i,/(space residence\\s*-\\s*parque das orquideas)/i]){const m=combined.match(p);if(m){name=m[1].replace(/\s+/g,' ').trim();break}}
     if(!name) name=clean(best.title.replace(/\\s*[|–-].*$/,'').trim());
-    const features=[];const add=(rx,label)=>{if(rx.test(nc))features.push(label)};
-    add(/elevador/,'Elevador');add(/churrasqueira/,'Churrasqueira');add(/academia/,'Academia');add(/salao de festas/,'Salão de festas');add(/playground/,'Playground');add(/portaria.{0,25}24|24.{0,25}portaria|seguranca 24/,'Portaria 24h');add(/piscina/,'Piscina');add(/varanda|sacada/,'Varanda');add(/aceita pets|pets/,'Aceita pets');
+    // Características: só marcamos quando há evidência POSITIVA. Menções negativas
+    // como "não tem piscina" não contam como presença.
+    const features=[];
+    const addPositive=(rx,label)=>{
+      const neg=new RegExp(`(?:nao|não|sem|não possui|nao possui)[^.!?]{0,40}${rx.source}`,'i');
+      if(rx.test(nc) && !neg.test(nc)) features.push(label);
+    };
+    addPositive(/elevador/,'Elevador');
+    addPositive(/churrasqueira/,'Churrasqueira');
+    addPositive(/academia/,'Academia');
+    addPositive(/salao de festas/,'Salão de festas');
+    addPositive(/playground/,'Playground');
+    addPositive(/portaria.{0,25}24|24.{0,25}portaria|seguranca 24/,'Portaria 24h');
+    addPositive(/piscina/,'Piscina');
+    addPositive(/quadra esportiva|quadra de esportes/,'Quadra esportiva');
+    addPositive(/brinquedoteca/,'Brinquedoteca');
+    addPositive(/salao de jogos/,'Salão de jogos');
+    addPositive(/espaco gourmet/,'Espaço gourmet');
+    addPositive(/area verde/,'Área verde');
+    addPositive(/bicicletario/,'Bicicletário');
+    addPositive(/piscina infantil/,'Piscina infantil');
+    addPositive(/solarium/,'Solarium');
+    addPositive(/jardim/,'Jardim');
+    addPositive(/coworking/,'Coworking');
+    addPositive(/pet place/,'Pet place');
+    addPositive(/sauna/,'Sauna');
     const corroborating=evidence.filter(x=>normalize(`${x.title} ${x.snippet}`).includes(addrNorm)).length;
     return res.status(200).json({condominium_name:name,confidence:corroborating>=2?'alta': 'media',features:[...new Set(features)],evidence:`Endereço exato ${address}, ${number} encontrado em fonte(s) pública(s). Resultado principal: ${best.title}. ${best.snippet}`,sources:evidence.slice(0,5).map(x=>({title:x.title,url:x.url,evidence:x.snippet}))});
   }catch(e){return res.status(500).json({error:'Não foi possível pesquisar o condomínio automaticamente agora.',details:e.message});}
