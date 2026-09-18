@@ -5,119 +5,135 @@ export default async function handler(req,res){
     const {address,number,cep,city,state}=req.body||{};
     if(!address||!number) return res.status(400).json({error:'Informe endereço e número.'});
 
-    const exactAddress=[address,number,city,state].filter(Boolean).join(', ');
     const cepClean=String(cep||'').replace(/\D/g,'');
-
-    // Pesquisa externa, sem OpenAI e sem lista fixa de condomínios.
-    // Google Custom Search JSON API: configurar GOOGLE_API_KEY e GOOGLE_CX na Vercel.
-    const apiKey=process.env.GOOGLE_API_KEY;
-    const cx=process.env.GOOGLE_CX;
-    if(!apiKey||!cx){
-      return res.status(500).json({
-        error:'Pesquisa na internet não configurada. Configure GOOGLE_API_KEY e GOOGLE_CX na Vercel.',
-        debug:{request:{address,number,cep:cepClean,city,state,exact_address:exactAddress}}
-      });
-    }
+    const exactAddress=[address,number,city,state].filter(Boolean).join(', ');
 
     const queries=[
       `"${address}" "${number}" "${cepClean}" condomínio`,
       `"${address}" "${number}" "${city}" condomínio`,
-      `"${address}" "${number}" QuintoAndar OR Loft OR VivaReal OR ZAP OR Imovelweb`
+      `"${address}" "${number}" condomínio`
     ];
 
     const results=[];
+    const headers={
+      'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
+      'Accept-Language':'pt-BR,pt;q=0.9,en;q=0.8'
+    };
+
+    // Pesquisa pública diretamente nos buscadores. Não usa OpenAI,
+    // não exige chave de API e não mantém lista fixa de condomínios.
     for(const q of queries){
-      const url='https://www.googleapis.com/customsearch/v1?'+new URLSearchParams({
-        key:apiKey,
-        cx,
-        q,
-        num:'10',
-        hl:'pt-BR',
-        gl:'br'
-      }).toString();
+      const url='https://html.duckduckgo.com/html/?'+new URLSearchParams({q,kl:'br-pt'}).toString();
+      const rr=await fetch(url,{headers,redirect:'follow'});
+      const html=await rr.text();
 
-      const rr=await fetch(url,{headers:{'Accept':'application/json'}});
-      const raw=await rr.text();
-      let data;
-      try{data=JSON.parse(raw)}catch(_){
-        return res.status(502).json({error:'O serviço de pesquisa retornou uma resposta inválida.',debug:{query:q,http_status:rr.status,raw:raw.slice(0,2000)}});
-      }
       if(!rr.ok){
-        return res.status(502).json({
-          error:data?.error?.message||'Falha no serviço de pesquisa.',
-          debug:{query:q,http_status:rr.status,provider_error:data?.error||data}
-        });
+        continue;
       }
 
-      for(const item of (data.items||[])){
-        results.push({
-          query:q,
-          title:item.title||'',
-          url:item.link||'',
-          snippet:item.snippet||''
-        });
+      const blocks=html.split(/<div[^>]+class=["'][^"']*result[^"']*["'][^>]*>/i).slice(1);
+      for(const block of blocks.slice(0,10)){
+        const titleMatch=block.match(/<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]*>([\\s\\S]*?)<\\/a>/i);
+        const hrefMatch=block.match(/<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]+href=["']([^"']+)["']/i)
+          || block.match(/<a[^>]+href=["']([^"']+)["'][^>]+class=["'][^"']*result__a[^"']*["']/i);
+        const snippetMatch=block.match(/<a[^>]+class=["'][^"']*result__snippet[^"']*["'][^>]*>([\\s\\S]*?)<\\/a>/i)
+          || block.match(/<div[^>]+class=["'][^"']*result__snippet[^"']*["'][^>]*>([\\s\\S]*?)<\\/div>/i);
+
+        const clean=s=>String(s||'')
+          .replace(/<[^>]*>/g,' ')
+          .replace(/&amp;/g,'&').replace(/&quot;/g,'"')
+          .replace(/&#x27;|&#39;/g,"'")
+          .replace(/&nbsp;/g,' ')
+          .replace(/\\s+/g,' ').trim();
+
+        const title=clean(titleMatch?.[1]);
+        let href=hrefMatch?.[1]||'';
+        const snippet=clean(snippetMatch?.[1]);
+
+        if(href.startsWith('//')) href='https:'+href;
+        if(title&&href) results.push({query:q,title,url:href,snippet});
       }
     }
-
-    const addressTokens=exactAddress.toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .split(/[^a-z0-9]+/).filter(x=>x.length>2);
-
-    const scored=results.map(r=>{
-      const text=(r.title+' '+r.snippet+' '+r.url).toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      let score=0;
-      for(const token of addressTokens) if(text.includes(token)) score+=1;
-      if(cepClean&&text.includes(cepClean)) score+=8;
-      if(text.includes(String(number).toLowerCase())) score+=5;
-      if(/condominio|residencial|edificio|edifício|residence|park|parque/.test(text)) score+=3;
-      if(/quintoandar|loft|vivareal|zapimoveis|imovelweb|123i|attria/.test(text)) score+=2;
-      return {...r,score};
-    }).sort((a,b)=>b.score-a.score);
 
     const unique=[];
     const seen=new Set();
-    for(const item of scored){
-      if(!item.url||seen.has(item.url)) continue;
-      seen.add(item.url);
-      unique.push(item);
+    for(const x of results){
+      if(!x.url||seen.has(x.url)) continue;
+      seen.add(x.url);
+      unique.push(x);
     }
 
-    // Extração conservadora: só identifica quando o nome aparece claramente
-    // associado ao endereço nos resultados. Sem cadastro prévio de condomínios.
-    const positive=unique.filter(x=>{
-      const t=(x.title+' '+x.snippet).toLowerCase();
-      const hasAddress=(t.includes(String(number).toLowerCase())||t.includes(cepClean));
-      const hasCondo=/condominio|condomínio|residencial|residence|edificio|edifício/.test(t);
-      return hasAddress&&hasCondo;
-    });
+    const normalize=s=>String(s||'')
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,' ')
+      .trim();
+
+    const addressNorm=normalize(exactAddress);
+    const cityNorm=normalize(city);
+    const numberNorm=String(number).toLowerCase().trim();
+
+    const scored=unique.map(x=>{
+      const text=normalize(x.title+' '+x.snippet+' '+x.url);
+      let score=0;
+      if(cepClean&&text.includes(normalize(cepClean))) score+=12;
+      if(numberNorm&&text.includes(numberNorm)) score+=7;
+      const street=normalize(address);
+      if(street&&text.includes(street)) score+=8;
+      if(cityNorm&&text.includes(cityNorm)) score+=2;
+      if(/condominio|residencial|residence|edificio|predio|parque|park/.test(text)) score+=4;
+      if(/quintoandar|loft|vivareal|zap|imovelweb|123i|attria/.test(text)) score+=3;
+      return {...x,score};
+    }).sort((a,b)=>b.score-a.score);
+
+    const top=scored.slice(0,20);
+
+    // Tenta extrair apenas nomes que aparecem explicitamente associados
+    // ao endereço. Nenhum nome é pré-cadastrado.
+    const candidates=new Map();
+    for(const x of top){
+      const raw=x.title+' '+x.snippet;
+      const text=normalize(raw);
+      const addressEvidence=
+        (cepClean&&text.includes(normalize(cepClean))) ||
+        text.includes(numberNorm);
+      if(!addressEvidence) continue;
+
+      const patterns=[
+        /(?:condominio|condominio residencial|residencial|residence|edificio|edificio residencial)\s+([^|•,;–—]+?)(?=\s+(?:na|no|em|localizado|localizada|rua|avenida|av|estrada|r|cep)\b|$)/i,
+        /(?:apartamento|imovel|imóvel)[^\n]{0,120}\b(?:no|na|do|da)\s+(?:condominio|residencial|residence)\s+([^|•,;–—]+?)(?=\s+(?:em|na|no|rua|avenida|estrada|cep)\b|$)/i
+      ];
+
+      let name='';
+      for(const p of patterns){
+        const m=raw.match(p);
+        if(m){name=m[1].replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();break;}
+      }
+
+      if(!name){
+        // Muitos portais colocam o nome no título antes do endereço.
+        const title=x.title.replace(/\s+/g,' ').trim();
+        const m=title.match(/^(.{3,100}?)\s*[|–-]\s*(?:rua|avenida|av\.?|estrada|r\.?)/i);
+        if(m&&/condominio|residencial|residence|edificio|parque|park/i.test(m[1])) name=m[1].trim();
+      }
+
+      if(name){
+        name=name.replace(/^condominio\s+/i,'').replace(/^condomínio\s+/i,'').trim();
+        name=name.replace(/[.,;:]+$/,'').trim();
+        if(name.length>=3&&name.length<=120){
+          const key=normalize(name);
+          const old=candidates.get(key);
+          candidates.set(key,{name,count:(old?.count||0)+1,source:x.url});
+        }
+      }
+    }
 
     let condominium_name='';
     let confidence='baixa';
-
-    if(positive.length){
-      const candidates=new Map();
-      for(const item of positive){
-        const text=item.title+' '+item.snippet;
-        const patterns=[
-          /condom[ií]nio\s+([^|•,\-–]+?)(?=\s+(?:na|no|em|,)?\s*(?:rua|avenida|av\.?|estrada|r\.?|endereço|cep)\b|$)/i,
-          /(?:residencial|residence|edif[ií]cio)\s+([^|•,\-–]+?)(?=\s+(?:na|no|em|,)?\s*(?:rua|avenida|av\.?|estrada|r\.?|endereço|cep)\b|$)/i
-        ];
-        let name='';
-        for(const p of patterns){
-          const m=text.match(p);
-          if(m){name=m[1].trim();break;}
-        }
-        if(name){
-          name=name.replace(/\s+/g,' ').replace(/[.,;:]+$/,'').trim();
-          if(name.length>2&&name.length<120) candidates.set(name,(candidates.get(name)||0)+1);
-        }
-      }
-      if(candidates.size){
-        const sorted=[...candidates.entries()].sort((a,b)=>b[1]-a[1]);
-        condominium_name=sorted[0][0];
-        confidence=sorted[0][1]>=2?'alta':'media';
-      }
+    if(candidates.size){
+      const ranked=[...candidates.values()].sort((a,b)=>b.count-a.count);
+      condominium_name=ranked[0].name;
+      confidence=ranked[0].count>=2?'alta':'media';
     }
 
     return res.status(200).json({
@@ -125,15 +141,15 @@ export default async function handler(req,res){
       name_variants:[],
       confidence,
       evidence:condominium_name
-        ? 'Identificação obtida por pesquisa externa na internet, sem lista fixa.'
-        : 'A pesquisa encontrou resultados, mas não houve evidência textual suficiente para identificar o condomínio com segurança.',
-      sources:unique.slice(0,20).map(x=>({title:x.title,url:x.url,snippet:x.snippet})),
+        ? 'Condomínio identificado por pesquisa pública na internet.'
+        : 'Resultados encontrados, mas sem evidência textual suficiente para identificar o condomínio com segurança.',
+      sources:top.map(x=>({title:x.title,url:x.url,snippet:x.snippet})),
       debug:{
         request:{address,number,cep:cepClean,city,state,exact_address:exactAddress},
-        provider:'Google Custom Search JSON API',
+        provider:'DuckDuckGo HTML',
         queries,
         result_count:unique.length,
-        top_results:unique.slice(0,20)
+        top_results:top
       }
     });
   }catch(e){
