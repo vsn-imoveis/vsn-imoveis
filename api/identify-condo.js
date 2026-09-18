@@ -7,123 +7,106 @@ export default async function handler(req,res){
 
     const cepClean=String(cep||'').replace(/\D/g,'');
     const exactAddress=[address,number,city,state].filter(Boolean).join(', ');
+    const query='"'+address+'" "'+number+'" "'+(cepClean||city||'')+'" condomínio';
 
-    const queries=[
-      `"${address}" "${number}" "${cepClean}" condomínio`,
-      `"${address}" "${number}" "${city}" condomínio`,
-      `"${address}" "${number}" condomínio`
-    ];
+    // Pesquisa pública direta na internet. Sem OpenAI, sem Google API,
+    // sem chave e sem lista fixa de condomínios.
+    const searchUrl='https://www.google.com/search?'+new URLSearchParams({
+      q:query,
+      hl:'pt-BR',
+      num:'10'
+    }).toString();
+
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),8000);
+
+    let rr;
+    try{
+      rr=await fetch(searchUrl,{
+        signal:controller.signal,
+        headers:{
+          'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
+          'Accept-Language':'pt-BR,pt;q=0.9'
+        }
+      });
+    }finally{
+      clearTimeout(timer);
+    }
+
+    if(!rr.ok){
+      return res.status(502).json({
+        error:'O buscador não respondeu corretamente.',
+        debug:{http_status:rr.status,query}
+      });
+    }
+
+    const html=await rr.text();
+
+    const strip=s=>String(s||'')
+      .replace(/<script[\\s\\S]*?<\\/script>/gi,' ')
+      .replace(/<style[\\s\\S]*?<\\/style>/gi,' ')
+      .replace(/<[^>]+>/g,' ')
+      .replace(/&amp;/g,'&')
+      .replace(/&quot;/g,'"')
+      .replace(/&#39;|&#x27;/g,"'")
+      .replace(/&nbsp;/g,' ')
+      .replace(/\\s+/g,' ')
+      .trim();
 
     const results=[];
-    const headers={
-      'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36',
-      'Accept-Language':'pt-BR,pt;q=0.9,en;q=0.8'
-    };
+    const linkRe=/<a[^>]+href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi;
+    let m;
+    while((m=linkRe.exec(html))!==null && results.length<30){
+      let url=m[1]||'';
+      const title=strip(m[2]);
+      if(!title||!url) continue;
 
-    // Pesquisa pública diretamente nos buscadores. Não usa OpenAI,
-    // não exige chave de API e não mantém lista fixa de condomínios.
-    for(const q of queries){
-      const url='https://html.duckduckgo.com/html/?'+new URLSearchParams({q,kl:'br-pt'}).toString();
-      const rr=await fetch(url,{headers,redirect:'follow'});
-      const html=await rr.text();
-
-      if(!rr.ok){
-        continue;
+      if(url.startsWith('/url?q=')){
+        url=url.slice(7).split('&')[0];
+        try{url=decodeURIComponent(url)}catch(_){}
       }
+      if(!/^https?:\\/\\//i.test(url)) continue;
+      if(/google\\.com|googleusercontent\\.com/i.test(url)) continue;
+      if(title.length<3||title.length>300) continue;
 
-      const blocks=html.split(/<div[^>]+class=["'][^"']*result[^"']*["'][^>]*>/i).slice(1);
-      for(const block of blocks.slice(0,10)){
-        const titleMatch=block.match(/<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]*>([\\s\\S]*?)<\\/a>/i);
-        const hrefMatch=block.match(/<a[^>]+class=["'][^"']*result__a[^"']*["'][^>]+href=["']([^"']+)["']/i)
-          || block.match(/<a[^>]+href=["']([^"']+)["'][^>]+class=["'][^"']*result__a[^"']*["']/i);
-        const snippetMatch=block.match(/<a[^>]+class=["'][^"']*result__snippet[^"']*["'][^>]*>([\\s\\S]*?)<\\/a>/i)
-          || block.match(/<div[^>]+class=["'][^"']*result__snippet[^"']*["'][^>]*>([\\s\\S]*?)<\\/div>/i);
-
-        const clean=s=>String(s||'')
-          .replace(/<[^>]*>/g,' ')
-          .replace(/&amp;/g,'&').replace(/&quot;/g,'"')
-          .replace(/&#x27;|&#39;/g,"'")
-          .replace(/&nbsp;/g,' ')
-          .replace(/\\s+/g,' ').trim();
-
-        const title=clean(titleMatch?.[1]);
-        let href=hrefMatch?.[1]||'';
-        const snippet=clean(snippetMatch?.[1]);
-
-        if(href.startsWith('//')) href='https:'+href;
-        if(title&&href) results.push({query:q,title,url:href,snippet});
-      }
+      results.push({title,url});
     }
 
     const unique=[];
     const seen=new Set();
-    for(const x of results){
-      if(!x.url||seen.has(x.url)) continue;
-      seen.add(x.url);
-      unique.push(x);
+    for(const item of results){
+      if(seen.has(item.url)) continue;
+      seen.add(item.url);
+      unique.push(item);
     }
 
-    const normalize=s=>String(s||'')
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .replace(/[^a-z0-9]+/g,' ')
-      .trim();
-
-    const addressNorm=normalize(exactAddress);
-    const cityNorm=normalize(city);
-    const numberNorm=String(number).toLowerCase().trim();
-
+    // Busca evidência textual do endereço nos títulos retornados.
+    const street=String(address).toLowerCase();
+    const n=String(number).toLowerCase();
     const scored=unique.map(x=>{
-      const text=normalize(x.title+' '+x.snippet+' '+x.url);
+      const t=(x.title+' '+x.url).toLowerCase();
       let score=0;
-      if(cepClean&&text.includes(normalize(cepClean))) score+=12;
-      if(numberNorm&&text.includes(numberNorm)) score+=7;
-      const street=normalize(address);
-      if(street&&text.includes(street)) score+=8;
-      if(cityNorm&&text.includes(cityNorm)) score+=2;
-      if(/condominio|residencial|residence|edificio|predio|parque|park/.test(text)) score+=4;
-      if(/quintoandar|loft|vivareal|zap|imovelweb|123i|attria/.test(text)) score+=3;
+      if(t.includes(n)) score+=5;
+      if(t.includes(street)) score+=8;
+      if(cepClean&&t.includes(cepClean)) score+=10;
+      if(/condominio|condomínio|residencial|residence|edificio|edifício|parque|park/.test(t)) score+=4;
+      if(/quintoandar|loft|vivareal|zap|imovelweb|123i|attria/.test(t)) score+=3;
       return {...x,score};
     }).sort((a,b)=>b.score-a.score);
 
-    const top=scored.slice(0,20);
+    const top=scored.slice(0,15);
 
-    // Tenta extrair apenas nomes que aparecem explicitamente associados
-    // ao endereço. Nenhum nome é pré-cadastrado.
+    // O nome só é aceito quando aparece claramente em um título de resultado
+    // junto com indicação de condomínio/residencial. Nada é pré-cadastrado.
     const candidates=new Map();
     for(const x of top){
-      const raw=x.title+' '+x.snippet;
-      const text=normalize(raw);
-      const addressEvidence=
-        (cepClean&&text.includes(normalize(cepClean))) ||
-        text.includes(numberNorm);
-      if(!addressEvidence) continue;
-
-      const patterns=[
-        /(?:condominio|condominio residencial|residencial|residence|edificio|edificio residencial)\s+([^|•,;–—]+?)(?=\s+(?:na|no|em|localizado|localizada|rua|avenida|av|estrada|r|cep)\b|$)/i,
-        /(?:apartamento|imovel|imóvel)[^\n]{0,120}\b(?:no|na|do|da)\s+(?:condominio|residencial|residence)\s+([^|•,;–—]+?)(?=\s+(?:em|na|no|rua|avenida|estrada|cep)\b|$)/i
-      ];
-
-      let name='';
-      for(const p of patterns){
-        const m=raw.match(p);
-        if(m){name=m[1].replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();break;}
-      }
-
-      if(!name){
-        // Muitos portais colocam o nome no título antes do endereço.
-        const title=x.title.replace(/\s+/g,' ').trim();
-        const m=title.match(/^(.{3,100}?)\s*[|–-]\s*(?:rua|avenida|av\.?|estrada|r\.?)/i);
-        if(m&&/condominio|residencial|residence|edificio|parque|park/i.test(m[1])) name=m[1].trim();
-      }
-
-      if(name){
-        name=name.replace(/^condominio\s+/i,'').replace(/^condomínio\s+/i,'').trim();
-        name=name.replace(/[.,;:]+$/,'').trim();
-        if(name.length>=3&&name.length<=120){
-          const key=normalize(name);
-          const old=candidates.get(key);
-          candidates.set(key,{name,count:(old?.count||0)+1,source:x.url});
+      const title=x.title.replace(/\\s+/g,' ').trim();
+      const condoMatch=title.match(/(?:condominio|condomínio|residencial|residence|edificio|edifício)\\s+(.{3,100}?)(?:\\s+[|–-]\\s+|$)/i);
+      if(condoMatch){
+        const name=condoMatch[1].replace(/[.,;:]+$/,'').trim();
+        if(name.length>=3){
+          const key=name.toLowerCase();
+          candidates.set(key,{name,count:(candidates.get(key)?.count||0)+1});
         }
       }
     }
@@ -141,13 +124,13 @@ export default async function handler(req,res){
       name_variants:[],
       confidence,
       evidence:condominium_name
-        ? 'Condomínio identificado por pesquisa pública na internet.'
-        : 'Resultados encontrados, mas sem evidência textual suficiente para identificar o condomínio com segurança.',
-      sources:top.map(x=>({title:x.title,url:x.url,snippet:x.snippet})),
+        ? 'Identificado por pesquisa pública na internet.'
+        : 'A busca foi realizada, mas não houve evidência suficiente para identificar o condomínio automaticamente.',
+      sources:top.map(x=>({title:x.title,url:x.url})),
       debug:{
         request:{address,number,cep:cepClean,city,state,exact_address:exactAddress},
-        provider:'DuckDuckGo HTML',
-        queries,
+        provider:'Google Web Search (página pública)',
+        query,
         result_count:unique.length,
         top_results:top
       }
@@ -156,7 +139,7 @@ export default async function handler(req,res){
     return res.status(500).json({
       error:'Erro interno da API.',
       details:String(e?.message||e),
-      debug:{stage:'identify-condo'}
+      debug:{stage:'identify-condo',name:e?.name||null}
     });
   }
 }
