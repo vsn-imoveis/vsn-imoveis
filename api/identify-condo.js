@@ -14,15 +14,17 @@ export default async function handler(req,res){
   const query=[address,number,cepClean,city,state,'condomínio'].filter(Boolean).join(' ');
 
   try{
-    const url='https://cn.bing.com/search?'+new URLSearchParams({
-      format:'rss',
-      q:query
+    const url='https://www.bing.com/search?'+new URLSearchParams({
+      q:query,
+      count:'10',
+      setlang:'pt-BR',
+      cc:'br'
     }).toString();
 
     const response=await fetch(url,{
       headers:{
         'User-Agent':'Mozilla/5.0',
-        'Accept':'application/rss+xml,application/xml,text/xml;q=0.9,*/*;q=0.8'
+        'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'
       }
     });
 
