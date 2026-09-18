@@ -5,167 +5,135 @@ export default async function handler(req,res){
     const {address,number,cep,city,state}=req.body||{};
     if(!address||!number) return res.status(400).json({error:'Informe endereço e número.'});
 
-    const apiKey=process.env.OPENAI_API_KEY;
-    if(!apiKey) return res.status(500).json({
-      error:'OPENAI_API_KEY não configurada na Vercel.',
-      debug:{request:{address,number,cep,city,state}}
-    });
-
-    const cepClean=String(cep||'').replace(/\D/g,'');
     const exactAddress=[address,number,city,state].filter(Boolean).join(', ');
+    const cepClean=String(cep||'').replace(/\D/g,'');
 
-    const searchInstruction=[
-      'IDENTIFIQUE O CONDOMÍNIO EXATO DESTE ENDEREÇO USANDO PESQUISA REAL NA INTERNET.',
-      'Não use lista fixa, memória, banco interno ou nomes previamente conhecidos.',
-      'Pesquise o endereço completo e compare os resultados encontrados em múltiplas fontes.',
-      'Priorize páginas que associem explicitamente o número do imóvel ao nome do condomínio, como QuintoAndar, Loft, ZAP, VivaReal, Imovelweb, 123i, Attria e documentos públicos.',
-      'Não confunda o nome de um empreendimento próximo com o condomínio do endereço informado.',
-      'Se houver variações de nome para o mesmo condomínio, informe a variação mais usada e coloque as demais em name_variants.',
-      'Se não houver evidência suficiente, não invente um nome.',
-      '',
-      'ENDEREÇO:',
-      exactAddress,
-      'CEP: '+(cepClean||'não informado'),
-      '',
-      'Responda em JSON puro, sem markdown:',
-      '{"condominium_name":"","name_variants":[],"confidence":"alta|media|baixa","evidence":""}',
-      'condominium_name deve ficar vazio se não houver evidência suficiente.'
-    ].join('\n');
-
-    const r=await fetch('https://api.openai.com/v1/responses',{
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':'Bearer '+apiKey
-      },
-      body:JSON.stringify({
-        model:'gpt-5.5',
-        tools:[{
-          type:'web_search',
-          external_web_access:true,
-          search_context_size:'low'
-        }],
-        tool_choice:'required',
-        include:['web_search_call.action.sources'],
-        input:searchInstruction,
-        max_output_tokens:500
-      })
-    });
-
-    const raw=await r.text();
-    let data;
-    try{data=JSON.parse(raw)}catch(_){
-      return res.status(502).json({
-        error:'A OpenAI retornou uma resposta não-JSON.',
-        debug:{request:{address,number,cep,city,state},http_status:r.status,raw:raw.slice(0,4000)}
+    // Pesquisa externa, sem OpenAI e sem lista fixa de condomínios.
+    // Google Custom Search JSON API: configurar GOOGLE_API_KEY e GOOGLE_CX na Vercel.
+    const apiKey=process.env.GOOGLE_API_KEY;
+    const cx=process.env.GOOGLE_CX;
+    if(!apiKey||!cx){
+      return res.status(500).json({
+        error:'Pesquisa na internet não configurada. Configure GOOGLE_API_KEY e GOOGLE_CX na Vercel.',
+        debug:{request:{address,number,cep:cepClean,city,state,exact_address:exactAddress}}
       });
     }
 
-    if(!r.ok){
-      return res.status(502).json({
-        error:data?.error?.message||'Falha na OpenAI.',
-        debug:{
-          request:{address,number,cep,city,state},
-          openai_status:r.status,
-          openai_error:data?.error||data
-        }
-      });
-    }
+    const queries=[
+      `"${address}" "${number}" "${cepClean}" condomínio`,
+      `"${address}" "${number}" "${city}" condomínio`,
+      `"${address}" "${number}" QuintoAndar OR Loft OR VivaReal OR ZAP OR Imovelweb`
+    ];
 
-    const outputText=String(data.output_text||'').trim();
+    const results=[];
+    for(const q of queries){
+      const url='https://www.googleapis.com/customsearch/v1?'+new URLSearchParams({
+        key:apiKey,
+        cx,
+        q,
+        num:'10',
+        hl:'pt-BR',
+        gl:'br'
+      }).toString();
 
-    let result={condominium_name:'',name_variants:[],confidence:'baixa',evidence:''};
-    try{
-      const cleaned=outputText
-        .replace(/^\`\`\`json\s*/i,'')
-        .replace(/^\`\`\`\s*/,'')
-        .replace(/\s*\`\`\`$/,'')
-        .trim();
-      const parsed=JSON.parse(cleaned);
-      result={
-        condominium_name:String(parsed?.condominium_name||'').trim(),
-        name_variants:Array.isArray(parsed?.name_variants)?parsed.name_variants.map(String):[],
-        confidence:['alta','media','baixa'].includes(String(parsed?.confidence||'').toLowerCase())?String(parsed.confidence).toLowerCase():'baixa',
-        evidence:String(parsed?.evidence||'').trim()
-      };
-    }catch(_){
-      const fallback=outputText
-        .split(/\n|\r/)
-        .map(s=>s.trim())
-        .find(s=>s && !/^NOT_FOUND$/i.test(s) && !/^\{/.test(s));
-      if(fallback) result.condominium_name=fallback.replace(/^[-*•]\s*/,'').trim();
-      result.evidence=result.condominium_name?'Nome extraído da resposta da pesquisa web.':'A resposta da pesquisa não pôde ser interpretada como identificação válida.';
-      result.confidence=result.condominium_name?'media':'baixa';
-    }
-
-    const searchCalls=[];
-    const walk=v=>{
-      if(!v||typeof v!=='object')return;
-      if(v.type==='web_search_call')searchCalls.push({
-        id:v.id||null,
-        status:v.status||null,
-        action:v.action||null
-      });
-      if(Array.isArray(v))v.forEach(walk);
-      else Object.values(v).forEach(walk);
-    };
-    walk(data.output);
-
-    const annotations=[];
-    const walkAnn=v=>{
-      if(!v||typeof v!=='object')return;
-      if(Array.isArray(v))return v.forEach(walkAnn);
-      if(v.type==='url_citation'){
-        annotations.push({
-          title:v.title||null,
-          url:v.url||null,
-          start_index:v.start_index,
-          end_index:v.end_index
+      const rr=await fetch(url,{headers:{'Accept':'application/json'}});
+      const raw=await rr.text();
+      let data;
+      try{data=JSON.parse(raw)}catch(_){
+        return res.status(502).json({error:'O serviço de pesquisa retornou uma resposta inválida.',debug:{query:q,http_status:rr.status,raw:raw.slice(0,2000)}});
+      }
+      if(!rr.ok){
+        return res.status(502).json({
+          error:data?.error?.message||'Falha no serviço de pesquisa.',
+          debug:{query:q,http_status:rr.status,provider_error:data?.error||data}
         });
       }
-      Object.values(v).forEach(walkAnn);
-    };
-    walkAnn(data.output);
 
-    const sources=[];
-    const walkSources=v=>{
-      if(!v||typeof v!=='object')return;
-      if(Array.isArray(v))return v.forEach(walkSources);
-      if(v.url && typeof v.url==='string' && (v.title||v.url)){
-        sources.push({title:v.title||null,url:v.url});
+      for(const item of (data.items||[])){
+        results.push({
+          query:q,
+          title:item.title||'',
+          url:item.link||'',
+          snippet:item.snippet||''
+        });
       }
-      Object.values(v).forEach(walkSources);
-    };
-    walkSources(data.output);
+    }
 
-    const uniqueSources=[];
+    const addressTokens=exactAddress.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .split(/[^a-z0-9]+/).filter(x=>x.length>2);
+
+    const scored=results.map(r=>{
+      const text=(r.title+' '+r.snippet+' '+r.url).toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      let score=0;
+      for(const token of addressTokens) if(text.includes(token)) score+=1;
+      if(cepClean&&text.includes(cepClean)) score+=8;
+      if(text.includes(String(number).toLowerCase())) score+=5;
+      if(/condominio|residencial|edificio|edifício|residence|park|parque/.test(text)) score+=3;
+      if(/quintoandar|loft|vivareal|zapimoveis|imovelweb|123i|attria/.test(text)) score+=2;
+      return {...r,score};
+    }).sort((a,b)=>b.score-a.score);
+
+    const unique=[];
     const seen=new Set();
-    for(const s of sources){
-      if(!seen.has(s.url)){
-        seen.add(s.url);
-        uniqueSources.push(s);
+    for(const item of scored){
+      if(!item.url||seen.has(item.url)) continue;
+      seen.add(item.url);
+      unique.push(item);
+    }
+
+    // Extração conservadora: só identifica quando o nome aparece claramente
+    // associado ao endereço nos resultados. Sem cadastro prévio de condomínios.
+    const positive=unique.filter(x=>{
+      const t=(x.title+' '+x.snippet).toLowerCase();
+      const hasAddress=(t.includes(String(number).toLowerCase())||t.includes(cepClean));
+      const hasCondo=/condominio|condomínio|residencial|residence|edificio|edifício/.test(t);
+      return hasAddress&&hasCondo;
+    });
+
+    let condominium_name='';
+    let confidence='baixa';
+
+    if(positive.length){
+      const candidates=new Map();
+      for(const item of positive){
+        const text=item.title+' '+item.snippet;
+        const patterns=[
+          /condom[ií]nio\s+([^|•,\-–]+?)(?=\s+(?:na|no|em|,)?\s*(?:rua|avenida|av\.?|estrada|r\.?|endereço|cep)\b|$)/i,
+          /(?:residencial|residence|edif[ií]cio)\s+([^|•,\-–]+?)(?=\s+(?:na|no|em|,)?\s*(?:rua|avenida|av\.?|estrada|r\.?|endereço|cep)\b|$)/i
+        ];
+        let name='';
+        for(const p of patterns){
+          const m=text.match(p);
+          if(m){name=m[1].trim();break;}
+        }
+        if(name){
+          name=name.replace(/\s+/g,' ').replace(/[.,;:]+$/,'').trim();
+          if(name.length>2&&name.length<120) candidates.set(name,(candidates.get(name)||0)+1);
+        }
+      }
+      if(candidates.size){
+        const sorted=[...candidates.entries()].sort((a,b)=>b[1]-a[1]);
+        condominium_name=sorted[0][0];
+        confidence=sorted[0][1]>=2?'alta':'media';
       }
     }
 
     return res.status(200).json({
-      condominium_name:result.condominium_name,
-      name_variants:result.name_variants,
-      confidence:result.confidence,
-      evidence:result.evidence,
-      sources:uniqueSources.slice(0,20),
+      condominium_name,
+      name_variants:[],
+      confidence,
+      evidence:condominium_name
+        ? 'Identificação obtida por pesquisa externa na internet, sem lista fixa.'
+        : 'A pesquisa encontrou resultados, mas não houve evidência textual suficiente para identificar o condomínio com segurança.',
+      sources:unique.slice(0,20).map(x=>({title:x.title,url:x.url,snippet:x.snippet})),
       debug:{
-        request:{
-          address,number,cep:cepClean,city,state,
-          exact_address:exactAddress
-        },
-        openai:{
-          model:'gpt-5.5',
-          response_id:data.id||null,
-          search_calls:searchCalls,
-          url_citations:annotations,
-          sources:uniqueSources.slice(0,20)
-        },
-        returned_text:outputText
+        request:{address,number,cep:cepClean,city,state,exact_address:exactAddress},
+        provider:'Google Custom Search JSON API',
+        queries,
+        result_count:unique.length,
+        top_results:unique.slice(0,20)
       }
     });
   }catch(e){
