@@ -44,11 +44,26 @@ export default async function handler(req,res){
     }
 
     // 2) Busca pública de fallback.
-    const queries=[
+    // Consultas em camadas: endereço exato + portais imobiliários que costumam
+    // indexar o nome do condomínio. Isso evita depender de um único resultado genérico.
+    const baseQueries=[
       `"${address}" "${number}" condomínio ${city||''}`,
       `"${address}, ${number}" condomínio residencial`,
       `"${address}" "${number}" apartamento condomínio`
     ];
+    const priorityDomains=[
+      'quintoandar.com.br',
+      'imovelweb.com.br',
+      'vivareal.com.br',
+      'zapimoveis.com.br',
+      'chavesnamao.com.br',
+      'homesphere.com.br',
+      '123i.com.br'
+    ];
+    const queries=[...baseQueries];
+    for(const domain of priorityDomains){
+      queries.push(`site:${domain} "${address}" "${number}" condomínio`);
+    }
     // Busca pública com limite curto para evitar timeout da função serverless.
     const results=[];
     const fetchSearch=async q=>{
