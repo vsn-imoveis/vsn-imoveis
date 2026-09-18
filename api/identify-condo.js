@@ -3,8 +3,8 @@ export default async function handler(req,res){
   const {address,number,cep,neighborhood,city,state}=req.body||{};
   if(!address||!number) return res.status(400).json({error:'Informe endereço e número.'});
 
-  const clean=(s='')=>String(s).replace(/<[^>]*>/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/\\s+/g,' ').trim();
-  const normalize=(s='')=>String(s).normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const clean=(s='')=>String(s).replace(/<[^>]*>/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();
+  const normalize=(s='')=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
   const location=[address,number,neighborhood,city,state,cep].filter(Boolean).join(', ');
 
   try{
@@ -88,7 +88,7 @@ export default async function handler(req,res){
     const combined=evidence.map(x=>`${x.title} ${x.snippet}`).join(' ');
     const nc=normalize(combined);
     let name='';
-    for(const p of [/condominio\\s+(space residence(?:\\s+i|\\s+ii)?)/i,/condominio\\s+(space residence\\s*-\\s*parque das orquideas)/i,/residencial\\s+(space residence(?:\\s+i|\\s+ii)?)/i,/(space residence\\s*-\\s*parque das orquideas)/i]){const m=combined.match(p);if(m){name=m[1].replace(/\\s+/g,' ').trim();break}}
+    for(const p of [/condominio\s+(space residence(?:\s+i|\s+ii)?)/i,/condominio\s+(space residence\\s*-\\s*parque das orquideas)/i,/residencial\s+(space residence(?:\s+i|\s+ii)?)/i,/(space residence\\s*-\\s*parque das orquideas)/i]){const m=combined.match(p);if(m){name=m[1].replace(/\s+/g,' ').trim();break}}
     if(!name) name=clean(best.title.replace(/\\s*[|–-].*$/,'').trim());
     const features=[];const add=(rx,label)=>{if(rx.test(nc))features.push(label)};
     add(/elevador/,'Elevador');add(/churrasqueira/,'Churrasqueira');add(/academia/,'Academia');add(/salao de festas/,'Salão de festas');add(/playground/,'Playground');add(/portaria.{0,25}24|24.{0,25}portaria|seguranca 24/,'Portaria 24h');add(/piscina/,'Piscina');add(/varanda|sacada/,'Varanda');add(/aceita pets|pets/,'Aceita pets');
