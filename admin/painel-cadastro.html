@@ -34,7 +34,7 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
   const d=addressData(),msg=document.getElementById("condomsg"),field=document.getElementById("condominium_name");
   try{
     if(!d.address||!d.number){if(force)toast("Preencha Endereço e Número para identificar o condomínio.","err");return}
-    const clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g," ").replace(/\\s+/g," ").trim();
+    const clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").replace(/\\s+/g," ").trim();
     const addressKey=clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP");
     const debug=[]; window.__pendingCondo=null;
     const show=()=>{const e=document.getElementById("condoDebug");if(e)e.textContent=JSON.stringify(debug,null,2)};
@@ -94,7 +94,7 @@ function selectCondoCandidate(i){
   const c=window.__condoCandidates?.[i],field=document.getElementById("condominium_name"),msg=document.getElementById("condomsg");
   if(!c||!field)return;
   field.value=c.nome;
-  window.__pendingCondo={addressKey:(()=>{const d=addressData(),clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();return clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP")})(),name:c.nome,source:c.fonte};
+  window.__pendingCondo={addressKey:(()=>{const d=addressData(),clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();return clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP")})(),name:c.nome,source:c.fonte};
   const old=msg.querySelector('[data-confirm-condo]');
   if(old)old.remove();
   msg.insertAdjacentHTML("beforeend",'<div data-confirm-condo style="margin-top:10px;padding:11px;border:1px solid #b9d8c0;background:#f3fbf5;border-radius:10px"><b>Selecionado:</b> '+esc(c.nome)+'<br><span style="font-size:12px;color:#6c7881">Ainda NÃO está na base VSN.</span><br><button type="button" class="btn red" style="margin-top:9px;padding:9px 13px;font-size:12px" onclick="saveCondoCandidate()">✓ Confirmar e adicionar à base</button></div>');
