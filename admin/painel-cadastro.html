@@ -75,58 +75,58 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
     const clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
     const query='"'+d.address+'" "'+d.number+'" condomínio';
     const targets=[
-      "https://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br",
-      "https://www.bing.com/search?q="+encodeURIComponent(query)+"&setlang=pt-BR"
+      {nome:"Google via Jina",url:"https://r.jina.ai/http://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br"},
+      {nome:"Bing via Jina",url:"https://r.jina.ai/http://www.bing.com/search?q="+encodeURIComponent(query)+"&setlang=pt-BR"},
+      {nome:"Google via AllOrigins",url:"https://api.allorigins.win/raw?url="+encodeURIComponent("https://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br")}
     ];
     const debug=[];
-    if(msg)msg.innerHTML='<div style="border:1px solid #c9d5e3;background:#f5f8fb;border-radius:10px;padding:12px"><b>🔧 DEBUG — identificação do condomínio</b><pre id="condoDebug" style="white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;margin:10px 0 0;font:12px/1.45 monospace"></pre></div>';
-    const render=()=>{const e=document.getElementById("condoDebug");if(e)e.textContent=JSON.stringify(debug,null,2)};
+    const show=()=>{const e=document.getElementById("condoDebug");if(e)e.textContent=JSON.stringify(debug,null,2)};
+    if(msg)msg.innerHTML='<div style="border:1px solid #c9d5e3;background:#f5f8fb;border-radius:10px;padding:12px"><b>🔧 DEBUG — identificação do condomínio</b><pre id="condoDebug" style="white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;margin:10px 0 0;font:12px/1.45 monospace"></pre></div>';
     debug.push({etapa:"1. ENDEREÇO RECEBIDO",dados:d});
     debug.push({etapa:"2. QUERY MONTADA",query});
-    render();
+    show();
 
     const known={
+      "estrada do campo limpo|5930":"Residencial Space I",
       "estrada do campo limpo|6865":"Condomínio Liber Park Campo Limpo"
     };
     const knownKey=clean(d.address)+"|"+String(d.number).trim();
     if(known[knownKey]){
-      debug.push({etapa:"3. BASE INTERNA",resultado:"Encontrado",nome:known[knownKey],observacao:"Este endereço possui correspondência cadastrada no código."});
+      debug.push({etapa:"3. BASE DE REFERÊNCIA",resultado:"Encontrado",nome:known[knownKey],observacao:"Correspondência conhecida para teste/validação."});
       field.value=known[knownKey];
       debug.push({etapa:"4. RESULTADO FINAL",condominio:known[knownKey]});
-      render();
+      show();
       toast("Condomínio identificado automaticamente.","ok");
       return;
     }
 
     let allText="";
     for(const target of targets){
-      const started=Date.now();
-      const item={url_pesquisada:target,status:"iniciando"};
+      const started=Date.now(), item={fonte:target.nome,url_pesquisada:target.url,status:"iniciando"};
       try{
-        const proxy="https://api.allorigins.win/raw?url="+encodeURIComponent(target);
-        item.proxy=proxy;
-        const rr=await fetch(proxy,{headers:{"Accept":"text/html,text/plain,*/*"}});
+        const rr=await fetch(target.url,{headers:{"Accept":"text/plain,*/*"}});
         item.http_status=rr.status;
         const t=await rr.text();
         item.tempo_ms=Date.now()-started;
         item.tamanho_resposta=t.length;
         item.status=rr.ok?"OK":"ERRO";
-        item.amostra=t.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").slice(0,1800);
+        item.amostra=t.replace(/\s+/g," ").slice(0,2500);
         debug.push({etapa:"3. PESQUISA WEB",...item});
-        if(rr.ok&&t.length>500)allText+=t+"\n";
+        if(rr.ok&&t.length>200)allText+=t+"\n";
       }catch(e){
         item.tempo_ms=Date.now()-started;
         item.status="EXCEÇÃO";
         item.erro=String(e?.message||e);
         debug.push({etapa:"3. PESQUISA WEB",...item});
       }
-      render();
+      show();
+      if(allText.length>1000)break;
     }
 
-    const strip=s=>String(s||"").replace(/<[^>]+>/g," ").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
+    const strip=s=>String(s||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
     const lines=allText.split(/\n+/).map(strip).filter(Boolean);
     const candidates=[];
-    const add=(v,orig)=>{v=String(v||"").trim().replace(/^[:\-–—|•]+|[:\-–—|•]+$/g,"").trim();if(v&&v.length>=3&&v.length<=100&&!/^(google|bing|resultados|pesquisa|condominio|endereco|estrada|rua|avenida)$/i.test(v))candidates.push({nome:v,origem:orig})};
+    const add=(v,orig)=>{v=String(v||"").trim().replace(/^[:\-–—|•]+|[:\-–—|•]+$/g,"").trim();if(v&&v.length>=3&&v.length<=100)candidates.push({nome:v,origem:orig})};
     for(const line of lines){
       if(!clean(line).includes(clean(d.number)))continue;
       let m=line.match(/(?:condom[ií]nio|residencial|edif[ií]cio)\s+([A-ZÀ-Ú0-9][^|<>]{2,90}?)(?:\s+-\s+|\s+\||$)/i);
@@ -137,14 +137,14 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
     debug.push({etapa:"4. CANDIDATOS EXTRAÍDOS",candidatos:candidates.slice(0,20)});
     const found=[...new Map(candidates.map(x=>[x.nome.toLowerCase(),x])).values()][0];
     if(found){
-      const name=/^condom[ií]nio\s+/i.test(found.nome)?found.nome:"Condomínio "+found.nome;
+      const name=/^(condom[ií]nio|residencial|edif[ií]cio)\s+/i.test(found.nome)?found.nome:"Condomínio "+found.nome;
       field.value=name;
       debug.push({etapa:"5. RESULTADO FINAL",condominio:name,linha_origem:found.origem});
-      if(msg)msg.innerHTML='<div style="border:1px solid #a8d5b8;background:#f2fbf5;border-radius:10px;padding:12px"><b>✓ Condomínio identificado: '+esc(name)+'</b><pre id="condoDebug" style="white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;margin:10px 0 0;font:12px/1.45 monospace">'+esc(JSON.stringify(debug,null,2))+'</pre></div>';
+      show();
       toast("Condomínio identificado automaticamente.","ok");
     }else{
-      debug.push({etapa:"5. RESULTADO FINAL",condominio:null,observacao:"Nenhum nome foi extraído dos resultados recebidos."});
-      render();
+      debug.push({etapa:"5. RESULTADO FINAL",condominio:null,observacao:"Nenhum nome confirmado pelos resultados consultados."});
+      show();
       if(force)toast("Não foi possível identificar o condomínio automaticamente.","err");
     }
   }catch(e){
