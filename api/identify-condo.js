@@ -66,6 +66,40 @@ export default async function handler(req,res){
     }
     // Busca pública com limite curto para evitar timeout da função serverless.
     const results=[];
+
+    // Google Programmable Search (quando GOOGLE_API_KEY + GOOGLE_CX estiverem
+    // configurados na Vercel). O Google retorna título, URL e snippet em JSON.
+    // Se não estiver configurado, seguimos normalmente para as outras fontes.
+    const googleSearch=async q=>{
+      if(!process.env.GOOGLE_API_KEY||!process.env.GOOGLE_CX) return [];
+      try{
+        const url='https://www.googleapis.com/customsearch/v1?key='+
+          encodeURIComponent(process.env.GOOGLE_API_KEY)+
+          '&cx='+encodeURIComponent(process.env.GOOGLE_CX)+
+          '&q='+encodeURIComponent(q)+
+          '&num=10&hl=pt-BR&gl=br';
+        const ctrl=new AbortController();
+        const timer=setTimeout(()=>ctrl.abort(),5000);
+        const r=await fetch(url,{signal:ctrl.signal});
+        clearTimeout(timer);
+        if(!r.ok) return [];
+        const j=await r.json();
+        return Array.isArray(j.items)?j.items.map(x=>({
+          title:clean(x.title||''),
+          url:x.link||'',
+          snippet:clean(x.snippet||''),
+          source:'google'
+        })).filter(x=>x.title&&x.url):[];
+      }catch(_){ return []; }
+    };
+
+    const googleQueries=[
+      `"${address}" "${number}" condomínio ${city||''}`,
+      `"${address}, ${number}" condomínio residencial`
+    ];
+    const googleBatches=await Promise.all(googleQueries.map(googleSearch));
+    for(const batch of googleBatches) results.push(...batch);
+
     const fetchSearch=async q=>{
       try{
         const url='https://html.duckduckgo.com/html/?q='+encodeURIComponent(q);
