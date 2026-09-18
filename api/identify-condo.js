@@ -49,23 +49,33 @@ export default async function handler(req,res){
       `"${address}, ${number}" condomínio residencial`,
       `"${address}" "${number}" apartamento condomínio`
     ];
+    // Busca pública com limite curto para evitar timeout da função serverless.
     const results=[];
-    for(const q of queries){
-      const url='https://html.duckduckgo.com/html/?q='+encodeURIComponent(q);
-      const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (compatible; VSN-Imoveis/1.0)'}});
-      if(!r.ok) continue;
-      const html=await r.text();
-      const blocks=html.split(/<div[^>]+class=["']result["'][^>]*>/i).slice(1);
-      for(const block of blocks){
-        if(results.length>=20) break;
-        const a=block.match(/<a[^>]+class=["']result__a["'][^>]*href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>/i);
-        if(!a) continue;
-        const title=clean(a[2]);
-        const snippetMatch=block.match(/<div[^>]+class=["']result__snippet["'][^>]*>([\\s\\S]*?)<\\/div>/i);
-        const snippet=clean(snippetMatch?.[1]||'');
-        if(title) results.push({title,url:a[1],snippet});
-      }
-    }
+    const fetchSearch=async q=>{
+      try{
+        const url='https://html.duckduckgo.com/html/?q='+encodeURIComponent(q);
+        const ctrl=new AbortController();
+        const timer=setTimeout(()=>ctrl.abort(),4500);
+        const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (compatible; VSN-Imoveis/1.0)'},signal:ctrl.signal});
+        clearTimeout(timer);
+        if(!r.ok) return [];
+        const html=await r.text();
+        const out=[];
+        const blocks=html.split(/<div[^>]+class=["']result["'][^>]*>/i).slice(1);
+        for(const block of blocks){
+          if(out.length>=8) break;
+          const link=block.match(/<a[^>]+class=["']result__a["'][^>]*href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>/i);
+          if(!link) continue;
+          const title=clean(link[2]);
+          const snippetMatch=block.match(/<div[^>]+class=["']result__snippet["'][^>]*>([\\s\\S]*?)<\\/div>/i);
+          const snippet=clean(snippetMatch?.[1]||'');
+          if(title) out.push({title,url:link[1],snippet});
+        }
+        return out;
+      }catch(_){ return []; }
+    };
+    const batches=await Promise.all(queries.map(fetchSearch));
+    for(const batch of batches) results.push(...batch);
 
     const unique=[];const seen=new Set();
     for(const x of results){if(!seen.has(x.url)){seen.add(x.url);unique.push(x)}}
