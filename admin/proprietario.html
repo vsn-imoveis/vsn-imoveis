@@ -25,7 +25,7 @@ button,input,textarea{font:inherit}.top{height:72px;background:var(--navy);color
 <div class="welcome"><div><h1>Meu imóvel</h1><p>Gerencie o anúncio do imóvel vinculado ao seu cadastro.</p></div><div class="badge-owner">PORTAL DO PROPRIETÁRIO</div></div>
 <div class="notice"><div class="notice-icon">i</div><div><b>Você tem controle sobre o seu anúncio</b><p>Você pode <strong>alterar o preço, gerenciar as fotos e publicar ou desativar o anúncio</strong>. O imóvel não pode ser excluído por este painel.</p></div></div>
 <article class="card">
-<div class="photo" id="cover"></div>
+<div class="photo" id="cover"><span class="status" style="position:absolute;top:15px;left:15px;background:var(--green);color:#fff;border-radius:7px;padding:7px 10px;font-size:10px;font-weight:800">ANÚNCIO ATIVO</span></div>
 <div class="body"><div class="code">VSN1024</div><div class="title">Apartamento moderno no Morumbi</div><div class="loc">Morumbi, São Paulo — SP</div><div class="specs"><span>3 quartos</span><span>3 banheiros</span><span>2 vagas</span><span>128 m²</span></div><div class="price" id="price">R$ 1.250.000</div></div>
 <div class="footer-card"><div class="pub-info" id="pubInfo">Anúncio ativo no site.<br><b>Você pode desativá-lo quando quiser.</b></div><div class="actions"><button class="btn ghost" onclick="openEdit()">Editar preço e fotos</button><button class="btn gold" onclick="toggleAd()">Desativar anúncio</button></div></div>
 </article>
@@ -64,7 +64,7 @@ function saveEdit(){const v=Number(document.getElementById('newPrice').value.rep
 function toggleAd(){active=!active;document.querySelector('.status')?.classList.toggle('off',!active);document.querySelector('.status')?.replaceChildren(document.createTextNode(active?'ANÚNCIO ATIVO':'ANÚNCIO DESATIVADO'));document.getElementById('pubInfo').innerHTML=active?'Anúncio ativo no site.<br><b>Você pode desativá-lo quando quiser.</b>':'Anúncio desativado.<br><b>O cadastro foi preservado pela VSN.</b>';document.querySelector('.actions .gold').textContent=active?'Desativar anúncio':'Publicar anúncio'}
 document.getElementById('accept').addEventListener('change',e=>document.getElementById('finish').disabled=!e.target.checked)
 function closeTerm(){document.getElementById('termModal').classList.remove('open')}
-function finish(){closeTerm();alert('Cadastro concluído.');}
+function openTerm(){document.getElementById('termModal').classList.add('open')} function finish(){closeTerm();alert('Cadastro concluído e anúncio autorizado para publicação.');} window.addEventListener('load',()=>openTerm());
 </script>
 </body>
 </html>
