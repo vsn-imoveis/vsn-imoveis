@@ -13,23 +13,13 @@ export default async function handler(req,res){
     const cepClean=String(cep||'').replace(/\D/g,'');
     const exactAddress=[address,number,city,state].filter(Boolean).join(', ');
     const searchInstruction=[
-      'Identifique com precisão o condomínio localizado neste endereço.',
+      'Ache o condomínio deste endereço usando busca na web.',
       `Endereço: ${address}, ${number}`,
       `CEP: ${cepClean||'não informado'}`,
-      `Cidade: ${city||'não informada'}`,
-      `Estado: ${state||'não informado'}`,
-      '',
-      'Use busca na web. Priorize fontes imobiliárias e documentos públicos que mostrem explicitamente o endereço e o número.',
-      'Não invente o nome. Se houver nomes variantes, informe o nome principal e as variantes.',
-      'Retorne SOMENTE JSON válido neste formato:',
-      '{',
-      '  "condominium_name": "nome principal ou vazio",',
-      '  "name_variants": ["variantes"],',
-      '  "confidence": "alta|media|baixa",',
-      '  "evidence": "explicação curta baseada nas fontes",',
-      '  "sources": [{"title":"...","url":"...","evidence":"..."}]',
-      '}'
-    ].join('\n');
+      `Cidade: ${city||''}, ${state||''}`,
+      'Priorize fontes imobiliárias. Retorne JSON curto com nome, confiança, evidência e até 3 fontes.',
+      '{"condominium_name":"","confidence":"alta|media|baixa","evidence":"","sources":[{"title":"","url":""}]}'
+    ].join('\\n');
 
     const r=await fetch('https://api.openai.com/v1/responses',{
       method:'POST',
