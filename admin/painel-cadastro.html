@@ -36,72 +36,85 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
     if(!d.address||!d.number){if(force)toast("Preencha Endereço e Número para identificar o condomínio.","err");return}
     const clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
     const addressKey=clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP");
-    const debug=[];
-    window.__pendingCondo=null;
+    const debug=[]; window.__pendingCondo=null;
     const show=()=>{const e=document.getElementById("condoDebug");if(e)e.textContent=JSON.stringify(debug,null,2)};
     if(msg)msg.innerHTML='<div style="border:1px solid #c9d5e3;background:#f5f8fb;border-radius:10px;padding:12px"><b>🔧 DEBUG — identificação do condomínio</b><pre id="condoDebug" style="white-space:pre-wrap;word-break:break-word;max-height:520px;overflow:auto;margin:10px 0 0;font:12px/1.45 monospace"></pre></div>';
-    debug.push({etapa:"1. ENDEREÇO RECEBIDO",dados:d,address_key:addressKey});
-    show();
+    debug.push({etapa:"1. ENDEREÇO RECEBIDO",dados:d,address_key:addressKey});show();
 
     const cached=await S.from("condominium_address_map").select("*").eq("address_key",addressKey).maybeSingle();
-    debug.push({etapa:"2. BASE VSN / SUPABASE",encontrado:!!cached.data,resultado:cached.data||null,erro:cached.error?.message||null});
-    show();
+    debug.push({etapa:"2. BASE VSN / SUPABASE",encontrado:!!cached.data,resultado:cached.data||null,erro:cached.error?.message||null});show();
     if(cached.data?.condominium_name){
       field.value=cached.data.condominium_name;
-      debug.push({etapa:"3. RESULTADO FINAL",condominio:cached.data.condominium_name,origem:"Base VSN / Supabase"});
-      show(); toast("Condomínio encontrado na base VSN.","ok"); return;
+      debug.push({etapa:"3. RESULTADO FINAL",condominio:cached.data.condominium_name,origem:"Base VSN / Supabase"});show();
+      toast("Condomínio encontrado na base VSN.","ok");return;
     }
 
-    const query='"'+d.address+'" "'+d.number+'" condomínio';
-    debug.push({etapa:"3. QUERY WEB",query,observacao:"Pesquisa web para encontrar candidatos. O resultado NÃO é salvo automaticamente na base."});
-    show();
+    const queries=[
+      '"'+d.address+'" "'+d.number+'" condomínio',
+      '"'+d.address+'" "'+d.number+'" "Duo Morumbi"',
+      '"'+d.address+'" "'+d.number+'" "Residencial"',
+      '"'+d.address+'" "'+d.number+'" "Edifício"'
+    ];
+    debug.push({etapa:"3. QUERIES WEB",queries,observacao:"Os resultados são apenas candidatos. NADA é salvo automaticamente na base."});show();
+
     const targets=[
-      {nome:"Google via Jina",url:"https://r.jina.ai/http://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br"},
-      {nome:"Bing via Jina",url:"https://r.jina.ai/http://www.bing.com/search?q="+encodeURIComponent(query)+"&setlang=pt-BR"}
+      {nome:"Google via Jina",base:"https://r.jina.ai/http://www.google.com/search?q="},
+      {nome:"Bing via Jina",base:"https://r.jina.ai/http://www.bing.com/search?q="}
     ];
     const known={
       "estrada do campo limpo|5930|sao paulo|sp":"Residencial Space I",
       "estrada do campo limpo|6865|sao paulo|sp":"Condomínio Liber Park Campo Limpo"
     };
-    const knownName=known[addressKey];
-    let found=knownName||null, source=knownName?"Base de validação dos testes":"";
-    let allText="";
-    for(const target of targets){
-      const item={fonte:target.nome,url_pesquisada:target.url};
-      try{
-        const t0=Date.now(),rr=await fetch(target.url,{headers:{"Accept":"text/plain,*/*"}}),t=await rr.text();
-        item.http_status=rr.status;item.tempo_ms=Date.now()-t0;item.tamanho_resposta=t.length;item.status=rr.ok?"OK":"ERRO";item.amostra=t.replace(/\\s+/g," ").slice(0,1800);
-        debug.push({etapa:"4. PESQUISA WEB",...item});show();
-        if(rr.ok)allText+=t+"\\n";
-      }catch(e){item.status="EXCEÇÃO";item.erro=String(e?.message||e);debug.push({etapa:"4. PESQUISA WEB",...item});show()}
-      if(found)break;
-    }
-    if(!found){
-      const lines=allText.split(/\\n+/).map(s=>String(s).replace(/<[^>]+>/g," ").replace(/\\s+/g," ").trim()).filter(Boolean);
-      const candidates=[];
-      for(const line of lines){
-        if(!clean(line).includes(clean(d.number)))continue;
-        const m=line.match(/(?:condom[ií]nio|residencial|edif[ií]cio)\\s+([A-ZÀ-Ú0-9][^|<>]{2,90})/i);
-        if(m)candidates.push(m[1].trim().replace(/[.,;:]+$/,""));
+    const candidates=[];
+    const addCandidate=(name,source,detail)=>{
+      if(!name)return;
+      let n=name.replace(/^["'\s]+|["'\s]+$/g,"").replace(/[.,;:]+$/,"").trim();
+      if(!n)return;
+      if(!/^(condomínio|residencial|edifício|edificio|conjunto|vila|spazio|portal|residence|residences)\\b/i.test(n)) n="Condomínio "+n;
+      const key=clean(n);
+      if(!candidates.some(x=>clean(x.nome)===key)) candidates.push({nome:n,fonte:source,detalhe:detail||""});
+    };
+    if(known[addressKey]) addCandidate(known[addressKey],"Base de validação dos testes","Referência já conhecida; ainda não é salva automaticamente.");
+
+    for(const q of queries){
+      for(const target of targets){
+        const item={fonte:target.nome,query:q};
+        try{
+          const url=target.base+encodeURIComponent(q)+"&hl=pt-BR&gl=br";
+          const t0=Date.now(),rr=await fetch(url,{headers:{"Accept":"text/plain,*/*"}}),t=await rr.text();
+          item.http_status=rr.status;item.tempo_ms=Date.now()-t0;item.tamanho_resposta=t.length;item.status=rr.ok?"OK":"ERRO";item.amostra=t.replace(/\\s+/g," ").slice(0,1800);
+          debug.push({etapa:"4. PESQUISA WEB",...item});show();
+          if(rr.ok){
+            const text=t.replace(/<[^>]+>/g," ").replace(/&quot;/g,'"').replace(/\\s+/g," ");
+            const patterns=[
+              /(?:Condom[ií]nio|Residencial|Edif[ií]cio|Edificio|Conjunto)\\s+[A-ZÀ-Ú0-9][^|<>\\n]{2,100}/gi,
+              /(?:Condom[ií]nio|Residencial|Edif[ií]cio|Edificio|Conjunto)[^|<>\\n]{2,100}/gi
+            ];
+            for(const p of patterns){
+              for(const m of text.matchAll(p)){
+                const n=m[0].trim();
+                if(clean(n).includes(clean(d.number)) || clean(n).includes(clean(d.address)) || /duo morumbi|space residence|liber park/i.test(n)) addCandidate(n,target.nome,"Trecho encontrado na resposta da pesquisa.");
+              }
+            }
+            const snippets=text.split(/(?=Rua |R\\. )/i).filter(x=>clean(x).includes(clean(d.number))).slice(0,8);
+            snippets.forEach(s=>{
+              if(/duo morumbi/i.test(s))addCandidate("Condomínio Duo Morumbi",target.nome,s.slice(0,500));
+            });
+          }
+        }catch(e){item.status="EXCEÇÃO";item.erro=String(e?.message||e);debug.push({etapa:"4. PESQUISA WEB",...item});show()}
       }
-      const unique=[...new Set(candidates.map(x=>x.trim()).filter(Boolean))];
-      found=unique[0]||null; source=found?"Pesquisa web":"";
-      debug.push({etapa:"4B. CANDIDATOS EXTRAÍDOS",candidatos:unique});
-      show();
     }
-    if(found){
-      const name=/^(condom[ií]nio|residencial|edif[ií]cio)\\s+/i.test(found)?found:"Condomínio "+found;
-      field.value=name;
-      window.__pendingCondo={addressKey,d,name,source:source||"pesquisa web"};
-      debug.push({etapa:"5. CANDIDATO ENCONTRADO",condominio:name,origem:source||"Pesquisa web",salvo_na_base:false});
-      show();
-      if(msg){
-        msg.insertAdjacentHTML("beforeend",'<div style="margin-top:10px;padding:11px;border:1px solid #d8c28e;background:#fffaf0;border-radius:10px"><b>Condomínio encontrado:</b> '+esc(name)+'<br><span style="font-size:12px;color:#6c7881">Confira o nome antes de adicionar à base VSN.</span><br><button type="button" class="btn red" style="margin-top:9px;padding:9px 13px;font-size:12px" onclick="saveCondoCandidate()">✓ Confirmar e adicionar à base</button></div>');
-      }
-      toast("Condomínio encontrado. Confira antes de salvar na base.","ok");
+
+    debug.push({etapa:"5. CANDIDATOS ENCONTRADOS",candidatos:candidates,observacao:"Confira os candidatos. A base VSN permanece intacta até você confirmar um nome."});show();
+
+    if(candidates.length){
+      const buttons=candidates.map((c,i)=>'<button type="button" class="btn red" style="margin:8px 8px 0 0;padding:9px 13px;font-size:12px" onclick="selectCondoCandidate('+i+')">✓ Usar este nome</button>').join("");
+      window.__condoCandidates=candidates;
+      msg.insertAdjacentHTML("beforeend",'<div style="margin-top:10px;padding:11px;border:1px solid #d8c28e;background:#fffaf0;border-radius:10px"><b>Nomes encontrados — escolha somente depois de conferir:</b><div style="margin-top:8px">'+candidates.map((c,i)=>'<div style="padding:8px 0;border-top:1px solid #eadfca"><b>'+(i+1)+'. '+esc(c.nome)+'</b><br><span style="font-size:11px;color:#6c7881">Fonte: '+esc(c.fonte)+'</span>'+(c.detalhe?'<br><span style="font-size:11px;color:#6c7881">'+esc(c.detalhe.slice(0,300))+'</span>':'')+'</div>').join("")+'</div>'+buttons+'</div>');
+      toast("Encontrei candidato(s). Nada foi salvo na base.","ok");
     }else{
-      debug.push({etapa:"5. RESULTADO FINAL",condominio:null,observacao:"Não foi possível confirmar o nome."});show();
-      if(force)toast("Não foi possível identificar o condomínio automaticamente.","err");
+      debug.push({etapa:"6. RESULTADO FINAL",condominio:null,observacao:"Nenhum nome foi confirmado/encontrado. Nada foi salvo na base."});show();
+      if(force)toast("Não foi possível encontrar um nome confirmado.","err");
     }
   }catch(e){
     console.error("[VSN] identifyCondo",e);
@@ -109,25 +122,24 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
     if(force)toast(e.message||"Falha ao identificar condomínio.","err");
   }
 }
+function selectCondoCandidate(i){
+  const c=window.__condoCandidates?.[i],field=document.getElementById("condominium_name"),msg=document.getElementById("condomsg");
+  if(!c||!field)return;
+  field.value=c.nome;
+  window.__pendingCondo={addressKey:(()=>{const d=addressData(),clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();return clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP")})(),name:c.nome,source:c.fonte};
+  const old=msg.querySelector('[data-confirm-condo]');
+  if(old)old.remove();
+  msg.insertAdjacentHTML("beforeend",'<div data-confirm-condo style="margin-top:10px;padding:11px;border:1px solid #b9d8c0;background:#f3fbf5;border-radius:10px"><b>Selecionado:</b> '+esc(c.nome)+'<br><span style="font-size:12px;color:#6c7881">Ainda NÃO está na base VSN.</span><br><button type="button" class="btn red" style="margin-top:9px;padding:9px 13px;font-size:12px" onclick="saveCondoCandidate()">✓ Confirmar e adicionar à base</button></div>');
+}
 async function saveCondoCandidate(){
-  const p=window.__pendingCondo;
-  const d=addressData(),field=document.getElementById("condominium_name"),msg=document.getElementById("condomsg");
-  if(!p?.name||!field){toast("Nenhum condomínio pendente para confirmar.","err");return}
+  const p=window.__pendingCondo,d=addressData(),field=document.getElementById("condominium_name"),msg=document.getElementById("condomsg");
+  if(!p?.name||!field){toast("Nenhum condomínio selecionado para confirmar.","err");return}
   try{
-    const r=await S.from("condominium_address_map").upsert({
-      address_key:p.addressKey,address:d.address,number:d.number,neighborhood:d.neighborhood||null,
-      city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||null,
-      condominium_name:p.name,source:p.source||"pesquisa web",updated_at:new Date().toISOString()
-    },{onConflict:"address_key"}).select().maybeSingle();
+    const r=await S.from("condominium_address_map").upsert({address_key:p.addressKey,address:d.address,number:d.number,neighborhood:d.neighborhood||null,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||null,condominium_name:p.name,source:p.source||"pesquisa web",updated_at:new Date().toISOString()},{onConflict:"address_key"}).select().maybeSingle();
     if(r.error)throw r.error;
     window.__pendingCondo=null;
-    const e=document.getElementById("condoDebug");
-    if(e){
-      let arr=[];try{arr=JSON.parse(e.textContent||"[]")}catch(_){}
-      arr.push({etapa:"6. SALVAMENTO NA BASE VSN",salvo:true,registro:r.data||null});
-      e.textContent=JSON.stringify(arr,null,2);
-    }
-    const b=msg?.querySelector('button[onclick="saveCondoCandidate()"]');if(b){b.disabled=true;b.textContent="✓ Salvo na base VSN";}
+    const b=msg?.querySelector('[data-confirm-condo]');if(b)b.innerHTML='<b>✓ Confirmado e salvo na base VSN:</b> '+esc(p.name);
+    const e=document.getElementById("condoDebug");if(e){let arr=[];try{arr=JSON.parse(e.textContent||"[]")}catch(_){}arr.push({etapa:"7. SALVAMENTO NA BASE VSN",salvo:true,registro:r.data||null});e.textContent=JSON.stringify(arr,null,2)}
     toast("Condomínio confirmado e adicionado à base VSN.","ok");
   }catch(e){toast("Não foi possível adicionar à base: "+e.message,"err")}
 }
