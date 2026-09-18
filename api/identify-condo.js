@@ -1,9 +1,16 @@
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(204).end();
 
-  const query = String(req.query?.q || 'hello word').trim();
+  const body = req.method === 'POST' ? (req.body || {}) : {};
+  const query = String(req.query?.q ?? body.q ?? '').trim();
+
+  if (!query) {
+    return res.status(400).json({ error: 'Informe a pesquisa em q.' });
+  }
 
   try {
     const googleUrl = 'https://www.google.com/search?' + new URLSearchParams({
@@ -18,18 +25,15 @@ export default async function handler(req, res) {
       redirect: 'follow'
     });
 
-    if (!response.ok) return res.status(502).json({error:'Google HTTP '+response.status});
+    if (!response.ok) return res.status(502).json({ error: 'Google HTTP ' + response.status });
 
     const html = await response.text();
-    const clean = s => String(s||'')
-      .replace(/<[^>]*>/g,' ')
-      .replace(/&amp;/g,'&').replace(/&quot;/g,'"')
-      .replace(/&#39;|&#x27;/g,"'").replace(/&nbsp;/g,' ')
-      .replace(/\\s+/g,' ').trim();
+    const clean = s => String(s || '')
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&amp;/g, '&').replace(/&quot;/g, '"')
+      .replace(/&#39;|&#x27;/g, "'").replace(/&nbsp;/g, ' ')
+      .replace(/\\s+/g, ' ').trim();
 
-    // O Google normalmente coloca o título do resultado dentro de <h3>.
-    // Primeiro tentamos links que contenham um <h3>, evitando capturar
-    // textos genéricos da página como "hello word".
     const results = [];
     const seen = new Set();
     const blocks = html.match(/<a[^>]+href="([^"]+)"[^>]*>[\\s\\S]*?<h3[^>]*>([\\s\\S]*?)<\\/h3>[\\s\\S]*?<\\/a>/gi) || [];
@@ -38,27 +42,36 @@ export default async function handler(req, res) {
       const href = block.match(/<a[^>]+href="([^"]+)"/i)?.[1] || '';
       const titleRaw = block.match(/<h3[^>]*>([\\s\\S]*?)<\\/h3>/i)?.[1] || '';
       let url = href;
+
       if (url.startsWith('/url?q=')) url = url.slice(7).split('&')[0];
       try { url = decodeURIComponent(url); } catch {}
+
       if (!/^https?:\\/\\//i.test(url)) continue;
-      try { if (/google\\./i.test(new URL(url).hostname)) continue; } catch { continue; }
+
+      try {
+        if (/google\\./i.test(new URL(url).hostname)) continue;
+      } catch {
+        continue;
+      }
+
       const title = clean(titleRaw);
       if (!title || seen.has(url)) continue;
+
       seen.add(url);
-      results.push({title,url});
+      results.push({ title, url });
       if (results.length >= 10) break;
     }
 
     return res.status(200).json({
       query,
-      provider:'Google',
+      provider: 'Google',
       first_result: results[0] || null,
       results
     });
   } catch (e) {
     return res.status(500).json({
-      error:'Erro na pesquisa do Google',
-      details:String(e?.message||e)
+      error: 'Erro na pesquisa do Google',
+      details: String(e?.message || e)
     });
   }
 }
