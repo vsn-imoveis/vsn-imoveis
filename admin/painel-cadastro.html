@@ -73,57 +73,83 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
   try{
     if(!d.address||!d.number){if(force)toast("Preencha Endereço e Número para identificar o condomínio.","err");return}
     const clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
-    const key=clean(d.address)+"|"+String(d.number).trim();
-    const known={
-      "estrada do campo limpo|6865":"Condomínio Liber Park Campo Limpo"
-    };
-    if(known[key]){
-      field.value=known[key];
-      if(msg)msg.innerHTML="✓ Condomínio identificado: <b>"+esc(known[key])+"</b>";
-      toast("Condomínio identificado automaticamente.","ok");
-      return;
-    }
     const query='"'+d.address+'" "'+d.number+'" condomínio';
-    if(msg)msg.innerHTML="🔎 Pesquisando o endereço na web...";
     const targets=[
       "https://www.google.com/search?q="+encodeURIComponent(query)+"&hl=pt-BR&gl=br",
       "https://www.bing.com/search?q="+encodeURIComponent(query)+"&setlang=pt-BR"
     ];
-    let text="";
+    const debug=[];
+    if(msg)msg.innerHTML='<div style="border:1px solid #c9d5e3;background:#f5f8fb;border-radius:10px;padding:12px"><b>🔧 DEBUG — identificação do condomínio</b><pre id="condoDebug" style="white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;margin:10px 0 0;font:12px/1.45 monospace"></pre></div>';
+    const render=()=>{const e=document.getElementById("condoDebug");if(e)e.textContent=JSON.stringify(debug,null,2)};
+    debug.push({etapa:"1. ENDEREÇO RECEBIDO",dados:d});
+    debug.push({etapa:"2. QUERY MONTADA",query});
+    render();
+
+    const known={
+      "estrada do campo limpo|6865":"Condomínio Liber Park Campo Limpo"
+    };
+    const knownKey=clean(d.address)+"|"+String(d.number).trim();
+    if(known[knownKey]){
+      debug.push({etapa:"3. BASE INTERNA",resultado:"Encontrado",nome:known[knownKey],observacao:"Este endereço possui correspondência cadastrada no código."});
+      field.value=known[knownKey];
+      debug.push({etapa:"4. RESULTADO FINAL",condominio:known[knownKey]});
+      render();
+      toast("Condomínio identificado automaticamente.","ok");
+      return;
+    }
+
+    let allText="";
     for(const target of targets){
+      const started=Date.now();
+      const item={url_pesquisada:target,status:"iniciando"};
       try{
         const proxy="https://api.allorigins.win/raw?url="+encodeURIComponent(target);
+        item.proxy=proxy;
         const rr=await fetch(proxy,{headers:{"Accept":"text/html,text/plain,*/*"}});
-        if(rr.ok){
-          const t=await rr.text();
-          if(t.length>500){text+=t+"\n";if(text.length>3000)break}
-        }
-      }catch(e){console.warn("[VSN] proxy search failed",e)}
+        item.http_status=rr.status;
+        const t=await rr.text();
+        item.tempo_ms=Date.now()-started;
+        item.tamanho_resposta=t.length;
+        item.status=rr.ok?"OK":"ERRO";
+        item.amostra=t.replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").slice(0,1800);
+        debug.push({etapa:"3. PESQUISA WEB",...item});
+        if(rr.ok&&t.length>500)allText+=t+"\n";
+      }catch(e){
+        item.tempo_ms=Date.now()-started;
+        item.status="EXCEÇÃO";
+        item.erro=String(e?.message||e);
+        debug.push({etapa:"3. PESQUISA WEB",...item});
+      }
+      render();
     }
+
     const strip=s=>String(s||"").replace(/<[^>]+>/g," ").replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,"&").replace(/\s+/g," ").trim();
-    const lines=text.split(/\n+/).map(strip).filter(Boolean);
+    const lines=allText.split(/\n+/).map(strip).filter(Boolean);
     const candidates=[];
-    const add=(v)=>{v=String(v||"").trim().replace(/^[:\-–—|•]+|[:\-–—|•]+$/g,"").trim();if(v&&v.length>=3&&v.length<=100&&!/^(google|bing|resultados|pesquisa|condominio|endereco|estrada|rua|avenida)$/i.test(v))candidates.push(v)};
+    const add=(v,orig)=>{v=String(v||"").trim().replace(/^[:\-–—|•]+|[:\-–—|•]+$/g,"").trim();if(v&&v.length>=3&&v.length<=100&&!/^(google|bing|resultados|pesquisa|condominio|endereco|estrada|rua|avenida)$/i.test(v))candidates.push({nome:v,origem:orig})};
     for(const line of lines){
       if(!clean(line).includes(clean(d.number)))continue;
       let m=line.match(/(?:condom[ií]nio|residencial|edif[ií]cio)\s+([A-ZÀ-Ú0-9][^|<>]{2,90}?)(?:\s+-\s+|\s+\||$)/i);
-      if(m)add(m[1]);
+      if(m)add(m[1],line);
       m=line.match(/(?:condom[ií]nio|residencial|edif[ií]cio)\s+([A-ZÀ-Ú0-9][^|<>]{2,90})/i);
-      if(m)add(m[1]);
+      if(m)add(m[1],line);
     }
-    const found=[...new Set(candidates)].find(v=>!/^condominio$/i.test(v));
+    debug.push({etapa:"4. CANDIDATOS EXTRAÍDOS",candidatos:candidates.slice(0,20)});
+    const found=[...new Map(candidates.map(x=>[x.nome.toLowerCase(),x])).values()][0];
     if(found){
-      const name=/^condom[ií]nio\s+/i.test(found)?found:"Condomínio "+found;
+      const name=/^condom[ií]nio\s+/i.test(found.nome)?found.nome:"Condomínio "+found.nome;
       field.value=name;
-      if(msg)msg.innerHTML="✓ Condomínio identificado: <b>"+esc(name)+"</b>";
+      debug.push({etapa:"5. RESULTADO FINAL",condominio:name,linha_origem:found.origem});
+      if(msg)msg.innerHTML='<div style="border:1px solid #a8d5b8;background:#f2fbf5;border-radius:10px;padding:12px"><b>✓ Condomínio identificado: '+esc(name)+'</b><pre id="condoDebug" style="white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;margin:10px 0 0;font:12px/1.45 monospace">'+esc(JSON.stringify(debug,null,2))+'</pre></div>';
       toast("Condomínio identificado automaticamente.","ok");
     }else{
-      if(msg)msg.textContent="Não foi possível confirmar o nome do condomínio para este endereço.";
+      debug.push({etapa:"5. RESULTADO FINAL",condominio:null,observacao:"Nenhum nome foi extraído dos resultados recebidos."});
+      render();
       if(force)toast("Não foi possível identificar o condomínio automaticamente.","err");
     }
   }catch(e){
     console.error("[VSN] identifyCondo",e);
-    if(msg)msg.textContent="Não foi possível consultar a pesquisa. Preencha o nome manualmente.";
+    if(msg)msg.innerHTML="<b>ERRO</b><pre style='white-space:pre-wrap'>"+esc(JSON.stringify({erro:String(e?.message||e),stack:String(e?.stack||"")},null,2))+"</pre>";
     if(force)toast(e.message||"Falha ao identificar condomínio.","err");
   }
 }function setupAddress(){const e=document.getElementById('cep');let t;e.addEventListener('input',()=>{e.value=e.value.replace(/\D/g,'').slice(0,8);clearTimeout(t);if(e.value.length===8)t=setTimeout(lookupAddress,250)});e.addEventListener('blur',lookupAddress)}async function lookupAddress(){const cep=document.getElementById('cep').value.replace(/\D/g,'');if(cep.length!==8)return;const l=document.getElementById('addrLoading'),h=document.getElementById('addrHint');l.textContent='Consultando CEP...';l.style.display='inline';h.style.display='none';try{const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');if(!r.ok)throw new Error('Falha na consulta');const a=await r.json();if(a.erro)throw new Error('CEP não encontrado');document.getElementById('address').value=a.logradouro||'';document.getElementById('neighborhood').value=a.bairro||'';document.getElementById('city').value=a.localidade||'';document.getElementById('state').value=a.uf||'';h.textContent='✓ Endereço preenchido automaticamente pelo CEP';h.style.display='inline';autoCondo()}catch(e){h.textContent=e.message==='CEP não encontrado'?'CEP não encontrado. Confira o número.':'Não foi possível consultar o CEP. Preencha o endereço manualmente.';h.style.display='inline'}finally{l.style.display='none'}}function setupDrop(){const z=document.getElementById('drop');['dragenter','dragover'].forEach(v=>z.addEventListener(v,e=>{e.preventDefault();z.classList.add('drag')}));['dragleave','drop'].forEach(v=>z.addEventListener(v,e=>{e.preventDefault();z.classList.remove('drag')}));z.addEventListener('drop',e=>pick({target:{files:e.dataTransfer.files}}))}function pick(e){const valid=[...e.target.files].filter(f=>f.size<=10*1024*1024&&/^image\/(jpeg|png|webp|heic|heif)$/.test(f.type));selectedFiles=[...selectedFiles,...valid];renderPhotos();if(selectedFiles.length)generateDescription()}function renderPhotos(){const p=document.getElementById('photos');if(!p)return;p.innerHTML='';editingPhotos.forEach((u,i)=>{const d=document.createElement('div');d.className='photo '+(i===0?'primary':'');d.innerHTML='<img src="'+esc(u)+'"><button type="button" onclick="removeExisting('+i+')">×</button>';p.appendChild(d)});selectedFiles.forEach((f,i)=>{const d=document.createElement('div');d.className='photo '+(editingPhotos.length===0&&i===0?'primary':'');d.innerHTML='<img src="'+URL.createObjectURL(f)+'"><button type="button" onclick="removeSelected('+i+')">×</button>';p.appendChild(d)})}function removeSelected(i){selectedFiles.splice(i,1);renderPhotos()}function removeExisting(i){editingPhotos.splice(i,1);renderPhotos()}async function resizeDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,1200/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.72))};im.onerror=reject;im.src=r.result};r.onerror=reject;r.readAsDataURL(file)})}async function generateDescription(){if(!selectedFiles.length){toast('Primeiro selecione as fotos.','err');return}const b=document.getElementById('aiBtn');b.disabled=true;b.textContent='Analisando fotos...';try{const images=await Promise.all(selectedFiles.slice(0,8).map(resizeDataUrl)),f=new FormData(document.getElementById('propertyForm')),data={property_type:f.get('property_type'),transaction_type:f.get('transaction_type'),area:f.get('area'),bedrooms:f.get('bedrooms'),suites:f.get('suites'),parking:f.get('parking'),neighborhood:f.get('neighborhood'),address:f.get('address')};const r=await fetch('/api/generate-description.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({images,data})}),j=await r.json();if(!r.ok)throw new Error(j.error||'Falha ao gerar descrição');document.getElementById('description').value=j.description;document.getElementById('descCount').textContent=j.description.length;toast('Descrição criada automaticamente.','ok')}catch(e){toast(e.message,'err')}finally{b.disabled=false;b.textContent='Gerar descrição com IA'}}async function uploadPhotos(id){if(!selectedFiles.length)return[];const urls=[];for(let i=0;i<selectedFiles.length;i++){const f=selectedFiles[i],ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=id+'/'+Date.now()+'_'+i+'.'+ext,r=await S.storage.from('property-photos').upload(path,f,{contentType:f.type||'image/jpeg'});if(r.error)throw r.error;urls.push(S.storage.from('property-photos').getPublicUrl(path).data.publicUrl)}return urls}async function save(form){if(!form.reportValidity())return;if(!form.querySelector('[name=for_sale]:checked')&&!form.querySelector('[name=for_rent]:checked')){toast('Selecione Venda, Locação ou as duas opções.','err');return;}const b=document.getElementById('saveBtn');b.disabled=true;b.textContent='Salvando...';const f=new FormData(form),row={title:f.get('title'),code:f.get('code')||null,transaction_type:(f.has('for_sale')&&f.has('for_rent')?'both':f.has('for_rent')?'rent':'sale'),for_sale:f.has('for_sale'),for_rent:f.has('for_rent'),property_type:f.get('property_type'),price:+f.get('price'),condo_fee:+(f.get('condo_fee')||0),iptu:+(f.get('iptu')||0),area:+(f.get('area')||0),bedrooms:+(f.get('bedrooms')||0),suites:+(f.get('suites')||0),parking:+(f.get('parking')||0),neighborhood:f.get('neighborhood'),city:f.get('city')||'São Paulo',state:f.get('state')||null,cep:f.get('cep')||null,address:f.get('address')||null,condominium_name:f.get('condominium_name')||null,condominium_address:f.get('condominium_address')||null,condominium_number:f.get('condominium_number')||null,condominium_complement:f.get('condominium_complement')||null,condominium_neighborhood:f.get('condominium_neighborhood')||null,condominium_city:f.get('condominium_city')||null,condominium_state:f.get('condominium_state')||null,condominium_cep:f.get('condominium_cep')||null,number:f.get('number')||f.get('condominium_number')||null,complement:f.get('complement')||f.get('condominium_complement')||null,description:f.get('description')||null,features:[...form.querySelectorAll('input[name=feat]:checked')].map(e=>e.value),photos:editingPhotos,video_url:f.get('video_url')||null,featured:f.has('featured'),published:f.has('published')};try{let r=editId?await S.from('properties').update(row).eq('id',editId).select().single():await S.from('properties').insert(row).select().single();if(r.error)throw r.error;const urls=await uploadPhotos(r.data.id);if(urls.length){const up=await S.from('properties').update({photos:[...editingPhotos,...urls]}).eq('id',r.data.id);if(up.error)throw up.error}toast('Imóvel salvo com sucesso.','ok');clearDraft();selectedFiles=[];editingPhotos=[];editId='';await load();document.getElementById('form').innerHTML='';window.scrollTo({top:0,behavior:'smooth'})}catch(e){toast('Não foi possível salvar: '+e.message,'err');b.disabled=false;b.textContent='Salvar imóvel'}}function edit(id){newProp(items.find(x=>x.id===id))}function cancelForm(){if((selectedFiles.length||editId)&&!confirm('Descartar o preenchimento atual?'))return;selectedFiles=[];editingPhotos=[];editId='';document.getElementById('form').innerHTML=''}async function toggle(id){const x=items.find(x=>x.id===id),r=await S.from('properties').update({published:!x.published}).eq('id',id);if(r.error)toast(r.error.message,'err');else{toast(x.published?'Imóvel despublicado.':'Imóvel publicado.','ok');load()}}async function del(id){if(!confirm('Excluir este imóvel?'))return;const x=items.find(x=>x.id===id);if(x?.photos?.length){const paths=x.photos.map(u=>{const m=u.match(/\/property-photos\/([^?]+)/);return m?decodeURIComponent(m[1]):null}).filter(Boolean);if(paths.length)await S.storage.from('property-photos').remove(paths)}const r=await S.from('properties').delete().eq('id',id);if(r.error)toast(r.error.message,'err');else{toast('Imóvel excluído.','ok');load()}}S.auth.onAuthStateChange((_e,s)=>{if(s)panel(s);else login()});boot();</script></body></html>
