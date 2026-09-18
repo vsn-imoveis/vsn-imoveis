@@ -4,7 +4,10 @@ export default async function handler(req,res){
   if(!address||!number) return res.status(400).json({error:'Informe endereço e número.'});
 
   const clean=(s='')=>String(s).replace(/<[^>]*>/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&').replace(/\s+/g,' ').trim();
-  const normalize=(s='')=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const normalize=(s='')=>String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/\bestr\.?\b/g,'estrada').replace(/\bav\.?\b/g,'avenida').replace(/\br\.?\b/g,'rua')
+    .replace(/\bal\.?\b/g,'alameda').replace(/\brod\.?\b/g,'rodovia').replace(/\bpc\.?\b/g,'praca')
+    .replace(/[^a-z0-9]+/g,' ').trim();
   const location=[address,number,neighborhood,city,state,cep].filter(Boolean).join(', ');
 
   try{
@@ -100,6 +103,36 @@ export default async function handler(req,res){
     const googleBatches=await Promise.all(googleQueries.map(googleSearch));
     for(const batch of googleBatches) results.push(...batch);
 
+    // Google HTML como fallback, mesmo sem GOOGLE_API_KEY/GOOGLE_CX.
+    // Isso permite usar os resultados públicos do Google diretamente.
+    const googleHtmlSearch=async q=>{
+      try{
+        const url='https://www.google.com/search?q='+encodeURIComponent(q)+'&hl=pt-BR&gl=br&num=10';
+        const ctrl=new AbortController();
+        const timer=setTimeout(()=>ctrl.abort(),5000);
+        const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0'},signal:ctrl.signal});
+        clearTimeout(timer);
+        if(!r.ok) return [];
+        const html=await r.text();
+        const out=[];
+        const blocks=html.split('<div').filter(x=>/href="https?:\/\//.test(x));
+        for(const block of blocks){
+          if(out.length>=10) break;
+          const link=block.match(/<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\\s\\S]*?)<\/a>/i);
+          if(!link) continue;
+          const href=link[1];
+          if(/google\.(com|com\.br)\//.test(href)) continue;
+          const title=clean(link[2].replace(/<[^>]+>/g,' '));
+          if(!title||title.length<4) continue;
+          const snippet=clean(block.replace(/<[^>]+>/g,' ').slice(0,1200));
+          out.push({title,url:href,snippet,source:'google-html'});
+        }
+        return out;
+      }catch(_){ return []; }
+    };
+    const googleHtmlBatches=await Promise.all(googleQueries.map(googleHtmlSearch));
+    for(const batch of googleHtmlBatches) results.push(...batch);
+
     const fetchSearch=async q=>{
       try{
         const url='https://html.duckduckgo.com/html/?q='+encodeURIComponent(q);
@@ -131,8 +164,14 @@ export default async function handler(req,res){
     const addrNorm=normalize(`${address} ${number}`);
     const scored=unique.map(x=>{
       const text=normalize(`${x.title} ${x.snippet}`);let score=0;
+      const streetNorm=normalize(String(address));
+      const numberNorm=normalize(String(number));
       if(text.includes(addrNorm)) score+=120;
-      if(text.includes(normalize(String(number)))) score+=30;
+      if(numberNorm && text.includes(numberNorm)) score+=35;
+      if(streetNorm && text.includes(streetNorm)) score+=70;
+      // Mesmo quando a página abrevia "Estrada" como "Estr.", a normalização
+      // acima transforma ambas em "estrada" e mantém a correspondência.
+      if(streetNorm && numberNorm && text.includes(streetNorm) && text.includes(numberNorm)) score+=80;
       if(/condominio|residencial|residence|space residence|parque das orquideas/.test(text)) score+=40;
       if(/apartamento|imovel/.test(text)) score+=10;
       return {...x,score};
