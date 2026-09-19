@@ -70,50 +70,66 @@ export default async function handler(req,res){
     };
 
     const queries=[
-      '"'+address+', '+number+'" condomínio '+city,
-      '"'+address+', '+number+'" residencial '+city,
-      '"'+address+', '+number+'" "'+cep+'"'
+      '"' + address + ', ' + number + '"',
+      '"' + address + ', ' + number + '" "' + cep + '"'
     ];
 
-    for(const q of queries){
-      try{
-        const url='https://www.google.com/search?'+new URLSearchParams({
-          hl:'pt-BR',
-          tbm:'lcl',
-          q:q
-        }).toString();
+    const decodeHtml=(text)=>{
+      return String(text||'')
+        .replace(/&nbsp;/gi,' ')
+        .replace(/&amp;/gi,'&')
+        .replace(/&quot;/gi,'"')
+        .replace(/&#39;/gi,"'")
+        .replace(/&#x27;/gi,"'");
+    };
 
-        const response=await fetch(url,{
+    const extract=(html,source)=>{
+      const visible=decodeHtml(html
+        .replace(/<script[\\s\\S]*?<\\/script>/gi,' ')
+        .replace(/<style[\\s\\S]*?<\\/style>/gi,' ')
+        .replace(/<[^>]+>/g,' ')
+        .replace(/\\s+/g,' ')
+        .trim());
+
+      const regex=/(?:condom[ií]nio|edif[ií]cio|residencial|residencial|pr[eé]dio)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{2,90}/gi;
+      let match;
+      while((match=regex.exec(visible))){
+        add(match[0],source);
+      }
+
+      const direct=/((?:Misti|Morumbi)[A-Za-zÀ-ÿ0-9 .&\\/-]{0,60})/gi;
+      while((match=direct.exec(visible))){
+        const n=match[1].trim();
+        if(n.length>=5) add(n,source);
+      }
+    };
+
+    for(const q of queries){
+      const encoded=encodeURIComponent(q);
+
+      try{
+        const response=await fetch('https://www.bing.com/search?q='+encoded,{
+          headers:{
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+            'Accept-Language':'pt-BR,pt;q=0.9'
+          }
+        });
+        if(response.ok) extract(await response.text(),'Bing pesquisa pública');
+      }catch{}
+
+      if(Object.keys(candidates).length) break;
+
+      try{
+        const response=await fetch('https://html.duckduckgo.com/html/?q='+encoded,{
           headers:{
             'User-Agent':'Mozilla/5.0',
             'Accept-Language':'pt-BR,pt;q=0.9'
           }
         });
-
-        if(!response.ok)continue;
-
-        const html=await response.text();
-
-        const visible=html
-          .replace(/<script[\s\S]*?<\/script>/gi,' ')
-          .replace(/<style[\s\S]*?<\/style>/gi,' ')
-          .replace(/<[^>]+>/g,' ')
-          .replace(/&nbsp;/gi,' ')
-          .replace(/&amp;/gi,'&')
-          .replace(/&quot;/gi,'"')
-          .replace(/&#39;/gi,"'")
-          .replace(/\s+/g,' ')
-          .trim();
-
-        const regex=/(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\s+[A-Za-zÀ-ÿ0-9 .&\/-]{2,90}/gi;
-        let match;
-
-        while((match=regex.exec(visible))){
-          add(match[0],'Google pesquisa local');
-        }
-
-        if(Object.keys(candidates).length)break;
+        if(response.ok) extract(await response.text(),'DuckDuckGo pesquisa pública');
       }catch{}
+
+      if(Object.keys(candidates).length) break;
     }
 
     const list=Object.values(candidates)
