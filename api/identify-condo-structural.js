@@ -56,7 +56,7 @@ export default async function handler(req,res){
           'Accept-Language':'pt-BR,pt;q=0.9,en;q=0.8'
         },
         redirect:'follow',
-        signal:AbortSignal.timeout(7000)
+        signal:AbortSignal.timeout(3500)
       });
       if(!r.ok)return [];
       const html=await r.text();
@@ -78,12 +78,12 @@ export default async function handler(req,res){
   const searchBing=async q=>{
     try{
       const url='https://www.bing.com/search?'+new URLSearchParams({q,cc:'br',setlang:'pt-BR',count:'10'}).toString();
-      const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36','Accept-Language':'pt-BR,pt;q=0.9'},redirect:'follow',signal:AbortSignal.timeout(7000)});
+      const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36','Accept-Language':'pt-BR,pt;q=0.9'},redirect:'follow',signal:AbortSignal.timeout(3500)});
       if(!r.ok)return [];
       const html=await r.text();
       if(blockedText.test(clean(html)))return [];
       const out=[],seen=new Set();
-      const re=/<li class="b_algo"[\\s\\S]*?<h2>[\\s\\S]*?<a[^>]+href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/li>/gi;
+      const re=/<li class="b_algo"[\s\S]*?<h2>[\s\S]*?<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/li>/gi;
       let m;
       while((m=re.exec(html))&&out.length<10){
         const u=decodeUrl(m[1]), title=clean(m[2]);
@@ -97,7 +97,7 @@ export default async function handler(req,res){
   const searchJina=async q=>{
     try{
       const u='https://r.jina.ai/http://www.google.com/search?hl=pt-BR&gl=br&num=10&q='+encodeURIComponent(q);
-      const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(7000)});
+      const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(3500)});
       if(!r.ok)return [];
       const txt=clean(await r.text());
       if(blockedText.test(txt))return [];
@@ -131,18 +131,30 @@ export default async function handler(req,res){
     `${cep||''} "condomínio" "Estrada dos Mirandas"`
   ];
 
-  const googleSets=await Promise.all(queries.map(searchGoogle));
-  const bingSets=await Promise.all(queries.map(searchBing));
-  const resultSets=[...googleSets,...bingSets];
   const allResults=[];
   const seenUrls=new Set();
-  for(const set of resultSets) for(const item of set){
-    if(!seenUrls.has(item.url)){seenUrls.add(item.url);allResults.push(item)}
+  const collect=sets=>{
+    for(const set of sets){
+      if(set.status!=='fulfilled'||!Array.isArray(set.value))continue;
+      for(const item of set.value){
+        if(item?.url&&!seenUrls.has(item.url)){seenUrls.add(item.url);allResults.push(item)}
+      }
+    }
+  };
+
+  // Evita estourar o tempo da função: primeiro Google nas buscas principais.
+  const googleSets=await Promise.allSettled(queries.slice(0,10).map(searchGoogle));
+  collect(googleSets);
+
+  // Bing entra como reforço, não como 17 requisições adicionais.
+  if(allResults.length<4){
+    const bingSets=await Promise.allSettled(queries.slice(0,6).map(searchBing));
+    collect(bingSets);
   }
 
   if(!allResults.length){
-    const fallback=await Promise.all(queries.slice(0,6).map(searchJina));
-    for(const set of fallback) for(const item of set) allResults.push(item);
+    const fallback=await Promise.allSettled(queries.slice(0,4).map(searchJina));
+    collect(fallback);
   }
 
   let data={
@@ -244,13 +256,12 @@ export default async function handler(req,res){
   // Ordena por recorrência/evidência. O painel recebe vários candidatos mesmo
   // quando o condomínio ainda não existe no condominium_address_map.
   data.candidates.sort((a,b)=>b.score-a.score || b.hits-a.hits);
-  data.candidates=data.candidates.slice(0,8).map(({key,score,hits,...x})=>({...x,evidence_hits:hits}));
-
-  const strong=data.candidates.filter(x=>x.hits>=2);
-  // Um nome encontrado em fontes independentes do endereço exato também pode ser promovido.
-  const addressConfirmed=data.candidates.filter(x=>x.evidence_hits>=2 || (x.score>=8 && x.evidence_hits>=1));
+  const ranked=data.candidates.slice(0,8);
+  const strong=ranked.filter(x=>x.hits>=2);
+  const addressConfirmed=ranked.filter(x=>x.hits>=2 || (x.score>=8 && x.hits>=1));
   if(strong.length)data.condominium_name=strong[0].name;
   else if(addressConfirmed.length)data.condominium_name=addressConfirmed[0].name;
+  data.candidates=ranked.map(({key,score,hits,...x})=>({...x,evidence_hits:hits}));
 
   return res.status(200).json({
     ...data,
