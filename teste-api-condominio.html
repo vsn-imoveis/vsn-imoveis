@@ -103,7 +103,15 @@ async function testApi(){
   const started=performance.now();
   try{
     const response=await fetch('/api/identify-condo-structural.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    const data=await response.json(),elapsed=((performance.now()-started)/1000).toFixed(1);
+    const elapsed=((performance.now()-started)/1000).toFixed(1);
+    const raw=await response.text();
+    let data;
+    try{ data=JSON.parse(raw); }
+    catch(parseError){
+      status.textContent='Falha no servidor — '+elapsed+'s';
+      result.innerHTML='<div class="card" style="border-color:#d71920"><strong>A API não retornou JSON.</strong><p>Status HTTP: '+response.status+' '+escapeHtml(response.statusText)+'</p><p>Resposta recebida:</p><pre>'+escapeHtml(raw.slice(0,4000))+'</pre></div>';
+      return;
+    }
     status.textContent=(response.ok?'Concluído':'Erro')+' — '+elapsed+'s';
     let html='';
     if(data.candidates?.length){
@@ -123,7 +131,10 @@ async function testApi(){
     html+='<div class="card"><strong>Evidência:</strong> '+escapeHtml(data.evidence||'')+'</div>';
     html+='<details class="card"><summary>Resposta JSON completa</summary><pre>'+escapeHtml(JSON.stringify(data,null,2))+'</pre></details>';
     result.innerHTML=html;
-  }catch(e){status.textContent='Falha: '+e.message}
+  }catch(e){
+    status.textContent='Falha de comunicação';
+    result.innerHTML='<div class="card" style="border-color:#d71920"><strong>Não foi possível chamar a API.</strong><p>'+escapeHtml(e.message)+'</p></div>';
+  }
   finally{button.disabled=false}
 }
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
