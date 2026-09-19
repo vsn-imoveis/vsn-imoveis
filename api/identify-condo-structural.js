@@ -25,24 +25,30 @@ export default async function handler(req,res){
 
     const searched=[address,number,neighborhood,city,state,cep].filter(Boolean).join(", ");
 
-    const query=encodeURIComponent('"' + address + ' ' + number + '" condomínio');
+    const queries=[
+      '"' + address + ' ' + number + '" condomínio',
+      '"' + address.replace(/^Rua Doutor/i,"Rua Dr.") + ' ' + number + '" residencial',
+      '"' + address + ' ' + number + '" edifício'
+    ];
     let html="";
-    try{
-      const response=await fetch("https://www.bing.com/search?q="+query,{
-        headers:{
-          "User-Agent":"Mozilla/5.0",
-          "Accept-Language":"pt-BR,pt;q=0.9"
+    for(const q of queries){
+      try{
+        const response=await fetch("https://www.bing.com/search?q="+encodeURIComponent(q),{
+          headers:{
+            "User-Agent":"Mozilla/5.0",
+            "Accept-Language":"pt-BR,pt;q=0.9"
+          }
+        });
+        if(response.ok){
+          html+=await response.text();
         }
-      });
-      if(response.ok){
-        html=await response.text();
-      }
-    }catch(e){
-      html="";
+      }catch(e){}
+      if(html.length>150000) break;
     }
 
     const candidates=[];
     const addressNeedle=normalize(address);
+    const streetWords=normalize(address).replace(/^rua/,"").slice(0,18);
     const numberNeedle=normalize(number);
     let pos=0;
 
@@ -66,7 +72,8 @@ export default async function handler(req,res){
       // O resultado só pode ser candidato se o próprio resultado
       // mencionar o endereço e o número pesquisados.
       const normalizedResult=normalize(resultText);
-      if(!normalizedResult.includes(addressNeedle)||!normalizedResult.includes(numberNeedle)){
+      const hasAddress=normalizedResult.includes(addressNeedle) || (streetWords.length>=8 && normalizedResult.includes(streetWords));
+      if(!hasAddress||!normalizedResult.includes(numberNeedle)){
         pos=liEnd+5;
         continue;
       }
