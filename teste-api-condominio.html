@@ -56,7 +56,7 @@ pre{background:#111;color:#eee;padding:16px;border-radius:10px;overflow:auto;max
   </div>
 </div>
 
-<button id="test" onclick="testApi()">TESTAR API</button>
+<button id="test" onclick="testApi()">TESTAR API ATUAL</button><button id="testPython" onclick="testPythonApi()" style="margin-left:8px;background:#222">TESTAR API PYTHON</button>
 <div id="status"></div><div id="result"></div>
 </main>
 
@@ -137,6 +137,45 @@ async function testApi(){
   }
   finally{button.disabled=false}
 }
+async function testPythonApi(){
+  const button=$('testPython'),status=$('status'),result=$('result');
+  const endereco=[$('address').value.trim(),$('number').value.trim()].filter(Boolean).join(', ');
+  if(!endereco){status.textContent='Informe endereço e número.';return}
+  button.disabled=true;status.textContent='Consultando Google pela API Python...';result.innerHTML='';
+  const started=performance.now();
+  try{
+    const response=await fetch('/api/index.py/buscar?endereco='+encodeURIComponent(endereco),{headers:{'Accept':'application/json'}});
+    const elapsed=((performance.now()-started)/1000).toFixed(1);
+    const raw=await response.text();
+    let data;
+    try{data=JSON.parse(raw)}catch(e){
+      status.textContent='API Python não retornou JSON — '+elapsed+'s';
+      result.innerHTML='<div class="card" style="border-color:#d71920"><strong>Resposta recebida:</strong><pre>'+escapeHtml(raw.slice(0,5000))+'</pre></div>';
+      return;
+    }
+    status.textContent=(response.ok?'API Python concluída':'API Python retornou erro')+' — '+elapsed+'s';
+    let html='<div class="card"><h2>API Python — Google + BeautifulSoup</h2>';
+    html+='<div><strong>Endereço:</strong> '+escapeHtml(data.endereco||endereco)+'</div>';
+    html+='<div><strong>Nomes encontrados:</strong> '+(data.quantidade??0)+'</div>';
+    if(data.nomes_encontrados?.length){
+      html+='<h3>Nomes identificados</h3><ul>';
+      data.nomes_encontrados.forEach(n=>html+='<li>'+escapeHtml(n)+'</li>');
+      html+='</ul>';
+    }
+    html+='</div>';
+    if(data.textos_analisados?.length){
+      html+='<details class="card" open><summary><strong>Textos reais recebidos do Google</strong></summary>';
+      data.textos_analisados.forEach((t,i)=>html+='<div class="candidate"><strong>Resultado '+(i+1)+'</strong><br>'+escapeHtml(t)+'</div>');
+      html+='</details>';
+    }
+    html+='<details class="card"><summary>JSON completo da API Python</summary><pre>'+escapeHtml(JSON.stringify(data,null,2))+'</pre></details>';
+    result.innerHTML=html;
+  }catch(e){
+    status.textContent='Falha na API Python';
+    result.innerHTML='<div class="card" style="border-color:#d71920"><strong>Não foi possível chamar a API Python.</strong><p>'+escapeHtml(e.message)+'</p></div>';
+  }finally{button.disabled=false}
+}
+
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function escapeAttr(v){return escapeHtml(v)}
 </script>
