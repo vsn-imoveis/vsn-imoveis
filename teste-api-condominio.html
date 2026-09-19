@@ -56,7 +56,7 @@ pre{background:#111;color:#eee;padding:16px;border-radius:10px;overflow:auto;max
   </div>
 </div>
 
-<button id="test" onclick="testApi()">TESTAR API ATUAL</button><button id="testPython" onclick="testPythonApi()" style="margin-left:8px;background:#222">TESTAR API PYTHON</button>
+<button id="test" onclick="testApi()">TESTAR API ATUAL</button><button type="button" onclick="testDirectSearch()" style="margin-left:8px;background:#222">TESTAR DIRETO</button><button id="testPython" onclick="testPythonApi()" style="margin-left:8px;background:#222">TESTAR API PYTHON</button>
 <div id="status"></div><div id="result"></div>
 
 <div class="card" style="margin-top:20px">
@@ -109,6 +109,16 @@ async function lookupCep(){
   }
 }
 
+
+async function testDirectSearch(){
+  const result=$('result'),status=$('status');
+  const address=[$('address').value.trim(),$('number').value.trim(),$('neighborhood').value.trim(),$('city').value.trim(),$('state').value.trim(),$('cep').value.trim()].filter(Boolean).join(', ');
+  if(!$('address').value.trim()||!$('number').value.trim()){status.textContent='Informe endereço e número.';return}
+  const q=encodeURIComponent('"'+$('address').value.trim()+' '+$('number').value.trim()+'" condomínio');
+  const url='https://www.google.com/search?q='+q;
+  status.textContent='Abrindo pesquisa externa direta...';
+  result.innerHTML='<div class="card"><strong>Consulta direta:</strong><br>'+escapeHtml(address)+'<br><br><a href="'+url+'" target="_blank" rel="noopener">Abrir pesquisa externa</a></div>';
+}
 async function testApi(){
   const button=$('test'),status=$('status'),result=$('result');
   const payload={
