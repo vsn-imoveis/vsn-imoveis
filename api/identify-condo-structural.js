@@ -81,13 +81,13 @@ export default async function handler(req,res){
       const titleRe=/<h2[^>]*>[\s\S]*?<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/gi;
       let m;
       while((m=titleRe.exec(raw))){
-        const title=strip(m[2]);
+        const title=strip(m[2]);\n        const snippet=strip(m[3]);
         if(!title)continue;
-        const context=strip(raw.slice(Math.max(0,m.index-300),Math.min(raw.length,titleRe.lastIndex+900)));
-        if(!normalize(context).includes(addrNorm))continue;
+        const context=strip(raw.slice(Math.max(0,m.index),Math.min(raw.length,titleRe.lastIndex)));\n        const evidenceText=strip(title+" "+snippet+" "+context);
+        if(!normalize(evidenceText).includes(addrNorm))continue;
         const explicit=title.match(/(?:condom[ií]nio|edif[ií]cio|residencial|residence|empreendimento)[\s:,-]+(.+)/i);
-        if(explicit)add(explicit[1],source,context,m[1]);
-        else if(/misti|morumbi|residence|residencial|condom[ií]nio|edif[ií]cio/i.test(title))add(title,source,context,m[1]);
+        if(explicit)add(explicit[1],source,evidenceText,m[1]);
+        else if(/misti|morumbi|residence|residencial|condom[ií]nio|edif[ií]cio/i.test(title))add(title,source,evidenceText,m[1]);
       }
 
       const patterns=[
