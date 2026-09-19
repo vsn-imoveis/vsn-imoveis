@@ -56,7 +56,7 @@ pre{background:#111;color:#eee;padding:16px;border-radius:10px;overflow:auto;max
   </div>
 </div>
 
-<button id="test" onclick="testApi()">TESTAR API ATUAL</button><button type="button" onclick="testDirectSearch()" style="margin-left:8px;background:#222">TESTAR DIRETO</button><button id="testPython" onclick="testPythonApi()" style="margin-left:8px;background:#222">TESTAR API PYTHON</button>
+<button id="test" onclick="testApi()">TESTAR API ATUAL</button><button type="button" onclick="testDirectSearch()" style="margin-left:8px;background:#222">TESTAR DIRETO</button><button type="button" onclick="testOsmApi()" style="margin-left:8px;background:#18794e">TESTAR OSM</button><button id="testPython" onclick="testPythonApi()" style="margin-left:8px;background:#222">TESTAR API PYTHON</button>
 <div id="status"></div><div id="result"></div>
 
 <div class="card" style="margin-top:20px">
@@ -119,6 +119,22 @@ async function testDirectSearch(){
   status.textContent='Abrindo pesquisa externa direta...';
   result.innerHTML='<div class="card"><strong>Consulta direta:</strong><br>'+escapeHtml(address)+'<br><br><a href="'+url+'" target="_blank" rel="noopener">Abrir pesquisa externa</a></div>';
 }
+async function testOsmApi(){
+  const status=$('status'),result=$('result');
+  const payload={address:$('address').value.trim(),number:$('number').value.trim(),neighborhood:$('neighborhood').value.trim(),city:$('city').value.trim(),state:$('state').value.trim(),cep:$('cep').value.trim()};
+  if(!payload.address||!payload.number){status.textContent='Informe endereço e número.';return}
+  status.textContent='Consultando Nominatim + Overpass...'; result.innerHTML='';
+  try{
+    const response=await fetch('/api/search-condo-osm.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await response.json();
+    status.textContent=(response.ok?'OSM concluído':'OSM retornou erro');
+    let html='<div class="card"><h2>Nominatim + Overpass</h2><div><strong>Fonte:</strong> OpenStreetMap</div><div><strong>Nome principal:</strong> '+escapeHtml(data.condominium_name||'Nenhum')+'</div><div><strong>Objetos encontrados:</strong> '+(data.overpass?.length||0)+'</div><div><strong>Evidência:</strong> '+escapeHtml(data.evidence||'')+'</div></div>';
+    if(data.candidates?.length){html+='<div class="card"><h3>Nominatim</h3>';data.candidates.forEach((x,i)=>html+='<div class="candidate"><strong>'+(i+1)+'. '+escapeHtml(x.name||'Sem nome')+'</strong><br><small>'+escapeHtml(x.display_name||'')+'</small></div>');html+='</div>'}
+    if(data.overpass?.length){html+='<div class="card"><h3>Overpass — objetos próximos</h3>';data.overpass.forEach((x,i)=>html+='<div class="candidate"><strong>'+(i+1)+'. '+escapeHtml(x.name||'Sem nome')+'</strong><br><small>building: '+escapeHtml(x.building||'')+' | endereço: '+escapeHtml((x.addr_street||'')+' '+(x.addr_housenumber||''))+'</small></div>');html+='</div>'}
+    html+='<details class="card"><summary>JSON completo</summary><pre>'+escapeHtml(JSON.stringify(data,null,2))+'</pre></details>'; result.innerHTML=html;
+  }catch(e){status.textContent='Falha no OSM';result.innerHTML='<div class="card" style="border-color:#d71920"><strong>'+escapeHtml(e.message)+'</strong></div>'}
+}
+
 async function testApi(){
   const button=$('test'),status=$('status'),result=$('result');
   const payload={
