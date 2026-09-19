@@ -47,7 +47,7 @@ export default async function handler(req,res){
       let n=clean(name).replace(/^[\s,;:.|\-]+|[\s,;:.|\-]+$/g,"");
       n=n.replace(/^(condom[ií]nio|edif[ií]cio|residencial)\s*[-:–—]?\s*/i,"").trim();
       if(n.length<5||n.length>120)return;
-      if(/[{}]|&&|\\/\\/|substring|_G\\.|b_searchbox|ClearTimers|AJAX_NAV|Pesquisar/i.test(n))return;
+      if(/[{}]|&&|substring|b_searchbox|ClearTimers|AJAX_NAV|Pesquisar/i.test(n) || n.includes("//") || n.includes("_G."))return;
       if(/^(resultados?|pesquisa|search|bing|google|duckduckgo|apartamentos?)$/i.test(n))return;
       if(/^(rua|avenida|estrada)\s+/i.test(n))return;
       const key=normalize(n);
