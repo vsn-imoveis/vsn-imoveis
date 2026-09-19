@@ -107,8 +107,11 @@ export default async function handler(req,res){
       pos=liEnd+5;
     }
 
-    return send({
-      condominium_name:candidates[0]?candidates[0].name:null,
+    // Nenhum resultado externo é um caso normal: responde 200 com JSON válido.
+    // Não tentamos acessar propriedades de um candidato inexistente nem gravar no banco nesta etapa.
+    if(candidates.length===0){
+      return send({
+        condominium_name:null,
       condominium_builder:null,
       condominium_delivery_year:null,
       condominium_units:null,
@@ -120,6 +123,22 @@ export default async function handler(req,res){
       evidence:candidates.length
         ?"Resultados externos recebidos do Bing."
         :"Nenhum resultado externo utilizável encontrado.",
+      from_database:false,
+        saved_to_database:false
+      });
+    }
+
+    return send({
+      condominium_name:candidates[0]?.name||null,
+      condominium_builder:null,
+      condominium_delivery_year:null,
+      condominium_units:null,
+      condominium_land_area:null,
+      towers:null,
+      floors:null,
+      candidates:candidates,
+      searched_address:searched,
+      evidence:"Resultados externos recebidos do Bing.",
       from_database:false,
       saved_to_database:false
     });
