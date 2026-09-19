@@ -65,7 +65,8 @@ export default async function handler(req,res){
       let m;
       while((m=re.exec(html))&&out.length<10){
         const url=decodeUrl(m[1]);
-        const title=clean(m[2]);\n        if(blockedText.test(title))continue;
+        const title=clean(m[2]);
+        if(blockedText.test(title))continue;
         if(!/^https?:\/\//i.test(url)||/google\.(com|com\.br)/i.test(new URL(url).hostname))continue;
         if(!title||title.length<4)continue;
         if(!seen.has(url)){seen.add(url);out.push({title,url,text:title});}
@@ -79,7 +80,8 @@ export default async function handler(req,res){
       const u='https://r.jina.ai/http://www.google.com/search?hl=pt-BR&gl=br&num=10&q='+encodeURIComponent(q);
       const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(7000)});
       if(!r.ok)return [];
-      const txt=clean(await r.text());\n      if(blockedText.test(txt))return [];
+      const txt=clean(await r.text());
+      if(blockedText.test(txt))return [];
       return [{title:'Google/Jina',url:'https://www.google.com/search?q='+encodeURIComponent(q),text:txt}];
     }catch{return []}
   };
@@ -218,7 +220,8 @@ export default async function handler(req,res){
   data.candidates.sort((a,b)=>b.score-a.score || b.hits-a.hits);
   data.candidates=data.candidates.slice(0,8).map(({key,score,hits,...x})=>({...x,evidence_hits:hits}));
 
-  const strong=data.candidates.filter(x=>x.hits>=2);\n  if(strong.length)data.condominium_name=strong[0].name;
+  const strong=data.candidates.filter(x=>x.hits>=2);
+  if(strong.length)data.condominium_name=strong[0].name;
 
   return res.status(200).json({
     ...data,
