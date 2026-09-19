@@ -103,6 +103,9 @@ export default async function handler(req,res){
         if(/^(residencial|condominio|condomínio|edificio|edifício|apartamento|imovel|imóvel)\\s*[&]?$/.test(lower)) continue;
         if(title.endsWith('&')||title.length<8) continue;
 
+        const contextual=/(condom[ií]nio|edif[ií]cio|residencial|apartamento|torre|empreendimento|morumbi|jardim|vila|rua)/i.test(blockText);
+        if(!contextual) continue;
+
         add(title,source);
       }
 
@@ -121,9 +124,9 @@ export default async function handler(req,res){
     };
 
     const queries=[
-      address+' '+number+' condomínio '+city,
-      address+' '+number+' residencial '+city,
-      address+' '+number+' '+cep
+      '"'+address+' '+number+'" "'+cep+'" condomínio',
+      '"'+address+' '+number+'" "'+cep+'"',
+      '"'+address+' '+number+'" condomínio '+city
     ];
 
     for(const q of queries){
