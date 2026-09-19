@@ -5,5 +5,15 @@
       "src": "api/index.py",
       "use": "@vercel/python"
     }
+  ],
+  "routes": [
+    {
+      "src": "/buscar",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/api/index.py/(.*)",
+      "dest": "/api/index.py"
+    }
   ]
 }
