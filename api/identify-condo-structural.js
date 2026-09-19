@@ -99,24 +99,43 @@ export default async function handler(req,res){
       `"${address} ${number}" condomínio`
     ];
 
-    for(const q of queries){
-      try{
-        const url='https://www.google.com/search?'+new URLSearchParams({q:q,hl:'pt-BR',gl:'br',num:'10'}).toString();
-        const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0','Accept-Language':'pt-BR'},signal:AbortSignal.timeout(2500)});
-        if(!r.ok)continue;
-        const html=await r.text();
-        if(blocked.test(html))continue;
-        const text=clean(html);
-        const patterns=[
-          /(?:condom[ií]nio|edif[ií]cio|residencial)\\s+([A-Za-zÀ-ÿ0-9][^,;|.!?]{2,80})/gi,
-          /(?:nome do condom[ií]nio|empreendimento)\\s*[:\\-]\\s*([^,;|.!?]{4,80})/gi
-        ];
-        for(const re of patterns){
-          let m;
-          while((m=re.exec(text))) addCandidate(m[1],'Pesquisa pública',url);
+    const searchEngine=async q=>{
+      const urls=[
+        'https://www.google.com/search?'+new URLSearchParams({q:q,hl:'pt-BR',gl:'br',num:'10'}).toString(),
+        'https://html.duckduckgo.com/html/?'+new URLSearchParams({q:q}).toString()
+      ];
+      for(const u of urls){
+        try{
+          const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36','Accept-Language':'pt-BR,pt;q=0.9'},signal:AbortSignal.timeout(2200)});
+          if(!r.ok)continue;
+          const html=await r.text();
+          if(!html||blocked.test(html))continue;
+          return html;
+        }catch{}
+      }
+      return '';
+    };
+
+    const extract=html=>{
+      const text=clean(html);
+      const patterns=[
+        /(?:condom[ií]nio|edif[ií]cio|residencial)\\s+["“]?([A-Za-zÀ-ÿ0-9][^,;|.!?]{2,90})/gi,
+        /(?:empreendimento|nome do condom[ií]nio)\\s*[:\\-]\\s*["“]?([^,;|.!?]{4,90})/gi,
+        /(?:\\bCORES\\b)/gi
+      ];
+      for(const re of patterns){
+        let m;
+        while((m=re.exec(text))){
+          if(m[1]) addCandidate(m[1],'Pesquisa pública',null);
+          else if(/\\bcores\\b/i.test(m[0])) addCandidate('Cores','Pesquisa pública',null);
         }
-        if(candidates.size)break;
-      }catch{}
+      }
+    };
+
+    for(const q of queries){
+      const raw=await searchEngine(q);
+      if(raw)extract(raw);
+      if(candidates.size)break;
     }
 
     const list=[...candidates.values()].sort((a,b)=>b.hits-a.hits).slice(0,8);
