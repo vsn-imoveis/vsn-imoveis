@@ -58,10 +58,28 @@ pre{background:#111;color:#eee;padding:16px;border-radius:10px;overflow:auto;max
 
 <button id="test" onclick="testApi()">TESTAR API ATUAL</button><button id="testPython" onclick="testPythonApi()" style="margin-left:8px;background:#222">TESTAR API PYTHON</button>
 <div id="status"></div><div id="result"></div>
+
+<div class="card" style="margin-top:20px">
+  <h2>Teste direto — Google Maps</h2>
+  <p><strong>Endereço:</strong> Rua Doutor Luiz Migliano, 190, Jardim Vazani, São Paulo - SP, 05711-000</p>
+  <p><strong>Condomínio de teste:</strong> Condomínio Misti Morumbi</p>
+  <button type="button" onclick="openTestMap()">ABRIR NO GOOGLE MAPS</button>
+</div>
 </main>
 
 <script>
 const $=id=>document.getElementById(id);
+
+function openTestMap(){
+  const endereco=encodeURIComponent(
+    "Rua Doutor Luiz Migliano, 190, Jardim Vazani, São Paulo - SP, 05711-000"
+  );
+  window.open(
+    "https://www.google.com/maps/search/?api=1&query="+endereco,
+    "_blank",
+    "noopener"
+  );
+}
 let cepTimer;
 
 $('cep').addEventListener('input',()=>{
