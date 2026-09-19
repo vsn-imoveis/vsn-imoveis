@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teste — Identificação de Condomínio</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f5f6f8;margin:0;padding:32px;color:#222}
+main{max-width:900px;margin:auto;background:#fff;padding:28px;border-radius:14px;box-shadow:0 4px 20px #0001}
+h1{margin-top:0}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccc;border-radius:8px}
+button{margin-top:16px;padding:12px 20px;border:0;border-radius:8px;background:#d71920;color:#fff;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.6}
+#status{margin-top:18px;font-weight:bold}
+.card{margin-top:12px;padding:14px;border:1px solid #ddd;border-radius:10px}
+.candidate{padding:12px;margin:8px 0;background:#f7f7f7;border-radius:8px}
+small{color:#666}
+pre{background:#111;color:#eee;padding:16px;border-radius:10px;overflow:auto;max-height:500px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Teste da API de Condomínio</h1>
+<p>Esta página testa diretamente <code>/api/identify-condo-structural.js</code>. Não grava nada no banco.</p>
+
+<div class="grid">
+  <div><label>Endereço</label><input id="address" placeholder="Ex.: Rua X"></div>
+  <div><label>Número</label><input id="number" placeholder="123"></div>
+  <div><label>Bairro</label><input id="neighborhood" placeholder="Bairro"></div>
+  <div><label>CEP</label><input id="cep" placeholder="00000-000"></div>
+  <div><label>Cidade</label><input id="city" value="São Paulo"></div>
+  <div><label>Estado</label><input id="state" value="SP"></div>
+</div>
+
+<button id="test" onclick="testApi()">TESTAR API</button>
+<div id="status"></div>
+<div id="result"></div>
+</main>
+
+<script>
+async function testApi(){
+  const button=document.getElementById('test');
+  const status=document.getElementById('status');
+  const result=document.getElementById('result');
+  const payload={
+    address:document.getElementById('address').value.trim(),
+    number:document.getElementById('number').value.trim(),
+    neighborhood:document.getElementById('neighborhood').value.trim(),
+    cep:document.getElementById('cep').value.trim(),
+    city:document.getElementById('city').value.trim()||'São Paulo',
+    state:document.getElementById('state').value.trim()||'SP'
+  };
+  if(!payload.address||!payload.number){
+    status.textContent='Informe endereço e número.';
+    return;
+  }
+  button.disabled=true;
+  status.textContent='Pesquisando fontes públicas...';
+  result.innerHTML='';
+  const started=performance.now();
+  try{
+    const response=await fetch('/api/identify-condo-structural.js',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data=await response.json();
+    const elapsed=((performance.now()-started)/1000).toFixed(1);
+    status.textContent=(response.ok?'Concluído':'Erro')+' — '+elapsed+'s';
+    let html='';
+    if(data.candidates?.length){
+      html+='<div class="card"><h2>Candidatos encontrados</h2>';
+      data.candidates.forEach((c,i)=>{
+        html+='<div class="candidate"><strong>'+(i+1)+'. '+escapeHtml(c.name)+'</strong><br><small>Fonte: '+escapeHtml(c.source||'')+' | ocorrências: '+(c.evidence_hits||1)+'</small>';
+        if(c.url) html+='<br><a href="'+escapeAttr(c.url)+'" target="_blank" rel="noopener">Abrir fonte</a>';
+        html+='</div>';
+      });
+      html+='</div>';
+    }else{
+      html+='<div class="card"><strong>Nenhum candidato encontrado.</strong></div>';
+    }
+    if(data.condominium_name) html+='<div class="card"><strong>Nome principal:</strong> '+escapeHtml(data.condominium_name)+'</div>';
+    if(data.condominium_builder||data.condominium_delivery_year||data.condominium_units||data.condominium_land_area||data.towers||data.floors){
+      html+='<div class="card"><h2>Dados estruturais</h2>';
+      [['Construtora',data.condominium_builder],['Ano de entrega',data.condominium_delivery_year],['Unidades',data.condominium_units],['Área do terreno',data.condominium_land_area],['Torres',data.towers],['Andares',data.floors]].forEach(x=>{if(x[1]!=null)html+='<div><strong>'+x[0]+':</strong> '+escapeHtml(x[1])+'</div>'});
+      html+='</div>';
+    }
+    html+='<div class="card"><strong>Evidência:</strong> '+escapeHtml(data.evidence||'')+'</div>';
+    html+='<details class="card"><summary>Resposta JSON completa</summary><pre>'+escapeHtml(JSON.stringify(data,null,2))+'</pre></details>';
+    result.innerHTML=html;
+  }catch(e){
+    status.textContent='Falha: '+e.message;
+  }finally{
+    button.disabled=false;
+  }
+}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function escapeAttr(v){return escapeHtml(v)}
+</script>
+</body>
+</html>
