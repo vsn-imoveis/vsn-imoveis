@@ -33,10 +33,6 @@ export default async function handler(req,res){
     'ruajosedoliveiracoelho:180':[{name:'Condomínio Edifício Via Veneto',source:'Referência cadastrada'}],
     'ruajosedoliveiracoelho:200':[{name:'Condomínio Edifício Ravenna',source:'Referência cadastrada'}],
     'estradadocampolimpo:5930':[{name:'Space Residence I',source:'Referência cadastrada'}],
-    'ruaraimundosimaodesouza:26':[
-      {name:'Condomínio Duo Morumbi',source:'Referência conhecida — confirmar antes de salvar'},
-      {name:'Duo Family Design Morumbi',source:'Referência conhecida — confirmar antes de salvar'}
-    ]
   };
   (knownCandidates[key]||[]).forEach(x=>addCandidate(x.name,x.source));
   const year=(combined.match(/(?:entrega|entregue|entregues|conclus[aã]o|conclu[ií]do|habite-se)[^\n.]{0,100}?(?:19|20)\d{2}/i)||[])[0];if(year){const m=year.match(/(?:19|20)\d{2}/);if(m){const y=Number(m[0]);if(y>=1950&&y<=new Date().getFullYear())data.condominium_delivery_year=y;}}
