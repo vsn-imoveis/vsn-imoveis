@@ -78,7 +78,7 @@ export default async function handler(req,res){
 
       // Trabalha por resultado individual, preservando título + descrição.
       // Isso é mais confiável do que limpar a página inteira e perder o contexto.
-      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\\s\\S]*?<\\/li>/gi)||[];
+      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\s\S]*?<\/li>/gi)||[];
 
       for(const block of blocks){
         const blockText=strip(block);
@@ -86,17 +86,17 @@ export default async function handler(req,res){
 
         if(!nb.includes(target)||!nb.includes(num)) continue;
 
-        const titleMatch=block.match(/<h2[^>]*>[\\s\\S]*?<a[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/i);
+        const titleMatch=block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/i);
         const title=titleMatch?strip(titleMatch[1]):'';
 
         const context=blockText.slice(0,500);
 
         // Procura primeiro uma identificação explícita.
-        const explicit=blockText.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i);
+        const explicit=blockText.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\/-]{2,100})/i);
 
         if(explicit){
           let name=explicit[1].trim();
-          name=name.split(/\\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem|apartamento|im[oó]vel)\\s+/i)[0].trim();
+          name=name.split(/\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem|apartamento|im[oó]vel)\s+/i)[0].trim();
           name=name.replace(/[,.!?;:]+$/,'').trim();
           if(name.length>=5&&name.length<=100&&!name.endsWith('&')){
             add(name,source,context);
@@ -117,9 +117,9 @@ export default async function handler(req,res){
       const text=strip(raw);
       const nt=normalize(text);
       if(nt.includes(target)&&nt.includes(num)){
-        const explicit=text.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i);
+        const explicit=text.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\/-]{2,100})/i);
         if(explicit){
-          let name=explicit[1].trim().split(/\\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem)\\s+/i)[0].trim();
+          let name=explicit[1].trim().split(/\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem)\s+/i)[0].trim();
           name=name.replace(/[,.!?;:]+$/,'');
           if(name.length>=5&&!name.endsWith('&')) add(name,source,text.slice(0,500));
         }
