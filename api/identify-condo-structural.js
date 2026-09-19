@@ -30,6 +30,7 @@ export default async function handler(req,res){
     });
   }
 
+  const blockedText=/markdown content|sobre esta página|tráfego incomum|traffic|captcha|unusual traffic|verify you are human|access denied|robot|não foi possível acessar|error 429|too many requests/i;
   const clean=s=>String(s||'')
     .replace(/<script[\s\S]*?<\/script>/gi,' ')
     .replace(/<style[\s\S]*?<\/style>/gi,' ')
@@ -64,7 +65,7 @@ export default async function handler(req,res){
       let m;
       while((m=re.exec(html))&&out.length<10){
         const url=decodeUrl(m[1]);
-        const title=clean(m[2]);
+        const title=clean(m[2]);\n        if(blockedText.test(title))continue;
         if(!/^https?:\/\//i.test(url)||/google\.(com|com\.br)/i.test(new URL(url).hostname))continue;
         if(!title||title.length<4)continue;
         if(!seen.has(url)){seen.add(url);out.push({title,url,text:title});}
@@ -78,7 +79,7 @@ export default async function handler(req,res){
       const u='https://r.jina.ai/http://www.google.com/search?hl=pt-BR&gl=br&num=10&q='+encodeURIComponent(q);
       const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(7000)});
       if(!r.ok)return [];
-      const txt=clean(await r.text());
+      const txt=clean(await r.text());\n      if(blockedText.test(txt))return [];
       return [{title:'Google/Jina',url:'https://www.google.com/search?q='+encodeURIComponent(q),text:txt}];
     }catch{return []}
   };
@@ -136,7 +137,7 @@ export default async function handler(req,res){
   const addCandidate=(name,source,url,score=0)=>{
     let n=String(name||'').replace(/[|•]+/g,' ').replace(/\s+/g,' ').trim();
     n=n.replace(/^(condom[ií]nio|edif[ií]cio|residencial)\s*[:\-–]\s*/i,'');
-    if(!n||n.length<5||n.length>120)return;
+    if(!n||n.length<5||n.length>120||blockedText.test(n))return;
     if(/^(google|bing|search|pesquisa|resultado|im[oó]veis?|apartamento|casa|an[uú]ncio)$/i.test(n))return;
     if(/https?:\/\/|www\.|resultados? de pesquisa/i.test(n))return;
     const keyName=n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -217,7 +218,7 @@ export default async function handler(req,res){
   data.candidates.sort((a,b)=>b.score-a.score || b.hits-a.hits);
   data.candidates=data.candidates.slice(0,8).map(({key,score,hits,...x})=>({...x,evidence_hits:hits}));
 
-  if(data.candidates.length)data.condominium_name=data.candidates[0].name;
+  const strong=data.candidates.filter(x=>x.hits>=2);\n  if(strong.length)data.condominium_name=strong[0].name;
 
   return res.status(200).json({
     ...data,
