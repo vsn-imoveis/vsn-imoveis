@@ -70,8 +70,9 @@ export default async function handler(req,res){
     };
 
     const queries=[
-      address+', '+number+', '+city,
-      address+', '+number+', condomínio, '+city
+      '"'+address+', '+number+'" condomínio '+city,
+      '"'+address+', '+number+'" residencial '+city,
+      '"'+address+', '+number+'" "'+cep+'"'
     ];
 
     for(const q of queries){
@@ -93,16 +94,22 @@ export default async function handler(req,res){
 
         const html=await response.text();
 
+        const visible=html
+          .replace(/<script[\\s\\S]*?<\\/script>/gi,' ')
+          .replace(/<style[\\s\\S]*?<\\/style>/gi,' ')
+          .replace(/<[^>]+>/g,' ')
+          .replace(/&nbsp;/gi,' ')
+          .replace(/&amp;/gi,'&')
+          .replace(/&quot;/gi,'"')
+          .replace(/&#39;/gi,"'")
+          .replace(/\\s+/g,' ')
+          .trim();
+
         const regex=/(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{2,90}/gi;
         let match;
 
-        while((match=regex.exec(html))){
-          let name=match[0]
-            .replace(/<[^>]*>/g,' ')
-            .replace(/\\s+/g,' ')
-            .trim();
-
-          add(name,'Google pesquisa local');
+        while((match=regex.exec(visible))){
+          add(match[0],'Google pesquisa local');
         }
 
         if(Object.keys(candidates).length)break;
@@ -114,7 +121,7 @@ export default async function handler(req,res){
       .slice(0,8);
 
     return json({
-      condominium_name:list.length&&list[0].hits>=2?list[0].name:null,
+      condominium_name:list.length?list[0].name:null,
       condominium_builder:null,
       condominium_delivery_year:null,
       condominium_units:null,
