@@ -146,6 +146,8 @@ def inicio():
     })
 
 
+@app.route("/api/index.py/buscar", methods=["GET"])
+@app.route("/api/buscar", methods=["GET"])
 @app.route("/buscar", methods=["GET"])
 def buscar():
     endereco = request.args.get("endereco", "").strip()
