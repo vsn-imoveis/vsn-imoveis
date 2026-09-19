@@ -79,10 +79,45 @@ export default async function handler(req,res){
     };
 
     const extractNames=(html,source)=>{
-      const text=extractText(html);
-      const re=/(condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\s+[A-Za-zÀ-ÿ0-9 .&\/-]{2,90}/gi;
-      let m;
-      while((m=re.exec(text))) add(m[0],source);
+      const raw=String(html||'');
+
+      // Primeiro tenta os blocos de resultados do Bing. Só aceita o título
+      // quando o próprio resultado também contém o endereço pesquisado.
+      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\\s\\S]*?<\\/li>/gi)||[];
+      const street=normalize(address);
+      const num=number.replace(/\\D/g,'');
+
+      for(const block of blocks){
+        const blockText=extractText(block);
+        const normalizedBlock=normalize(blockText);
+        if(!normalizedBlock.includes(street)||!normalizedBlock.includes(num)) continue;
+
+        const titleMatch=block.match(/<h2[\\s\\S]*?<a[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/i);
+        if(!titleMatch) continue;
+
+        const title=extractText(titleMatch[1]);
+        if(!title||title.length<6||title.length>100) continue;
+
+        // Evita títulos claramente genéricos/ruidosos.
+        const lower=title.toLowerCase();
+        if(/^(residencial|condominio|condomínio|edificio|edifício|apartamento|imovel|imóvel)\\s*[&]?$/.test(lower)) continue;
+        if(title.endsWith('&')||title.length<8) continue;
+
+        add(title,source);
+      }
+
+      // Fallback: procura nomes explicitamente apresentados como condomínio,
+      // mas exige que o endereço apareça no mesmo texto.
+      const text=extractText(raw);
+      const addressText=normalize(text);
+      if(addressText.includes(street)&&addressText.includes(num)){
+        const re=/(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{3,90}/gi;
+        let m;
+        while((m=re.exec(text))){
+          const name=m[0].trim();
+          if(!name.endsWith('&')) add(name,source);
+        }
+      }
     };
 
     const queries=[
