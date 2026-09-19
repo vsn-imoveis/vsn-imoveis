@@ -120,7 +120,8 @@ export default async function handler(req,res){
           const name=p.displayName?.text||'';
           const pa=p.formattedAddress||'';
           const sameStreet=norm(pa).includes(norm(address));
-          const sameNumber=new RegExp('(?:^|\\\\D)'+String(number).replace(/\\\\D/g,'')+'(?:$|\\\\D)').test(pa);
+          const digits=String(number).replace(/\D/g,'');
+          const sameNumber=digits&&new RegExp('(^|\\D)'+digits+'($|\\D)').test(pa);
           if(name&&sameStreet&&sameNumber&&/condom[ií]nio|edif[ií]cio|residencial|residence|residencial|park|plaza|tower/i.test(name)){
             addCandidate(name,'Google Places API',p.websiteUri||null);
             sources.push({title:name,url:p.websiteUri||null,address:pa,types:p.types||[]});
