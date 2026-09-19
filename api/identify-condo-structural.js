@@ -78,6 +78,12 @@ export default async function handler(req,res){
         .trim();
     };
 
+    const queries=[
+      address+' '+number+' '+cep+' condomínio',
+      address+' '+number+' condomínio '+city,
+      address+' '+number+' '+cep
+    ];
+
     const extractNames=(html,source)=>{
       const raw=String(html||'');
       const text=extractText(raw);
@@ -91,8 +97,8 @@ export default async function handler(req,res){
       if(!normalized.includes(street)||!normalized.includes(num)) return;
 
       const lines=text
-        .split(/[\\n\\r]+/)
-        .map(x=>x.replace(/\\s+/g,' ').trim())
+        .split(/[\n\r]+/)
+        .map(x=>x.replace(/\s+/g,' ').trim())
         .filter(x=>x.length>=20&&x.length<=350);
 
       for(const line of lines){
@@ -100,8 +106,8 @@ export default async function handler(req,res){
         if(!nl.includes(street)||!nl.includes(num)) continue;
 
         const patterns=[
-          /(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)\\s+(?:[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i,
-          /(?:condom[ií]nio|edif[ií]cio)\\s*[:\\-]?\\s*["']?([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i
+          /(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)\s+(?:[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\/-]{2,100})/i,
+          /(?:condom[ií]nio|edif[ií]cio)\s*[:\\-]?\s*["']?([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\/-]{2,100})/i
         ];
 
         for(const pattern of patterns){
@@ -112,7 +118,7 @@ export default async function handler(req,res){
           name=name.replace(/[,.!?;:]+$/,'').trim();
 
           // Remove o restante quando o resultado continua depois do nome.
-          name=name.split(/\\s+(?:localizado|fica|está|esta|na|em|com|conta|possui|tem)\\s+/i)[0].trim();
+          name=name.split(/\s+(?:localizado|fica|está|esta|na|em|com|conta|possui|tem)\s+/i)[0].trim();
 
           if(name.length>=6&&name.length<=100&&!name.endsWith('&')){
             add(name,source);
@@ -121,13 +127,13 @@ export default async function handler(req,res){
       }
 
       // Também usa títulos de resultados do Bing, mas preserva a linha/contexto.
-      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\\s\\S]*?<\\/li>/gi)||[];
+      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\s\\S]*?<\/li>/gi)||[];
       for(const block of blocks){
         const blockText=extractText(block);
         const nb=normalize(blockText);
         if(!nb.includes(street)||!nb.includes(num)) continue;
 
-        const titleMatch=block.match(/<h2[\\s\\S]*?<a[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/i);
+        const titleMatch=block.match(/<h2[\s\\S]*?<a[^>]*>([\s\\S]*?)<\/a>[\s\\S]*?<\/h2>/i);
         if(titleMatch){
           const title=extractText(titleMatch[1]);
           if(title.length>=8&&title.length<=120&&!/^(residencial|condom[ií]nio|edif[ií]cio)$/i.test(title.trim())){
