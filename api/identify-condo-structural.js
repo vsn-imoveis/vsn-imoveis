@@ -26,39 +26,54 @@ export default async function handler(req,res){
     const searched=[address,number,neighborhood,city,state,cep].filter(Boolean).join(", ");
 
     const query=encodeURIComponent('"' + address + ' ' + number + '" condomínio');
-    const controller=new AbortController();
-    const timer=setTimeout(function(){controller.abort();},5000);
-
     let html="";
     try{
       const response=await fetch("https://www.bing.com/search?q="+query,{
-        signal:controller.signal,
         headers:{
           "User-Agent":"Mozilla/5.0",
           "Accept-Language":"pt-BR,pt;q=0.9"
         }
       });
-      if(response.ok) html=await response.text();
+      if(response.ok){
+        html=await response.text();
+      }
     }catch(e){
       html="";
-    }finally{
-      clearTimeout(timer);
     }
 
     const candidates=[];
-    const titlePattern=/<h2[^>]*>\\s*<a[^>]*>([^<]+)<\\/a>\\s*<\\/h2>/gi;
-    let match;
+    let pos=0;
 
-    while((match=titlePattern.exec(html))!==null){
-      const title=String(match[1]||"").trim();
-      if(title.length<5) continue;
-      if(/pesquisar|search|bing/i.test(title)) continue;
-      candidates.push({
-        name:title,
-        source:"Bing",
-        evidence_hits:1
-      });
-      if(candidates.length>=5) break;
+    while(candidates.length<5){
+      const h2=html.indexOf("<h2",pos);
+      if(h2<0) break;
+      const openEnd=html.indexOf(">",h2);
+      const close=html.indexOf("</h2>",openEnd);
+      if(openEnd<0||close<0) break;
+
+      const section=html.slice(openEnd+1,close);
+      const aStart=section.indexOf("<a");
+      const aOpenEnd=section.indexOf(">",aStart);
+      const aClose=section.indexOf("</a>",aOpenEnd);
+
+      if(aStart>=0&&aOpenEnd>=0&&aClose>=0){
+        const title=section.slice(aOpenEnd+1,aClose)
+          .replace(/<[^>]*>/g," ")
+          .trim();
+
+        if(title.length>=5 &&
+           title.toLowerCase().indexOf("pesquisar")<0 &&
+           title.toLowerCase().indexOf("search")<0 &&
+           title.toLowerCase().indexOf("bing")<0){
+          candidates.push({
+            name:title,
+            source:"Bing",
+            evidence_hits:1
+          });
+        }
+      }
+
+      pos=close+5;
     }
 
     return send({
