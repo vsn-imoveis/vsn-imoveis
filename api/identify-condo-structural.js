@@ -73,30 +73,55 @@ export default async function handler(req,res){
 
     const extract=(html,source)=>{
       const raw=String(html||'');
-      const text=strip(raw);
       const target=normalize(address);
       const num=number.replace(/\D/g,'');
 
-      if(!normalize(text).includes(target)||!normalize(text).includes(num)) return;
+      // Trabalha por resultado individual, preservando título + descrição.
+      // Isso é mais confiável do que limpar a página inteira e perder o contexto.
+      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\\s\\S]*?<\\/li>/gi)||[];
 
-      // Guarda frases longas do resultado. O nome será extraído do contexto.
-      const chunks=text.match(/[^.!?]{20,350}[.!?]?/g)||[];
+      for(const block of blocks){
+        const blockText=strip(block);
+        const nb=normalize(blockText);
 
-      for(const chunk of chunks){
-        const nc=normalize(chunk);
-        if(!nc.includes(target)||!nc.includes(num)) continue;
+        if(!nb.includes(target)||!nb.includes(num)) continue;
 
-        const m=chunk.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\s:,-]+([^,.!?]{3,100})/i);
-        if(m){
-          let name=m[1].trim();
-          name=name.split(/\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem)\s+/i)[0].trim();
-          add(name,source,chunk);
+        const titleMatch=block.match(/<h2[^>]*>[\\s\\S]*?<a[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/i);
+        const title=titleMatch?strip(titleMatch[1]):'';
+
+        const context=blockText.slice(0,500);
+
+        // Procura primeiro uma identificação explícita.
+        const explicit=blockText.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i);
+
+        if(explicit){
+          let name=explicit[1].trim();
+          name=name.split(/\\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem|apartamento|im[oó]vel)\\s+/i)[0].trim();
+          name=name.replace(/[,.!?;:]+$/,'').trim();
+          if(name.length>=5&&name.length<=100&&!name.endsWith('&')){
+            add(name,source,context);
+          }
         }
 
-        // Título do resultado, quando disponível.
-        const title=chunk.match(/^(.{6,120}?)\s+(?:Rua|Avenida|Av\.|R\.)\s+/i);
-        if(title&&title[1]&&!/^(residencial|condom[ií]nio|edif[ií]cio)$/i.test(title[1].trim())){
-          add(title[1],source,chunk);
+        // Se não houver "Condomínio X", usa o título do resultado.
+        // O título precisa estar associado ao endereço dentro do mesmo resultado.
+        if(title&&title.length>=6&&title.length<=120){
+          const low=title.toLowerCase();
+          if(!/^(residencial|condom[ií]nio|edif[ií]cio|apartamento|im[oó]vel)$/i.test(low)){
+            add(title,source,context);
+          }
+        }
+      }
+
+      // Fallback para páginas em que o Bing não usa o markup b_algo.
+      const text=strip(raw);
+      const nt=normalize(text);
+      if(nt.includes(target)&&nt.includes(num)){
+        const explicit=text.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i);
+        if(explicit){
+          let name=explicit[1].trim().split(/\\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem)\\s+/i)[0].trim();
+          name=name.replace(/[,.!?;:]+$/,'');
+          if(name.length>=5&&!name.endsWith('&')) add(name,source,text.slice(0,500));
         }
       }
     };
