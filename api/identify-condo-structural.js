@@ -67,77 +67,38 @@ export default async function handler(req,res){
 
     const queries=[
       address+' '+number+' '+cep+' condomínio',
-      address+' '+number+' condomínio '+city,
-      address+' '+number+' '+cep
+      address+' '+number+' condomínio '+city
     ];
 
-    const extract=(html,source)=>{
-      const raw=String(html||'');
-      const target=normalize(address);
-      const num=number.replace(/\D/g,'');
-
-      // Trabalha por resultado individual, preservando título + descrição.
-      // Isso é mais confiável do que limpar a página inteira e perder o contexto.
-      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\s\S]*?<\/li>/gi)||[];
-
-      for(const block of blocks){
-        const blockText=strip(block);
-        const nb=normalize(blockText);
-
-        if(!nb.includes(target)||!nb.includes(num)) continue;
-
-        const titleMatch=block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/i);
-        const title=titleMatch?strip(titleMatch[1]):'';
-
-        const context=blockText.slice(0,500);
-
-        // Procura primeiro uma identificação explícita.
-        const explicit=blockText.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\/-]{2,100})/i);
-
-        if(explicit){
-          let name=explicit[1].trim();
-          name=name.split(/\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem|apartamento|im[oó]vel)\s+/i)[0].trim();
-          name=name.replace(/[,.!?;:]+$/,'').trim();
-          if(name.length>=5&&name.length<=100&&!name.endsWith('&')){
-            add(name,source,context);
+    const fetchText=async(url)=>{
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),3500);
+      try{
+        const r=await fetch(url,{
+          signal:controller.signal,
+          headers:{
+            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36',
+            'Accept-Language':'pt-BR,pt;q=0.9'
           }
-        }
-
-        // Se não houver "Condomínio X", usa o título do resultado.
-        // O título precisa estar associado ao endereço dentro do mesmo resultado.
-        if(title&&title.length>=6&&title.length<=120){
-          const low=title.toLowerCase();
-          if(!/^(residencial|condom[ií]nio|edif[ií]cio|apartamento|im[oó]vel)$/i.test(low)){
-            add(title,source,context);
-          }
-        }
-      }
-
-      // Fallback para páginas em que o Bing não usa o markup b_algo.
-      const text=strip(raw);
-      const nt=normalize(text);
-      if(nt.includes(target)&&nt.includes(num)){
-        const explicit=text.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\/-]{2,100})/i);
-        if(explicit){
-          let name=explicit[1].trim().split(/\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem)\s+/i)[0].trim();
-          name=name.replace(/[,.!?;:]+$/,'');
-          if(name.length>=5&&!name.endsWith('&')) add(name,source,text.slice(0,500));
-        }
+        });
+        if(!r.ok) return '';
+        return await r.text();
+      }catch(e){
+        return '';
+      }finally{
+        clearTimeout(timer);
       }
     };
 
     for(const q of queries){
       const encoded=encodeURIComponent(q);
-      try{
-        const r=await fetch('https://www.bing.com/search?q='+encoded,{headers:{'User-Agent':'Mozilla/5.0','Accept-Language':'pt-BR,pt;q=0.9'}});
-        if(r.ok) extract(await r.text(),'Bing');
-      }catch(e){}
+
+      const bing=await fetchText('https://www.bing.com/search?q='+encoded);
+      if(bing) extract(bing,'Bing');
       if(Object.keys(candidates).length) break;
 
-      try{
-        const r=await fetch('https://html.duckduckgo.com/html/?q='+encoded,{headers:{'User-Agent':'Mozilla/5.0','Accept-Language':'pt-BR,pt;q=0.9'}});
-        if(r.ok) extract(await r.text(),'DuckDuckGo');
-      }catch(e){}
+      const ddg=await fetchText('https://html.duckduckgo.com/html/?q='+encoded);
+      if(ddg) extract(ddg,'DuckDuckGo');
       if(Object.keys(candidates).length) break;
     }
 
