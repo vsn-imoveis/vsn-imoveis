@@ -23,7 +23,7 @@ async function handler(req,res){
 
     const normalize=(v)=>String(v||"")
       .normalize("NFD")
-      .replace(/[\\u0300-\\u036f]/g,"")
+      .replace(/[\u0300-\u036f]/g,"")
       .toLowerCase()
       .replace(/[^a-z0-9]/g,"");
 
