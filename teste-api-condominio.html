@@ -144,7 +144,7 @@ async function testPythonApi(){
   button.disabled=true;status.textContent='Consultando Google pela API Python...';result.innerHTML='';
   const started=performance.now();
   try{
-    const response=await fetch('/api/index.py?endereco='+encodeURIComponent(endereco),{headers:{'Accept':'application/json'}});
+    const response=await fetch('/buscar?endereco='+encodeURIComponent(endereco),{headers:{'Accept':'application/json'}});
     const elapsed=((performance.now()-started)/1000).toFixed(1);
     const raw=await response.text();
     let data;
