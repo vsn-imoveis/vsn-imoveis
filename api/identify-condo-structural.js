@@ -99,6 +99,37 @@ export default async function handler(req,res){
       `"${address} ${number}" condomínio`
     ];
 
+    const googlePlaces=async()=>{
+      const apiKey=process.env.GOOGLE_MAPS_API_KEY||process.env.GOOGLE_PLACES_API_KEY;
+      if(!apiKey)return false;
+      try{
+        const q=[address,number,neighborhood,city,state].filter(Boolean).join(', ');
+        const r=await fetch('https://places.googleapis.com/v1/places:searchText',{
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'X-Goog-Api-Key':apiKey,
+            'X-Goog-FieldMask':'places.displayName,places.formattedAddress,places.types,places.websiteUri'
+          },
+          body:JSON.stringify({textQuery:q,pageSize:5,languageCode:'pt-BR',regionCode:'BR'}),
+          signal:AbortSignal.timeout(3000)
+        });
+        if(!r.ok)return false;
+        const data=await r.json();
+        for(const p of (data.places||[])){
+          const name=p.displayName?.text||'';
+          const pa=p.formattedAddress||'';
+          const sameStreet=norm(pa).includes(norm(address));
+          const sameNumber=new RegExp('(?:^|\\\\D)'+String(number).replace(/\\\\D/g,'')+'(?:$|\\\\D)').test(pa);
+          if(name&&sameStreet&&sameNumber&&/condom[ií]nio|edif[ií]cio|residencial|residence|residencial|park|plaza|tower/i.test(name)){
+            addCandidate(name,'Google Places API',p.websiteUri||null);
+            sources.push({title:name,url:p.websiteUri||null,address:pa,types:p.types||[]});
+          }
+        }
+        return candidates.size>0;
+      }catch{return false}
+    };
+
     const searchEngine=async q=>{
       const urls=[
         'https://www.google.com/search?'+new URLSearchParams({q:q,hl:'pt-BR',gl:'br',num:'10'}).toString(),
@@ -129,6 +160,9 @@ export default async function handler(req,res){
         }
       }
     };
+
+    const placesFound=await googlePlaces();
+    if(placesFound){}
 
     for(const q of queries){
       const raw=await searchEngine(q);
