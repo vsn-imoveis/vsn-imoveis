@@ -1,244 +1,154 @@
 export default async function handler(req,res){
-  res.setHeader('Content-Type','application/json; charset=utf-8');
+  res.setHeader("Content-Type","application/json; charset=utf-8");
+  const send=(data,status=200)=>res.status(status).json(data);
 
-  const send=(data,status)=>res.status(status||200).json(data);
+  if(req.method!=="POST") return send({error:"Método não permitido"},405);
 
   try{
-    if(req.method!=='POST') return send({error:'Método não permitido'},405);
+    const body=typeof req.body==="string"?JSON.parse(req.body||"{}"):(req.body||{});
+    const address=String(body.address||"").trim();
+    const number=String(body.number||"").trim();
+    const neighborhood=String(body.neighborhood||"").trim();
+    const city=String(body.city||"São Paulo").trim();
+    const state=String(body.state||"SP").trim();
+    const cep=String(body.cep||"").trim();
 
-    const body=typeof req.body==='string' ? JSON.parse(req.body||'{}') : (req.body||{});
-    const address=String(body.address||'').trim();
-    const number=String(body.number||'').trim();
-    const neighborhood=String(body.neighborhood||'').trim();
-    const city=String(body.city||'São Paulo').trim();
-    const state=String(body.state||'SP').trim();
-    const cep=String(body.cep||'').trim();
+    if(!address||!number) return send({error:"Informe endereço e número."},400);
 
-    if(!address||!number) return send({error:'Informe endereço e número.'},400);
+    const normalize=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+    const addressKey=normalize(address)+"|"+number.trim()+"|"+normalize(city)+"|"+normalize(state);
 
-    const normalize=(v)=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-    const key=normalize(address)+':'+number.replace(/\D/g,'');
-    const searched=[address,number,neighborhood,city,state,cep].filter(Boolean).join(', ');
-
-    const confirmed={
-      'ruajosedoliveiracoelho:165':{name:'Edifício San Lorenzo',builder:'Campanário',year:1992,units:34,land:2456},
-      'ruajosedoliveiracoelho:97':{name:'Condomínio Edifício Saint Ives',year:1996},
-      'ruajosedoliveiracoelho:170':{name:'Condomínio Edifício New Hampshire'},
-      'ruajosedoliveiracoelho:180':{name:'Condomínio Edifício Via Veneto'},
-      'ruajosedoliveiracoelho:200':{name:'Condomínio Edifício Ravenna'},
-      'estradadocampolimpo:5930':{name:'Space Residence I'}
-    };
-
-    if(confirmed[key]){
-      const d=confirmed[key];
-      return send({
-        condominium_name:d.name, condominium_builder:d.builder||null,
-        condominium_delivery_year:d.year||null, condominium_units:d.units||null,
-        condominium_land_area:d.land||null, towers:null, floors:null,
-        sources:[{title:'Referência pública',url:'https://www.google.com/search?q='+encodeURIComponent(address+' '+number+' condomínio')}],
-        candidates:[{name:d.name,source:'Endereço confirmado',evidence_hits:2}],
-        searched_address:searched,evidence:'Endereço confirmado por referência pública.'
+    // Primeiro: consulta a base interna. Não fazemos pesquisa externa se já conhecemos o endereço.
+    const supabaseUrl=process.env.SUPABASE_URL||"https://jpdfynaioepcmgqlqlht.supabase.co";
+    const supabaseKey=process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_ANON_KEY||"";
+    if(supabaseKey){
+      const r0=await fetch(supabaseUrl+"/rest/v1/condominium_address_map?address_key=eq."+encodeURIComponent(addressKey)+"&select=*",{
+        headers:{apikey:supabaseKey,Authorization:"Bearer "+supabaseKey}
       });
+      if(r0.ok){
+        const rows=await r0.json();
+        if(rows[0]?.condominium_name){
+          return send({
+            condominium_name:rows[0].condominium_name,
+            condominium_builder:null,condominium_delivery_year:null,
+            condominium_units:null,condominium_land_area:null,towers:null,floors:null,
+            candidates:[{name:rows[0].condominium_name,source:"Base interna VSN",evidence_hits:3}],
+            sources:[],searched_address:[address,number,neighborhood,city,state,cep].filter(Boolean).join(", "),
+            evidence:"Endereço encontrado na base interna VSN.",from_database:true
+          });
+        }
+      }
     }
 
+    const searched=[address,number,neighborhood,city,state,cep].filter(Boolean).join(", ");
     const candidates={};
-    const add=(name,source,context)=>{
-      let n=String(name||'').replace(/\s+/g,' ').trim();
-      n=n.replace(/^[\s,;:.|-]+|[\s,;:.|-]+$/g,'');
-      if(n.length<6||n.length>100)return;
-      if(/^(residencial|condominio|condomínio|edificio|edifício|apartamento)$/i.test(n))return;
-      const k=normalize(n);
-      if(!candidates[k]) candidates[k]={name:n,source:source,context:context||'',hits:0};
-      candidates[k].hits++;
+    const clean=v=>String(v||"").replace(/<[^>]+>/g," ").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\\s+/g," ").trim();
+    const add=(name,source,context,url)=>{
+      let n=clean(name).replace(/^[\s,;:.|\-]+|[\s,;:.|\-]+$/g,"");
+      n=n.replace(/^(condom[ií]nio|edif[ií]cio|residencial)\s*[-:–—]?\s*/i,"").trim();
+      if(n.length<5||n.length>120)return;
+      if(/^(resultados?|pesquisa|search|bing|google|duckduckgo|apartamentos?)$/i.test(n))return;
+      if(/^(rua|avenida|estrada)\s+/i.test(n))return;
+      const key=normalize(n);
+      if(!candidates[key])candidates[key]={name:n,source,context:clean(context).slice(0,1200),url:url||"",hits:0};
+      candidates[key].hits++;
     };
 
-    const strip=(html)=>{
-      return String(html||'')
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi,' ')
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi,' ')
-        .replace(/<[^>]+>/g,' ')
-        .replace(/&nbsp;/gi,' ')
-        .replace(/&amp;/gi,'&')
-        .replace(/&quot;/gi,'"')
-        .replace(/&#39;/gi,"'")
-        .replace(/\s+/g,' ')
-        .trim();
-    };
-
-    const queries=[
-      address+' '+number+' '+cep+' condomínio',
-      'site:vivareal.com.br/condominio '+address+' '+number,
-      'site:zapimoveis.com.br/condominio '+address+' '+number,
-      'site:quintoandar.com.br/condominio '+address+' '+number,
-      'site:loft.com.br/condominio '+address+' '+number
-    ];
-
-    const fetchText=async(url)=>{
+    const strip=html=>clean(String(html||""));
+    const fetchText=async url=>{
       const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),3500);
+      const timer=setTimeout(()=>controller.abort(),5000);
       try{
-        const r=await fetch(url,{
-          signal:controller.signal,
-          headers:{
-            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36',
-            'Accept-Language':'pt-BR,pt;q=0.9'
-          }
-        });
-        if(!r.ok) return '';
+        const r=await fetch(url,{signal:controller.signal,headers:{
+          "User-Agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36",
+          "Accept-Language":"pt-BR,pt;q=0.9"
+        }});
+        if(!r.ok)return "";
         return await r.text();
-      }catch(e){
-        return '';
-      }finally{
-        clearTimeout(timer);
-      }
+      }catch(_){return ""}finally{clearTimeout(timer)}
     };
 
-    for(const q of queries){
-      const encoded=encodeURIComponent(q);
-
-      const bing=await fetchText('https://www.bing.com/search?q='+encoded);
-      if(bing) extract(bing,'Bing');
-      if(Object.keys(candidates).length) break;
-
-      const ddg=await fetchText('https://html.duckduckgo.com/html/?q='+encoded);
-      if(ddg) extract(ddg,'DuckDuckGo');
-      if(Object.keys(candidates).length) break;
-    }
-
-    const list=Object.values(candidates).sort((a,b)=>b.hits-a.hits).slice(0,8);
-
-    return send({
-      condominium_name:list.length?list[0].name:null,
-      condominium_builder:null, condominium_delivery_year:null,
-      condominium_units:null, condominium_land_area:null,
-      towers:null, floors:null, sources:[],
-      candidates:list.map(x=>({name:x.name,source:x.source,hits:x.hits,evidence_hits:x.hits,context:x.context})),
-      searched_address:searched,
-      evidence:list.length?'Candidatos encontrados em pesquisa pública.':'Não foi encontrado nome de condomínio suficiente nos resultados públicos.'
-    });
-  }catch(error){
-    return send({error:'Erro interno na identificação do condomínio.',message:String(error&&error.message||error),candidates:[],sources:[]},500);
-  }
-    const extract=(html,source)=>{
-      const raw=String(html||'');
-      const targetTokens=normalize(address).match(/.{1,4}/g)||[];
-      const streetKey=normalize(address);
-      const num=number.replace(/\\D/g,'');
-      const results=[];
-
-      // Captura títulos de resultados mesmo quando o buscador muda o markup.
-      const titleRe=/<h2[^>]*>[\\s\\S]*?<a[^>]*href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/gi;
-      let m;
-      while((m=titleRe.exec(raw))!==null){
-        const href=m[1];
-        const title=strip(m[2]);
-        if(!title || title.length<5 || title.length>180) continue;
-
-        const from=Math.max(0,m.index-250);
-        const to=Math.min(raw.length,titleRe.lastIndex+700);
-        const context=strip(raw.slice(from,to));
-
-        const nc=normalize(context);
-        const addressMatch=nc.includes(streetKey) || (
-          nc.includes(num) &&
-          ['rua','doutor','luiz','migliano'].every(t=>nc.includes(t))
-        );
-
-        if(!addressMatch) continue;
-
-        results.push({title,href,context:context.slice(0,900)});
-
-        const explicit=title.match(/(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\\s:,-]+(.+)/i);
-        if(explicit){
-          let name=explicit[1].trim().replace(/[,.!?;:]+$/,'');
-          if(name.length>=5 && name.length<=120) add(name,source,context);
-        }
-
-        // Muitos portais colocam apenas "Misti Morumbi" no título.
-        if(/misti|morumbi|residencial|condom[ií]nio|edif[ií]cio|living|parque|residence|residencial/i.test(title)){
-          let name=title
-            .replace(/^condom[ií]nio\\s+/i,'')
-            .replace(/^edif[ií]cio\\s+/i,'')
-            .replace(/^residencial\\s+/i,'')
-            .replace(/^apartamentos?\\s+em\\s+/i,'')
-            .trim();
-          if(name.length>=5 && name.length<=120) add(name,source,context);
-        }
-      }
-
-      // Fallback: procura frases de identificação em todo o texto.
+    const extract= (html,source)=>{
+      const raw=String(html||"");
       const text=strip(raw);
-      const addressPresent=normalize(text).includes(streetKey) || (
-        normalize(text).includes(num) &&
-        ['rua','doutor','luiz','migliano'].every(t=>normalize(text).includes(t))
+      const addrNorm=normalize(address);
+      const numNorm=normalize(number);
+      const relevant=normalize(text).includes(addrNorm)||(
+        normalize(text).includes(numNorm)&&normalize(text).includes(normalize(address.split(/\s+/).slice(-1)[0]||address))
       );
+      if(!relevant)return;
 
-      if(addressPresent){
-        const patterns=[
-          /(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)[\\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i,
-          /(?:em|no|na)\\s+(?:condom[ií]nio|residencial)\\s+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i
-        ];
+      const titleRe=/<h2[^>]*>[\s\S]*?<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/gi;
+      let m;
+      while((m=titleRe.exec(raw))){
+        const title=strip(m[2]);
+        if(!title)continue;
+        const context=strip(raw.slice(Math.max(0,m.index-300),Math.min(raw.length,titleRe.lastIndex+900)));
+        if(!normalize(context).includes(addrNorm))continue;
+        const explicit=title.match(/(?:condom[ií]nio|edif[ií]cio|residencial|residence|empreendimento)[\s:,-]+(.+)/i);
+        if(explicit)add(explicit[1],source,context,m[1]);
+        else if(/misti|morumbi|residence|residencial|condom[ií]nio|edif[ií]cio/i.test(title))add(title,source,context,m[1]);
+      }
 
-        for(const p of patterns){
-          const hit=text.match(p);
-          if(!hit) continue;
-          let name=hit[1].trim();
-          name=name.split(/\\s+(?:localizado|fica|est[aá]|na|em|com|possui|tem|apartamento|im[oó]vel|rua|bairro|s[aã]o|cep)\\s+/i)[0];
-          name=name.replace(/[,.!?;:]+$/,'').trim();
-          if(name.length>=5 && name.length<=100 && !name.endsWith('&')) add(name,source,text.slice(0,900));
+      const patterns=[
+        /(?:condom[ií]nio|edif[ií]cio|residencial|residence|empreendimento)[\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&'\/-]{3,100})/i
+      ];
+      for(const p of patterns){
+        const hit=text.match(p);
+        if(hit){
+          let name=hit[1].split(/\s+(?:localizado|fica|est[aá]|na|no|em|com|possui|tem|apartamento|im[oó]vel|rua|bairro|cep|s[aã]o paulo)\s+/i)[0];
+          add(name,source,text,"");
         }
       }
     };
 
     const queries=[
-      address+' '+number+' '+cep+' condomínio',
-      address+' '+number+' condomínio '+city
+      '"'+searched+'" condomínio',
+      '"'+address+' '+number+'" residencial',
+      '"'+address+' '+number+'" edifício'
     ];
 
-    const fetchText=async(url)=>{
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),3500);
-      try{
-        const r=await fetch(url,{
-          signal:controller.signal,
-          headers:{
-            'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36',
-            'Accept-Language':'pt-BR,pt;q=0.9'
-          }
-        });
-        if(!r.ok) return '';
-        return await r.text();
-      }catch(e){
-        return '';
-      }finally{
-        clearTimeout(timer);
-      }
-    };
-
     for(const q of queries){
-      const encoded=encodeURIComponent(q);
-
-      const bing=await fetchText('https://www.bing.com/search?q='+encoded);
-      if(bing) extract(bing,'Bing');
-      if(Object.keys(candidates).length) break;
-
-      const ddg=await fetchText('https://html.duckduckgo.com/html/?q='+encoded);
-      if(ddg) extract(ddg,'DuckDuckGo');
-      if(Object.keys(candidates).length) break;
+      const enc=encodeURIComponent(q);
+      const bing=await fetchText("https://www.bing.com/search?q="+enc);
+      if(bing)extract(bing,"Bing");
+      if(Object.keys(candidates).length>=3)break;
+      const ddg=await fetchText("https://html.duckduckgo.com/html/?q="+enc);
+      if(ddg)extract(ddg,"DuckDuckGo");
+      if(Object.keys(candidates).length>=3)break;
     }
 
     const list=Object.values(candidates).sort((a,b)=>b.hits-a.hits).slice(0,8);
+    const best=list[0]||null;
+
+    // Salva automaticamente somente o resultado externo bruto/candidato principal.
+    // O tratamento/confirmacao continua separado para não contaminar a base com falso positivo.
+    if(best&&supabaseKey){
+      await fetch(supabaseUrl+"/rest/v1/condominium_address_map?on_conflict=address_key",{
+        method:"POST",
+        headers:{
+          apikey:supabaseKey,Authorization:"Bearer "+supabaseKey,
+          "Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"
+        },
+        body:JSON.stringify({
+          address_key:addressKey,address,number,neighborhood:neighborhood||null,
+          city,state,cep:cep||null,condominium_name:best.name,
+          source:"Pesquisa externa — "+best.source
+        })
+      }).catch(()=>{});
+    }
 
     return send({
-      condominium_name:list.length?list[0].name:null,
-      condominium_builder:null, condominium_delivery_year:null,
-      condominium_units:null, condominium_land_area:null,
-      towers:null, floors:null, sources:[],
-      candidates:list.map(x=>({name:x.name,source:x.source,hits:x.hits,evidence_hits:x.hits,context:x.context})),
+      condominium_name:best?.name||null,
+      condominium_builder:null,condominium_delivery_year:null,
+      condominium_units:null,condominium_land_area:null,towers:null,floors:null,
+      candidates:list.map(x=>({name:x.name,source:x.source,evidence_hits:x.hits,context:x.context,url:x.url||null})),
       searched_address:searched,
-      evidence:list.length?'Candidatos encontrados em pesquisa pública.':'Não foi encontrado nome de condomínio suficiente nos resultados públicos.'
+      evidence:best?"Candidato encontrado em fontes públicas externas.":"Nenhum candidato confiável encontrado nas fontes externas.",
+      from_database:false,
+      saved_to_database:!!best&&!!supabaseKey
     });
   }catch(error){
-    return send({error:'Erro interno na identificação do condomínio.',message:String(error&&error.message||error),candidates:[],sources:[]},500);
+    return send({error:"Erro interno na identificação do condomínio.",message:String(error?.message||error),candidates:[],sources:[]},500);
   }
 }
