@@ -95,17 +95,17 @@ export default async function handler(req,res){
         const html=await response.text();
 
         const visible=html
-          .replace(/<script[\\s\\S]*?<\\/script>/gi,' ')
-          .replace(/<style[\\s\\S]*?<\\/style>/gi,' ')
+          .replace(/<script[\s\S]*?<\/script>/gi,' ')
+          .replace(/<style[\s\S]*?<\/style>/gi,' ')
           .replace(/<[^>]+>/g,' ')
           .replace(/&nbsp;/gi,' ')
           .replace(/&amp;/gi,'&')
           .replace(/&quot;/gi,'"')
           .replace(/&#39;/gi,"'")
-          .replace(/\\s+/g,' ')
+          .replace(/\s+/g,' ')
           .trim();
 
-        const regex=/(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{2,90}/gi;
+        const regex=/(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\s+[A-Za-zÀ-ÿ0-9 .&\/-]{2,90}/gi;
         let match;
 
         while((match=regex.exec(visible))){
