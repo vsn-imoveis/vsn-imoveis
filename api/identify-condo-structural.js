@@ -121,13 +121,11 @@ export default async function handler(req,res){
       const patterns=[
         /(?:condom[ií]nio|edif[ií]cio|residencial)\\s+["“]?([A-Za-zÀ-ÿ0-9][^,;|.!?]{2,90})/gi,
         /(?:empreendimento|nome do condom[ií]nio)\\s*[:\\-]\\s*["“]?([^,;|.!?]{4,90})/gi,
-        /(?:\\bCORES\\b)/gi
       ];
       for(const re of patterns){
         let m;
         while((m=re.exec(text))){
           if(m[1]) addCandidate(m[1],'Pesquisa pública',null);
-          else if(/\\bcores\\b/i.test(m[0])) addCandidate('Cores','Pesquisa pública',null);
         }
       }
     };
