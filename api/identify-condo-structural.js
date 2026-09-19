@@ -75,6 +75,25 @@ export default async function handler(req,res){
     }catch{return []}
   };
 
+  const searchBing=async q=>{
+    try{
+      const url='https://www.bing.com/search?'+new URLSearchParams({q,cc:'br',setlang:'pt-BR',count:'10'}).toString();
+      const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/131 Safari/537.36','Accept-Language':'pt-BR,pt;q=0.9'},redirect:'follow',signal:AbortSignal.timeout(7000)});
+      if(!r.ok)return [];
+      const html=await r.text();
+      if(blockedText.test(clean(html)))return [];
+      const out=[],seen=new Set();
+      const re=/<li class="b_algo"[\\s\\S]*?<h2>[\\s\\S]*?<a[^>]+href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/li>/gi;
+      let m;
+      while((m=re.exec(html))&&out.length<10){
+        const u=decodeUrl(m[1]), title=clean(m[2]);
+        if(!/^https?:\\/\\//i.test(u)||blockedText.test(title)||!title)continue;
+        if(!seen.has(u)){seen.add(u);out.push({title,url:u,text:title});}
+      }
+      return out;
+    }catch{return []}
+  };
+
   const searchJina=async q=>{
     try{
       const u='https://r.jina.ai/http://www.google.com/search?hl=pt-BR&gl=br&num=10&q='+encodeURIComponent(q);
@@ -104,10 +123,17 @@ export default async function handler(req,res){
     `${streetNumber} site:vivareal.com.br condomínio`,
     `${streetNumber} site:zapimoveis.com.br condomínio`,
     `${streetNumber} site:imovelweb.com.br condomínio`,
-    `${streetNumber} site:chavesnamao.com.br condomínio`
+    `${streetNumber} site:chavesnamao.com.br condomínio`,
+    `${exactAddress} "Cores"`,
+    `${streetNumber} "Cores"`,
+    `${streetNumber} "Edifício Azul"`,
+    `${streetNumber} "Tibério"`,
+    `${cep||''} "condomínio" "Estrada dos Mirandas"`
   ];
 
-  const resultSets=await Promise.all(queries.map(searchGoogle));
+  const googleSets=await Promise.all(queries.map(searchGoogle));
+  const bingSets=await Promise.all(queries.map(searchBing));
+  const resultSets=[...googleSets,...bingSets];
   const allResults=[];
   const seenUrls=new Set();
   for(const set of resultSets) for(const item of set){
@@ -221,14 +247,17 @@ export default async function handler(req,res){
   data.candidates=data.candidates.slice(0,8).map(({key,score,hits,...x})=>({...x,evidence_hits:hits}));
 
   const strong=data.candidates.filter(x=>x.hits>=2);
+  // Um nome encontrado em fontes independentes do endereço exato também pode ser promovido.
+  const addressConfirmed=data.candidates.filter(x=>x.evidence_hits>=2 || (x.score>=8 && x.evidence_hits>=1));
   if(strong.length)data.condominium_name=strong[0].name;
+  else if(addressConfirmed.length)data.condominium_name=addressConfirmed[0].name;
 
   return res.status(200).json({
     ...data,
     sources:data.sources.slice(0,20),
     searched_address:location,
     evidence:data.candidates.length
-      ? 'Candidatos identificados por pesquisa pública do endereço exato; o primeiro tem maior recorrência entre os resultados.'
+      ? 'Candidatos identificados por pesquisa pública do endereço exato, cruzando Google/Bing e fontes imobiliárias; o primeiro tem maior evidência.'
       : 'Não foi encontrado nome de condomínio suficiente nos resultados públicos.'
   });
 }
