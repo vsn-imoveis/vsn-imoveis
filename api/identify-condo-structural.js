@@ -47,6 +47,7 @@ export default async function handler(req,res){
       let n=clean(name).replace(/^[\s,;:.|\-]+|[\s,;:.|\-]+$/g,"");
       n=n.replace(/^(condom[ií]nio|edif[ií]cio|residencial)\s*[-:–—]?\s*/i,"").trim();
       if(n.length<5||n.length>120)return;
+      if(/[{}]|&&|\\/\\/|substring|_G\\.|b_searchbox|ClearTimers|AJAX_NAV|Pesquisar/i.test(n))return;
       if(/^(resultados?|pesquisa|search|bing|google|duckduckgo|apartamentos?)$/i.test(n))return;
       if(/^(rua|avenida|estrada)\s+/i.test(n))return;
       const key=normalize(n);
@@ -68,39 +69,42 @@ export default async function handler(req,res){
       }catch(_){return ""}finally{clearTimeout(timer)}
     };
 
-    const extract= (html,source)=>{
+    const extract=(html,source)=>{
       const raw=String(html||"");
-      const text=strip(raw);
       const addrNorm=normalize(address);
       const numNorm=normalize(number);
-      const relevant=normalize(text).includes(addrNorm)||(
-        normalize(text).includes(numNorm)&&normalize(text).includes(normalize(address.split(/\s+/).slice(-1)[0]||address))
-      );
-      if(!relevant)return;
 
-      const titleRe=/<h2[^>]*>[\s\S]*?<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h2>/gi;
-      let m;
-      while((m=titleRe.exec(raw))){
-        const title=strip(m[2]);
-        const snippet=strip(m[3]);
-        if(!title)continue;
-        const context=strip(raw.slice(Math.max(0,m.index),Math.min(raw.length,titleRe.lastIndex)));
-        const evidenceText=strip(title+" "+snippet+" "+context);
-        if(!normalize(evidenceText).includes(addrNorm))continue;
-        const explicit=title.match(/(?:condom[ií]nio|edif[ií]cio|residencial|residence|empreendimento)[\s:,-]+(.+)/i);
-        if(explicit)add(explicit[1],source,evidenceText,m[1]);
-        else if(/misti|morumbi|residence|residencial|condom[ií]nio|edif[ií]cio/i.test(title))add(title,source,evidenceText,m[1]);
+      const bingBlocks=[...raw.matchAll(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][^>]*>[\\s\\S]*?<\\/li>/gi)].map(m=>m[0]);
+      if(source==="Bing" && bingBlocks.length){
+        for(const block of bingBlocks){
+          const blockText=strip(block), normBlock=normalize(blockText);
+          if(!normBlock.includes(addrNorm)||!normBlock.includes(numNorm)) continue;
+          const hm=block.match(/<h2[^>]*>[\\s\\S]*?<a[^>]*href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/i);
+          if(!hm) continue;
+          const title=strip(hm[2]), href=hm[1]||"";
+          const pm=block.match(/<p[^>]*>([\\s\\S]*?)<\\/p>/i);
+          const snippet=pm?strip(pm[1]):"";
+          const evidenceText=strip(title+" "+snippet+" "+blockText);
+          if(!normalize(evidenceText).includes(addrNorm)) continue;
+          const explicit=title.match(/(?:condom[ií]nio|edif[ií]cio|residencial|residence|empreendimento)[\\s:,-]+(.+)/i);
+          if(explicit) add(explicit[1],source,evidenceText,href);
+          else if(/misti|morumbi|residence|residencial|condom[ií]nio|edif[ií]cio|empreendimento/i.test(title)) add(title,source,evidenceText,href);
+        }
+        return;
       }
 
-      const patterns=[
-        /(?:condom[ií]nio|edif[ií]cio|residencial|residence|empreendimento)[\s:,-]+([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&'\/-]{3,100})/i
-      ];
-      for(const p of patterns){
-        const hit=text.match(p);
-        if(hit){
-          let name=hit[1].split(/\s+(?:localizado|fica|est[aá]|na|no|em|com|possui|tem|apartamento|im[oó]vel|rua|bairro|cep|s[aã]o paulo)\s+/i)[0];
-          add(name,source,text,"");
-        }
+      const blocks=[...raw.matchAll(/<(?:div|article|li)[^>]*>([\\s\\S]{0,12000}?)<\\/(?:div|article|li)>/gi)].map(m=>m[1]);
+      for(const block of blocks){
+        const blockText=strip(block), normBlock=normalize(blockText);
+        if(!normBlock.includes(addrNorm)||!normBlock.includes(numNorm)) continue;
+        const tm=block.match(/<(?:h2|h3)[^>]*>([\\s\\S]*?)<\\/(?:h2|h3)>/i);
+        if(!tm) continue;
+        const title=strip(tm[1]);
+        if(!/misti|morumbi|residence|residencial|condom[ií]nio|edif[ií]cio|empreendimento/i.test(title)) continue;
+        const evidenceText=strip(title+" "+blockText);
+        if(!normalize(evidenceText).includes(addrNorm)) continue;
+        const hrefMatch=block.match(/href=["']([^"']+)["']/i);
+        add(title,source,evidenceText,hrefMatch?hrefMatch[1]:"");
       }
     };
 
