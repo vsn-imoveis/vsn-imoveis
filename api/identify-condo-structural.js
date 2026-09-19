@@ -54,120 +54,60 @@ export default async function handler(req,res){
 
     const blocked=/markdown content|sobre esta página|tráfego incomum|captcha|unusual traffic|verify you are human|access denied|error 429|too many requests/i;
     const clean=s=>String(s||'')
-      .replace(/<script[\s\S]*?<\/script>/gi,' ')
-      .replace(/<style[\s\S]*?<\/style>/gi,' ')
+      .replace(/<script[\\s\\S]*?<\\/script>/gi,' ')
+      .replace(/<style[\\s\\S]*?<\\/style>/gi,' ')
       .replace(/<[^>]+>/g,' ')
       .replace(/&amp;/g,'&').replace(/&quot;/g,'"')
       .replace(/&#39;|&#x27;/g,"'")
-      .replace(/\s+/g,' ').trim();
+      .replace(/\\s+/g,' ').trim();
 
-    const sources=[];
     const candidates=new Map();
-
+    const sources=[];
     const addCandidate=(name,source,url)=>{
-      let n=String(name||'').replace(/^\s*(?:condom[ií]nio|edif[ií]cio|residencial)\s+/i,'').replace(/\s+/g,' ').trim();
-      n=n.split(/\s+(?:na|no|em|com|para|por)\s+(?:rua|avenida|av\.?|r\.?)/i)[0].trim();
+      let n=String(name||'').replace(/^[\\s]*(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)[\\s]+/i,'').trim();
+      n=n.replace(/[,:;|.\\-]+$/,'').replace(/\\s+/g,' ').trim();
       if(!n||n.length<4||n.length>100||blocked.test(n))return;
-      if(/^(google|bing|search|pesquisa|resultado|im[oó]vel|apartamento|casa)$/i.test(n))return;
       const k=norm(n);
       const old=candidates.get(k);
       if(old){old.hits++;return;}
       candidates.set(k,{name:n,source:source||'Pesquisa pública',url:url||null,hits:1});
     };
 
-    const google=async q=>{
-      try{
-        const u='https://www.google.com/search?'+new URLSearchParams({q,hl:'pt-BR',gl:'br',num:'10'}).toString();
-        const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0','Accept-Language':'pt-BR,pt;q=0.9'},signal:AbortSignal.timeout(4000)});
-        if(!r.ok)return '';
-        return await r.text();
-      }catch{return ''}
-    };
-
-    const jina=async q=>{
-      try{
-        const u='https://r.jina.ai/http://www.google.com/search?hl=pt-BR&gl=br&num=10&q='+encodeURIComponent(q);
-        const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0'},signal:AbortSignal.timeout(4000)});
-        if(!r.ok)return '';
-        const t=await r.text();
-        return blocked.test(t)?'':t;
-      }catch{return ''}
-    };
-
-    const queries=[
-      `"${address}, ${number}" condomínio`,
-      `"${address} ${number}" condomínio`
-    ];
-
-    const searchGoogleLocal=async q=>{
+    const searchLocal=async q=>{
       try{
         const url='https://www.google.com/search?'+new URLSearchParams({hl:'pt-BR',tbm:'lcl',q:q}).toString();
-        const r=await fetch(url,{headers:{
-          'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
-          'Accept-Language':'pt-BR,pt;q=0.9'
-        },signal:AbortSignal.timeout(5000)});
+        const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36','Accept-Language':'pt-BR,pt;q=0.9'},signal:AbortSignal.timeout(3000)});
         if(!r.ok)return '';
         const html=await r.text();
-        if(!html||blocked.test(html))return '';
-        return html;
+        return html&& !blocked.test(html) ? html : '';
       }catch{return ''}
     };
 
-    const extractLocalResults=html=>{
-      const out=[];
+    const extractNames=html=>{
       const text=clean(html);
-      const titles=[];
-      const titleRe=/<h3[^>]*>([\\s\\S]*?)<\\/h3>/gi;
+      const items=[];
+      const h3=/<h3[^>]*>([\\s\\S]*?)<\\/h3>/gi;
       let m;
-      while((m=titleRe.exec(html)) && titles.length<20){
-        const t=clean(m[1]);
-        if(t)titles.push(t);
-      }
-      const blocks=text.split(/(?=condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio|torre|apartamentos)/i).slice(0,40);
-      for(const t of titles)out.push(t);
-      for(const t of blocks){
-        if(/condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio|torre|apartamentos/i.test(t))out.push(t.slice(0,500));
-      }
-      return out;
-    };
-
-    const extractNames=items=>{
-      const patterns=[
-        /(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{2,90}/gi,
-        /(?:torre|apartamentos)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{2,70}/gi
-      ];
+      while((m=h3.exec(html))&&items.length<20)items.push(clean(m[1]));
+      items.push(...text.split(/(?=condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)/i).slice(0,40));
+      const re=/(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)[A-Za-zÀ-ÿ0-9 .&\\/-]{2,90}/gi;
       for(const item of items){
-        for(const re of patterns){
-          let m;
-          while((m=re.exec(item))){
-            let name=String(m[0]).replace(/\\s+/g,' ').trim();
-            name=name.replace(/[,:;|.\\-]+$/,'').trim();
-            name=name.replace(/\\s+(?:s[aã]o paulo|sp|cep\\s*[:\\-]?\\s*\\d{5}[-.]?\\d{3})$/i,'').trim();
-            if(name.length>=5&&name.length<=100) addCandidate(name,'Google pesquisa local',null);
-          }
+        let x;
+        while((x=re.exec(item))){
+          let name=x[0].replace(/\\s+/g,' ').trim().replace(/[,:;|.\\-]+$/,'').trim();
+          name=name.replace(/\\s+(?:s[aã]o paulo|sp)$/i,'').trim();
+          if(name.length>=5&&name.length<=100)addCandidate(name,'Google pesquisa local',null);
         }
       }
     };
 
-    const variants=new Map();
-    for(const [key,c] of candidates){
-      const canonical=key.replace(/^(condominio|edificio|residencial|predio)/,'').trim();
-      const old=variants.get(canonical);
-      if(old){old.hits+=c.hits;old.names.add(c.name);}
-      else variants.set(canonical,{...c,names:new Set([c.name])});
-    }
-    candidates.clear();
-    for(const [key,c] of variants)candidates.set(key,c);
-
     const queries=[
-      `${address}, ${number} ${city}`,
-      `${address}, ${number} condomínio ${city}`
+      `\\"${address}, ${number}\\" ${city}`,
+      `\\"${address}, ${number}\\" condomínio`
     ];
-
     for(const q of queries){
-      const raw=await searchGoogleLocal(q);
-      if(!raw)continue;
-      extractNames(extractLocalResults(raw));
+      const html=await searchLocal(q);
+      if(html)extractNames(html);
       if(candidates.size)break;
     }
 
