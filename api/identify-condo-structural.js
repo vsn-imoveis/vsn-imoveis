@@ -96,55 +96,27 @@ export default async function handler(req,res){
 
     const queries=[
       `"${address}, ${number}" condomínio`,
-      `"${address} ${number}" apartamento condomínio`,
-      `"${cep||''}" condomínio`
-    ].filter(q=>q.trim()!=='"" condomínio');
-
-    const extractGoogleResults=html=>{
-      const out=[];
-      const re=/<a[^>]+href="([^"]+)"[^>]*>([\\s\\S]*?)<\\/a>/gi;
-      let m;
-      while((m=re.exec(html))){
-        const href=m[1];
-        const title=clean(m[2]);
-        if(!title||!href||/^https?:\\/\\/(?:www\\.)?google\\./i.test(href))continue;
-        const url=href.startsWith('/url?q=')?decodeURIComponent(href.slice(7).split('&')[0]):href;
-        if(!/^https?:\\/\\//i.test(url))continue;
-        if(/condom[ií]nio|edif[ií]cio|residencial|cores|residence|apartamento/i.test(title))out.push({title,url});
-      }
-      return out.slice(0,10);
-    };
+      `"${address} ${number}" condomínio`
+    ];
 
     for(const q of queries){
-      let raw=await google(q);
-      if(raw){
-        for(const hit of extractGoogleResults(raw)){
-          sources.push(hit);
-          addCandidate(hit.title,'Pesquisa pública',hit.url);
+      try{
+        const url='https://www.google.com/search?'+new URLSearchParams({q:q,hl:'pt-BR',gl:'br',num:'10'}).toString();
+        const r=await fetch(url,{headers:{'User-Agent':'Mozilla/5.0','Accept-Language':'pt-BR'},signal:AbortSignal.timeout(2500)});
+        if(!r.ok)continue;
+        const html=await r.text();
+        if(blocked.test(html))continue;
+        const text=clean(html);
+        const patterns=[
+          /(?:condom[ií]nio|edif[ií]cio|residencial)\\s+([A-Za-zÀ-ÿ0-9][^,;|.!?]{2,80})/gi,
+          /(?:nome do condom[ií]nio|empreendimento)\\s*[:\\-]\\s*([^,;|.!?]{4,80})/gi
+        ];
+        for(const re of patterns){
+          let m;
+          while((m=re.exec(text))) addCandidate(m[1],'Pesquisa pública',url);
         }
-        const text=clean(raw);
-        const patterns=[
-          /(?:condom[ií]nio|edif[ií]cio|residencial)\\s+([A-ZÁÀÃÂÉÊÍÓÔÕÚÇ0-9][^,;|.!?]{2,90})/gi,
-          /(?:nome do condom[ií]nio|empreendimento)\\s*[:\\-]\\s*([^,;|.!?]{4,90})/gi
-        ];
-        for(const re of patterns){let m;while((m=re.exec(text)))addCandidate(m[1]||m[0],'Pesquisa pública',null)}
-      }
-      if(candidates.size>=2)break;
-    }
-
-    if(!candidates.size){
-      const q=queries[0];
-      const raw=await jina(q);
-      if(raw){
-        const text=clean(raw);
-        const patterns=[
-          /(?:condom[ií]nio|edif[ií]cio|residencial)\\s+([A-ZÁÀÃÂÉÊÍÓÔÕÚÇ0-9][^,;|.!?]{2,90})/gi,
-          /(?:nome do condom[ií]nio|empreendimento)\\s*[:\\-]\\s*([^,;|.!?]{4,90})/gi
-        ];
-        for(const re of patterns){let m;while((m=re.exec(text)))addCandidate(m[1]||m[0],'Pesquisa pública (Jina)',null)}
-        const links=text.match(/https?:\\/\\/[^\\s)]+/g)||[];
-        for(const u of links.slice(0,10))sources.push({title:'Resultado público',url:u.replace(/[),.;]+$/,'')});
-      }
+        if(candidates.size)break;
+      }catch{}
     }
 
     const list=[...candidates.values()].sort((a,b)=>b.hits-a.hits).slice(0,8);
