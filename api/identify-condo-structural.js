@@ -42,38 +42,62 @@ export default async function handler(req,res){
     }
 
     const candidates=[];
+    const addressNeedle=normalize(address);
+    const numberNeedle=normalize(number);
     let pos=0;
 
     while(candidates.length<5){
       const h2=html.indexOf("<h2",pos);
       if(h2<0) break;
-      const openEnd=html.indexOf(">",h2);
-      const close=html.indexOf("</h2>",openEnd);
-      if(openEnd<0||close<0) break;
 
-      const section=html.slice(openEnd+1,close);
+      const liStart=html.lastIndexOf("<li",h2);
+      const liEnd=html.indexOf("</li>",h2);
+      const h2OpenEnd=html.indexOf(">",h2);
+      const h2Close=html.indexOf("</h2>",h2OpenEnd);
+
+      if(liStart<0||liEnd<0||h2OpenEnd<0||h2Close<0){
+        pos=h2+3;
+        continue;
+      }
+
+      const resultBlock=html.slice(liStart,liEnd+5);
+      const resultText=resultBlock.replace(/<[^>]*>/g," ");
+
+      // O resultado só pode ser candidato se o próprio resultado
+      // mencionar o endereço e o número pesquisados.
+      const normalizedResult=normalize(resultText);
+      if(!normalizedResult.includes(addressNeedle)||!normalizedResult.includes(numberNeedle)){
+        pos=liEnd+5;
+        continue;
+      }
+
+      const section=html.slice(h2OpenEnd+1,h2Close);
       const aStart=section.indexOf("<a");
       const aOpenEnd=section.indexOf(">",aStart);
       const aClose=section.indexOf("</a>",aOpenEnd);
 
       if(aStart>=0&&aOpenEnd>=0&&aClose>=0){
-        const title=section.slice(aOpenEnd+1,aClose)
-          .replace(/<[^>]*>/g," ")
-          .trim();
+        const title=section.slice(aOpenEnd+1,aClose).replace(/<[^>]*>/g," ").trim();
+        const lower=title.toLowerCase();
 
         if(title.length>=5 &&
-           title.toLowerCase().indexOf("pesquisar")<0 &&
-           title.toLowerCase().indexOf("search")<0 &&
-           title.toLowerCase().indexOf("bing")<0){
+           lower.indexOf("pesquisar")<0 &&
+           lower.indexOf("search")<0 &&
+           lower.indexOf("bing")<0 &&
+           lower.indexOf("hotel")<0 &&
+           lower.indexOf("tripadvisor")<0 &&
+           lower.indexOf("booking.com")<0 &&
+           lower.indexOf("kayak")<0){
           candidates.push({
             name:title,
             source:"Bing",
-            evidence_hits:1
+            evidence_hits:1,
+            context:resultText.replace(/\\s+/g," ").trim().slice(0,1000)
           });
         }
       }
 
-      pos=close+5;
+      pos=liEnd+5;
     }
 
     return send({
