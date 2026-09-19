@@ -25,6 +25,66 @@ export default async function handler(req,res){
 
     const searched=[address,number,neighborhood,city,state,cep].filter(Boolean).join(", ");
 
+    // 1) Banco próprio primeiro: endereço confirmado anteriormente tem prioridade
+    // sobre qualquer busca externa. A chave secreta fica somente no backend.
+    const addressKey=[address,number,city,state]
+      .map(normalize)
+      .filter(Boolean)
+      .join("|");
+
+    const supabaseUrl=process.env.SUPABASE_URL || "";
+    const supabaseSecret=process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+    let databaseMatch=null;
+    let databaseError=null;
+
+    if(supabaseUrl && supabaseSecret){
+      try{
+        const dbUrl=supabaseUrl.replace(/\\/$/,"")+
+          "/rest/v1/condominium_address_map?address_key=eq."+encodeURIComponent(addressKey)+"&select=*";
+        const dbResponse=await fetch(dbUrl,{
+          headers:{
+            apikey:supabaseSecret,
+            Authorization:"Bearer "+supabaseSecret,
+            Accept:"application/json"
+          }
+        });
+        if(dbResponse.ok){
+          const rows=await dbResponse.json();
+          if(Array.isArray(rows) && rows.length) databaseMatch=rows[0];
+        }else{
+          databaseError="Supabase HTTP "+dbResponse.status;
+        }
+      }catch(e){
+        databaseError=String(e&&e.message||e);
+      }
+    }else{
+      databaseError="Variáveis SUPABASE_URL/SUPABASE_SECRET_KEY não configuradas no backend.";
+    }
+
+    if(databaseMatch){
+      return send({
+        condominium_name:databaseMatch.condominium_name||null,
+        condominium_builder:null,
+        condominium_delivery_year:null,
+        condominium_units:null,
+        condominium_land_area:null,
+        towers:null,
+        floors:null,
+        candidates:[{
+          name:databaseMatch.condominium_name,
+          source:databaseMatch.source||"Banco próprio",
+          evidence_hits:1,
+          context:databaseMatch.address||searched
+        }],
+        searched_address:searched,
+        evidence:"Condomínio encontrado no banco próprio por endereço exato.",
+        from_database:true,
+        saved_to_database:false,
+        address_key:addressKey
+      });
+    }
+
+
     const queries=[
       '"' + address + ' ' + number + '" condomínio',
       '"' + address.replace(/^Rua Doutor/i,"Rua Dr.") + ' ' + number + '" residencial',
