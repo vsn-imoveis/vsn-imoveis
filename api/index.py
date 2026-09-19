@@ -89,7 +89,7 @@ def extrair_nomes(textos):
 
 
 def pesquisar_google(endereco):
-    consulta = f'"{endereco}" condomínio OR condominio OR residencial OR edifício'
+    consulta = f'"{endereco}" condomínio residencial edifício'
     url = (
         "https://www.google.com/search"
         f"?hl=pt-BR&num=10&q={quote_plus(consulta)}"
