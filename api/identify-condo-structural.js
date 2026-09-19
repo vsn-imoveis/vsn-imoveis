@@ -99,40 +99,63 @@ export default async function handler(req,res){
       `"${address} ${number}" condomínio`
     ];
 
-    const searchEngine=async q=>{
-      const urls=[
-        'https://www.google.com/search?'+new URLSearchParams({q:q,hl:'pt-BR',gl:'br',num:'10'}).toString(),
-        'https://html.duckduckgo.com/html/?'+new URLSearchParams({q:q}).toString()
-      ];
-      for(const u of urls){
-        try{
-          const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36','Accept-Language':'pt-BR,pt;q=0.9'},signal:AbortSignal.timeout(2200)});
-          if(!r.ok)continue;
-          const html=await r.text();
-          if(!html||blocked.test(html))continue;
-          return html;
-        }catch{}
-      }
-      return '';
+    const searchGoogleLocal=async q=>{
+      try{
+        const url='https://www.google.com/search?'+new URLSearchParams({hl:'pt-BR',tbm:'lcl',q:q}).toString();
+        const r=await fetch(url,{headers:{
+          'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+          'Accept-Language':'pt-BR,pt;q=0.9'
+        },signal:AbortSignal.timeout(5000)});
+        if(!r.ok)return '';
+        const html=await r.text();
+        if(!html||blocked.test(html))return '';
+        return html;
+      }catch{return ''}
     };
 
-    const extract=html=>{
+    const extractLocalResults=html=>{
+      const out=[];
       const text=clean(html);
+      const titles=[];
+      const titleRe=/<h3[^>]*>([\\s\\S]*?)<\\/h3>/gi;
+      let m;
+      while((m=titleRe.exec(html)) && titles.length<20){
+        const t=clean(m[1]);
+        if(t)titles.push(t);
+      }
+      const blocks=text.split(/(?=condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio|torre|apartamentos)/i).slice(0,40);
+      for(const t of titles)out.push(t);
+      for(const t of blocks){
+        if(/condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio|torre|apartamentos/i.test(t))out.push(t.slice(0,500));
+      }
+      return out;
+    };
+
+    const extractNames=items=>{
       const patterns=[
-        /(?:condom[ií]nio|edif[ií]cio|residencial)\\s+["“]?([A-Za-zÀ-ÿ0-9][^,;|.!?]{2,90})/gi,
-        /(?:empreendimento|nome do condom[ií]nio)\\s*[:\\-]\\s*["“]?([^,;|.!?]{4,90})/gi,
+        /(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio|torre|apartamentos)[A-Za-zÀ-ÿ0-9 .&\\/-]*/gi
       ];
-      for(const re of patterns){
-        let m;
-        while((m=re.exec(text))){
-          if(m[1]) addCandidate(m[1],'Pesquisa pública',null);
+      for(const item of items){
+        for(const re of patterns){
+          let m;
+          while((m=re.exec(item))){
+            let name=String(m[0]).replace(/\\s+/g,' ').trim();
+            name=name.replace(/[,:;|.]+$/,'').trim();
+            if(name.length>=5&&name.length<=100) addCandidate(name,'Google pesquisa local',null);
+          }
         }
       }
     };
 
+    const queries=[
+      `${address}, ${number} ${city}`,
+      `${address}, ${number} condomínio ${city}`
+    ];
+
     for(const q of queries){
-      const raw=await searchEngine(q);
-      if(raw)extract(raw);
+      const raw=await searchGoogleLocal(q);
+      if(!raw)continue;
+      extractNames(extractLocalResults(raw));
       if(candidates.size)break;
     }
 
