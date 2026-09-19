@@ -80,54 +80,62 @@ export default async function handler(req,res){
 
     const extractNames=(html,source)=>{
       const raw=String(html||'');
+      const text=extractText(raw);
 
-      // Primeiro tenta os blocos de resultados do Bing. Só aceita o título
-      // quando o próprio resultado também contém o endereço pesquisado.
-      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\\s\\S]*?<\\/li>/gi)||[];
+      // Em vez de capturar apenas "Condomínio X", guarda frases maiores
+      // do resultado. Depois extraímos o nome a partir do contexto.
+      const normalized=normalize(text);
       const street=normalize(address);
-      const num=number.replace(/\\D/g,'');
+      const num=number.replace(/\D/g,'');
 
-      for(const block of blocks){
-        const blockText=extractText(block);
-        const normalizedBlock=normalize(blockText);
-        if(!normalizedBlock.includes(street)||!normalizedBlock.includes(num)) continue;
+      if(!normalized.includes(street)||!normalized.includes(num)) return;
 
-        const titleMatch=block.match(/<h2[\\s\\S]*?<a[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/i);
-        if(!titleMatch) continue;
+      const lines=text
+        .split(/[\\n\\r]+/)
+        .map(x=>x.replace(/\\s+/g,' ').trim())
+        .filter(x=>x.length>=20&&x.length<=350);
 
-        const title=extractText(titleMatch[1]);
-        if(!title||title.length<6||title.length>100) continue;
+      for(const line of lines){
+        const nl=normalize(line);
+        if(!nl.includes(street)||!nl.includes(num)) continue;
 
-        // Evita títulos claramente genéricos/ruidosos.
-        const lower=title.toLowerCase();
-        if(/^(residencial|condominio|condomínio|edificio|edifício|apartamento|imovel|imóvel)\\s*[&]?$/.test(lower)) continue;
-        if(title.endsWith('&')||title.length<8) continue;
+        const patterns=[
+          /(?:condom[ií]nio|edif[ií]cio|residencial|empreendimento)\\s+(?:[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i,
+          /(?:condom[ií]nio|edif[ií]cio)\\s*[:\\-]?\\s*["']?([A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9 .&\\/-]{2,100})/i
+        ];
 
-        const contextual=/(condom[ií]nio|edif[ií]cio|residencial|apartamento|torre|empreendimento|morumbi|jardim|vila|rua)/i.test(blockText);
-        if(!contextual) continue;
+        for(const pattern of patterns){
+          const m=line.match(pattern);
+          if(!m) continue;
 
-        add(title,source);
+          let name=(m[1]||m[0]).trim();
+          name=name.replace(/[,.!?;:]+$/,'').trim();
+
+          // Remove o restante quando o resultado continua depois do nome.
+          name=name.split(/\\s+(?:localizado|fica|está|esta|na|em|com|conta|possui|tem)\\s+/i)[0].trim();
+
+          if(name.length>=6&&name.length<=100&&!name.endsWith('&')){
+            add(name,source);
+          }
+        }
       }
 
-      // Fallback: procura nomes explicitamente apresentados como condomínio,
-      // mas exige que o endereço apareça no mesmo texto.
-      const text=extractText(raw);
-      const addressText=normalize(text);
-      if(addressText.includes(street)&&addressText.includes(num)){
-        const re=/(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{3,90}/gi;
-        let m;
-        while((m=re.exec(text))){
-          const name=m[0].trim();
-          if(!name.endsWith('&')) add(name,source);
+      // Também usa títulos de resultados do Bing, mas preserva a linha/contexto.
+      const blocks=raw.match(/<li[^>]*class=["'][^"']*b_algo[^"']*["'][\\s\\S]*?<\\/li>/gi)||[];
+      for(const block of blocks){
+        const blockText=extractText(block);
+        const nb=normalize(blockText);
+        if(!nb.includes(street)||!nb.includes(num)) continue;
+
+        const titleMatch=block.match(/<h2[\\s\\S]*?<a[^>]*>([\\s\\S]*?)<\\/a>[\\s\\S]*?<\\/h2>/i);
+        if(titleMatch){
+          const title=extractText(titleMatch[1]);
+          if(title.length>=8&&title.length<=120&&!/^(residencial|condom[ií]nio|edif[ií]cio)$/i.test(title.trim())){
+            add(title,source);
+          }
         }
       }
     };
-
-    const queries=[
-      '"'+address+' '+number+'" "'+cep+'" condomínio',
-      '"'+address+' '+number+'" "'+cep+'"',
-      '"'+address+' '+number+'" condomínio '+city
-    ];
 
     for(const q of queries){
       const encoded=encodeURIComponent(q);
