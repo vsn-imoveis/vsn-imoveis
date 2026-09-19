@@ -133,19 +133,31 @@ export default async function handler(req,res){
 
     const extractNames=items=>{
       const patterns=[
-        /(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio|torre|apartamentos)[A-Za-zÀ-ÿ0-9 .&\\/-]*/gi
+        /(?:condom[ií]nio|edif[ií]cio|residencial|pr[eé]dio)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{2,90}/gi,
+        /(?:torre|apartamentos)\\s+[A-Za-zÀ-ÿ0-9 .&\\/-]{2,70}/gi
       ];
       for(const item of items){
         for(const re of patterns){
           let m;
           while((m=re.exec(item))){
             let name=String(m[0]).replace(/\\s+/g,' ').trim();
-            name=name.replace(/[,:;|.]+$/,'').trim();
+            name=name.replace(/[,:;|.\\-]+$/,'').trim();
+            name=name.replace(/\\s+(?:s[aã]o paulo|sp|cep\\s*[:\\-]?\\s*\\d{5}[-.]?\\d{3})$/i,'').trim();
             if(name.length>=5&&name.length<=100) addCandidate(name,'Google pesquisa local',null);
           }
         }
       }
     };
+
+    const variants=new Map();
+    for(const [key,c] of candidates){
+      const canonical=key.replace(/^(condominio|edificio|residencial|predio)/,'').trim();
+      const old=variants.get(canonical);
+      if(old){old.hits+=c.hits;old.names.add(c.name);}
+      else variants.set(canonical,{...c,names:new Set([c.name])});
+    }
+    candidates.clear();
+    for(const [key,c] of variants)candidates.set(key,c);
 
     const queries=[
       `${address}, ${number} ${city}`,
