@@ -84,9 +84,13 @@ async function saveCondoCandidate(){
   if(!p?.name||!field){toast("Nenhum condomínio selecionado para confirmar.","err");return}
   try{
     const e=window.__condoEnrichment||{};
-    const r=await fetch("/api/confirm-condo.js",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:p.name,address:d.address,number:d.number,neighborhood:d.neighborhood,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||"",features:Array.isArray(e.features)?e.features:[],delivery_year:e.condominium_delivery_year||e.delivery_year||null,construction_year:e.condominium_construction_year||e.construction_year||null,units:e.condominium_units||e.units||null,towers:e.towers||null,floors:e.floors||null,builder:e.condominium_builder||e.builder||null,sources:e.sources||[],evidence:e.evidence||null,confidence:e.confidence||"manual",source:p.source||"confirmação manual"})});
-    const data=await r.json().catch(()=>({}));
-    if(!r.ok||!data.ok)throw new Error(data.error||data.message||"Falha ao salvar condomínio.");
+    const cleanNoSpace=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+    const condoRow={normalized_name:cleanNoSpace(p.name),name:p.name,address:d.address,number:d.number,neighborhood:d.neighborhood||null,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||null,features:Array.isArray(e.features)?e.features:[],delivery_year:e.condominium_delivery_year||e.delivery_year||null,construction_year:e.condominium_construction_year||e.construction_year||null,units:e.condominium_units||e.units||null,towers:e.towers||null,floors:e.floors||null,builder:e.condominium_builder||e.builder||null,source_urls:Array.isArray(e.sources)?e.sources:[],evidence:e.evidence||null,confidence:e.confidence||"manual",last_enriched_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+    const cr=await S.from("condominiums").upsert(condoRow,{onConflict:"normalized_name"}).select().single();
+    if(cr.error)throw cr.error;
+    const r=await S.from("condominium_address_map").upsert({address_key:p.addressKey,address:d.address,number:d.number,neighborhood:d.neighborhood||null,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||null,condominium_name:p.name,condominium_id:cr.data.id,source:p.source||"confirmação manual",updated_at:new Date().toISOString()},{onConflict:"address_key"}).select().maybeSingle();
+    if(r.error)throw r.error;
+    const data={ok:true,condominium_id:cr.data.id,features:condoRow.features};
     window.__pendingCondo=null;
     msg.innerHTML='<div style="margin-top:10px;padding:11px;border:1px solid #b9d8c0;background:#f3fbf5;border-radius:10px"><b>✓ Condomínio confirmado:</b> '+esc(p.name)+'</div>';
     const e=document.getElementById("condoDebug");if(e){let arr=[];try{arr=JSON.parse(e.textContent||"[]")}catch(_){}arr.push({etapa:"7. SALVAMENTO NA BASE VSN",salvo:true,registro:data||null});e.textContent=JSON.stringify(arr,null,2)}
