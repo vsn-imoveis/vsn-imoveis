@@ -1,149 +1,38 @@
 async function handler(req,res){
   res.setHeader("Content-Type","application/json; charset=utf-8");
-
-  if(req.method!=="POST"){
-    return res.status(405).json({error:"Método não permitido"});
-  }
-
+  if(req.method!=="POST") return res.status(405).json({error:"Método não permitido"});
   try{
-    const body=typeof req.body==="string"
-      ? JSON.parse(req.body||"{}")
-      : (req.body||{});
-
-    const address=String(body.address||"").trim();
-    const number=String(body.number||"").trim();
-    const neighborhood=String(body.neighborhood||"").trim();
-    const city=String(body.city||"São Paulo").trim();
-    const state=String(body.state||"SP").trim();
-    const cep=String(body.cep||"").trim();
-
-    if(!address||!number){
-      return res.status(400).json({error:"Informe endereço e número."});
+    const b=typeof req.body==="string"?JSON.parse(req.body||"{}"):(req.body||{});
+    const address=String(b.address||"").trim(), number=String(b.number||"").trim();
+    const neighborhood=String(b.neighborhood||"").trim(), city=String(b.city||"São Paulo").trim();
+    const state=String(b.state||"SP").trim(), cep=String(b.cep||"").trim();
+    if(!address||!number) return res.status(400).json({error:"Informe endereço e número."});
+    const norm=v=>String(v||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]/g,"");
+    const searched=[address,number,neighborhood,city,state,cep].filter(Boolean).join(", ");
+    const addressKey=[address,number,city,state].map(norm).filter(Boolean).join("|");
+    const base=String(process.env.SUPABASE_URL||"").replace(/\/$/,"");
+    const key=String(process.env.SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SECRET_KEY||"");
+    if(!base||!key) return res.status(200).json({condominium_name:null,candidates:[],searched_address:searched,address_key:addressKey,from_database:false,saved_to_database:false,database_configured:false,evidence:"Supabase não configurado nas variáveis de ambiente da Vercel."});
+    const h={apikey:key,Authorization:"Bearer "+key,Accept:"application/json","Content-Type":"application/json"};
+    const api=async(path,opts={})=>{const r=await fetch(base+path,{...opts,headers:{...h,...(opts.headers||{})}});const t=await r.text();let j=[];try{j=JSON.parse(t)}catch(_){}return {r,j,t}};
+    const map=await api("/rest/v1/condominium_address_map?address_key=eq."+encodeURIComponent(addressKey)+"&select=*");
+    if(map.r.ok&&Array.isArray(map.j)&&map.j.length){
+      const row=map.j[0]; let condo=null;
+      if(row.condominium_id){const q=await api("/rest/v1/condominiums?id=eq."+encodeURIComponent(row.condominium_id)+"&select=*");if(q.r.ok&&q.j[0]) condo=q.j[0];}
+      if(!condo&&row.condominium_name){const q=await api("/rest/v1/condominiums?normalized_name=eq."+encodeURIComponent(norm(row.condominium_name))+"&select=*");if(q.r.ok&&q.j[0]) condo=q.j[0];}
+      return res.status(200).json({condominium_name:row.condominium_name||condo?.name||null,condominium_id:condo?.id||row.condominium_id||null,features:condo?.features||[],condominium_builder:condo?.builder||null,condominium_delivery_year:condo?.delivery_year||null,condominium_construction_year:condo?.construction_year||null,condominium_units:condo?.units||null,towers:condo?.towers||null,floors:condo?.floors||null,sources:condo?.source_urls||[],confidence:condo?.confidence||null,evidence:condo?.evidence||"Condomínio encontrado no banco próprio por endereço exato.",candidates:[{name:row.condominium_name||condo?.name||"",source:row.source||"Banco próprio",evidence_hits:1,context:row.address||searched}],searched_address:searched,address_key:addressKey,from_database:true,saved_to_database:false,database_configured:true});
     }
-
-    const normalize=(v)=>String(v||"")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g,"")
-      .toLowerCase()
-      .replace(/[^a-z0-9]/g,"");
-
-    const searched=[address,number,neighborhood,city,state,cep]
-      .filter(Boolean).join(", ");
-
-    const addressKey=[address,number,city,state]
-      .map(normalize)
-      .filter(Boolean)
-      .join("|");
-
-    const supabaseUrl=String(process.env.SUPABASE_URL||"").replace(/\/$/,"");
-    const supabaseKey=String(
-      process.env.SUPABASE_SERVICE_ROLE_KEY||
-      process.env.SUPABASE_SECRET_KEY||
-      ""
-    );
-
-    if(!supabaseUrl||!supabaseKey){
-      return res.status(200).json({
-        condominium_name:null,
-        candidates:[],
-        searched_address:searched,
-        address_key:addressKey,
-        from_database:false,
-        saved_to_database:false,
-        database_configured:false,
-        evidence:"Supabase não configurado nas variáveis de ambiente da Vercel."
-      });
-    }
-
-    const url=supabaseUrl+
-      "/rest/v1/condominium_address_map?address_key=eq."+
-      encodeURIComponent(addressKey)+
-      "&select=*";
-
-    const response=await fetch(url,{
-      method:"GET",
-      headers:{
-        apikey:supabaseKey,
-        Authorization:"Bearer "+supabaseKey,
-        Accept:"application/json"
-      }
-    });
-
-    const raw=await response.text();
-
-    if(!response.ok){
-      return res.status(200).json({
-        condominium_name:null,
-        candidates:[],
-        searched_address:searched,
-        address_key:addressKey,
-        from_database:false,
-        saved_to_database:false,
-        database_configured:true,
-        database_http_status:response.status,
-        evidence:"Supabase respondeu com erro.",
-        database_message:raw.slice(0,500)
-      });
-    }
-
-    let rows=[];
-    try{
-      rows=JSON.parse(raw);
-    }catch(e){
-      rows=[];
-    }
-
-    if(Array.isArray(rows)&&rows.length>0){
-      const row=rows[0];
-
-      return res.status(200).json({
-        condominium_name:row.condominium_name||null,
-        condominium_builder:null,
-        condominium_delivery_year:null,
-        condominium_units:null,
-        condominium_land_area:null,
-        towers:null,
-        floors:null,
-        candidates:[{
-          name:row.condominium_name||"",
-          source:row.source||"Banco próprio",
-          evidence_hits:1,
-          context:row.address||searched
-        }],
-        searched_address:searched,
-        address_key:addressKey,
-        evidence:"Condomínio encontrado no banco próprio por endereço exato.",
-        from_database:true,
-        saved_to_database:false,
-        database_configured:true
-      });
-    }
-
-    return res.status(200).json({
-      condominium_name:null,
-      condominium_builder:null,
-      condominium_delivery_year:null,
-      condominium_units:null,
-      condominium_land_area:null,
-      towers:null,
-      floors:null,
-      candidates:[],
-      searched_address:searched,
-      address_key:addressKey,
-      evidence:"Nenhum condomínio encontrado no banco próprio para este endereço.",
-      from_database:false,
-      saved_to_database:false,
-      database_configured:true
-    });
-
-  }catch(error){
-    return res.status(500).json({
-      error:"Erro interno na identificação do condomínio.",
-      message:String(error&&error.message||error),
-      candidates:[]
-    });
-  }
+    const origin=new URL(req.url).origin;
+    const rr=await fetch(origin+"/api/identify-condo-fixed.js",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address,number,neighborhood,city,state,cep}),signal:AbortSignal.timeout(28000)});
+    const data=await rr.json().catch(()=>({}));
+    const name=String(data.condominium_name||"").trim();
+    if(!name) return res.status(200).json({...data,searched_address:searched,address_key:addressKey,from_database:false,saved_to_database:false,database_configured:true});
+    const condoPayload={normalized_name:norm(name),name,address,number,neighborhood:neighborhood||null,city:city||"São Paulo",state:state||"SP",cep:cep||null,features:Array.isArray(data.features)?data.features:[],delivery_year:Number.isInteger(Number(data.delivery_year))?Number(data.delivery_year):null,source_urls:Array.isArray(data.sources)?data.sources:[],evidence:data.evidence||null,confidence:data.confidence||null,last_enriched_at:new Date().toISOString(),updated_at:new Date().toISOString()};
+    const up=await api("/rest/v1/condominiums?on_conflict=normalized_name",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=representation"},body:JSON.stringify(condoPayload)});
+    const condo=Array.isArray(up.j)?up.j[0]:null;
+    const mp={address_key:addressKey,address,number,neighborhood:neighborhood||null,city:city||"São Paulo",state:state||"SP",cep:cep||null,condominium_name:name,condominium_id:condo?.id||null,source:(Array.isArray(data.sources)&&data.sources[0]?.title)||"Pesquisa pública",updated_at:new Date().toISOString()};
+    const mu=await api("/rest/v1/condominium_address_map?on_conflict=address_key",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=representation"},body:JSON.stringify(mp)});
+    return res.status(200).json({...data,condominium_id:condo?.id||null,features:condo?.features||data.features||[],sources:condo?.source_urls||data.sources||[],searched_address:searched,address_key:addressKey,from_database:false,saved_to_database:up.r.ok&&mu.r.ok,database_configured:true,database_write_status:{condominium:up.r.status,address_map:mu.r.status}});
+  }catch(e){return res.status(500).json({error:"Erro interno na identificação do condomínio.",message:String(e?.message||e),candidates:[]});}
 }
-
-
-module.exports = handler;
+module.exports=handler;
