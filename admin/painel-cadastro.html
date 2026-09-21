@@ -173,22 +173,42 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
     const f=document.getElementById('propertyForm');
     const sale=!!f.querySelector('[name=for_sale]:checked');
     const rent=!!f.querySelector('[name=for_rent]:checked');
-    const data={
-      property_type:f.get('property_type'),transaction_type:(sale&&rent?'both':rent?'rent':'sale'),
-      area:f.get('area'),bedrooms:f.get('bedrooms'),suites:f.get('suites'),parking:f.get('parking'),
-      neighborhood:f.get('neighborhood'),city:f.get('city'),address:f.get('address'),
-      condominium_name:f.get('condominium_name'),
-      features:[...document.querySelectorAll('input[name=feat]:checked')].map(e=>e.value),
-      condo_features:[...document.querySelectorAll('input[name=condo_feat]:checked')].map(e=>e.value)
-    };
-    const r=await fetch('/api/generate-description.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data})});
-    const raw=await r.text();
-    let j={};
-    try{j=JSON.parse(raw)}catch(_){throw new Error('O servidor retornou uma resposta inválida. Tente novamente em alguns segundos.')};
-    if(!r.ok)throw new Error(j.error||'Falha ao gerar descrição');
-    document.getElementById('description').value=j.description;
-    document.getElementById('descCount').textContent=j.description.length;
+    const type=String(f.get('property_type')||'Imóvel').trim();
+    const purpose=sale&&rent?'à venda e para locação':rent?'para locação':sale?'à venda':'disponível para negociação';
+    const area=String(f.get('area')||'').trim();
+    const bedrooms=Number(f.get('bedrooms')||0),suites=Number(f.get('suites')||0),parking=Number(f.get('parking')||0);
+    const neighborhood=String(f.get('neighborhood')||'').trim(),city=String(f.get('city')||'São Paulo').trim();
+    const address=String(f.get('address')||'').trim(),condo=String(f.get('condominium_name')||'').trim();
+    const features=[...document.querySelectorAll('input[name=feat]:checked')].map(e=>String(e.value).toLowerCase());
+    const condoFeatures=[...document.querySelectorAll('input[name=condo_feat]:checked')].map(e=>String(e.value).toLowerCase());
+    const isHouse=type.toLowerCase().includes('casa');
+    const article=isHouse?'Esta':'Este',noun=isHouse?'casa':type.toLowerCase();
+    let intro='Excelente '+type+(neighborhood?' localizado'+(isHouse?'a':'')+' no bairro '+neighborhood:'')+', '+purpose+'.';
+    const details=[];
+    if(area)details.push(area+' m² de área útil');
+    if(bedrooms)details.push(bedrooms+' '+(bedrooms===1?'dormitório':'dormitórios'));
+    if(suites)details.push(suites+' '+(suites===1?'suíte':'suítes'));
+    if(parking)details.push(parking+' '+(parking===1?'vaga de garagem':'vagas de garagem'));
+    let p2=details.length?article+' '+noun+' conta com '+descList(details)+', oferecendo uma configuração confortável e funcional para diferentes necessidades.':article+' '+noun+' apresenta uma excelente oportunidade para quem busca qualidade de vida e praticidade.';
+    let p3='';
+    if(features.length)p3='Entre os diferenciais do imóvel estão '+descList(features)+'.';
+    if(condo)p3+=(p3?' ':'')+'O imóvel está localizado no '+condo+'.';
+    let p4='';
+    if(condoFeatures.length)p4='A estrutura informada do condomínio inclui '+descList(condoFeatures)+'.';
+    let p5='';
+    if(address)p5='Localização: '+address+(neighborhood?', '+neighborhood:'')+(city?', '+city:'')+'.';
+    else if(neighborhood||city)p5='Localizado'+(isHouse?'a':'')+(neighborhood?' no bairro '+neighborhood:'')+(city?(neighborhood?', em ':' em ')+city:'')+'.';
+    const description=[intro,p2,p3,p4,p5].filter(Boolean).join('\n\n').trim();
+    document.getElementById('description').value=description;
+    document.getElementById('descCount').textContent=description.length;
     toast('Descrição criada automaticamente.','ok');
-  }catch(e){toast(e.message,'err')}finally{b.disabled=false;b.textContent='Gerar descrição automaticamente'}
+  }catch(e){toast(e.message||'Falha ao gerar descrição','err')}
+  finally{b.disabled=false;b.textContent='Gerar descrição automaticamente'}
+}
+function descList(items){
+  const a=items.filter(Boolean);
+  if(a.length<=1)return a[0]||'';
+  if(a.length===2)return a[0]+' e '+a[1];
+  return a.slice(0,-1).join(', ')+' e '+a[a.length-1];
 }
 async function uploadPhotos(id){if(!selectedFiles.length)return[];const urls=[];for(let i=0;i<selectedFiles.length;i++){const f=selectedFiles[i],ext=(f.name.split('.').pop()||'jpg').toLowerCase(),path=id+'/'+Date.now()+'_'+i+'.'+ext,r=await S.storage.from('property-photos').upload(path,f,{contentType:f.type||'image/jpeg'});if(r.error)throw r.error;urls.push(S.storage.from('property-photos').getPublicUrl(path).data.publicUrl)}return urls}async function save(form){if(!form.reportValidity())return;if(!form.querySelector('[name=for_sale]:checked')&&!form.querySelector('[name=for_rent]:checked')){toast('Selecione Venda, Locação ou as duas opções.','err');return;}const b=document.getElementById('saveBtn');b.disabled=true;b.textContent='Salvando...';const f=new FormData(form),sale=f.has('for_sale'),rent=f.has('for_rent');syncPurposeAndTitle();const title=f.get('title');const row={title,code:f.get('code')||null,transaction_type:(sale&&rent?'both':rent?'rent':'sale'),for_sale:sale,for_rent:rent,property_type:f.get('property_type'),price:sale?parseMoney(f.get('price')):null,rent_price:rent?parseMoney(f.get('rent_price')):null,condo_fee:parseMoney(f.get('condo_fee')),iptu:parseMoney(f.get('iptu')),area:parseArea(f.get('area')),bedrooms:+(f.get('bedrooms')||0),suites:+(f.get('suites')||0),parking:+(f.get('parking')||0),neighborhood:f.get('neighborhood'),city:f.get('city')||'São Paulo',state:f.get('state')||null,cep:f.get('cep')||null,address:f.get('address')||null,condominium_name:f.get('condominium_name')||null,condominium_address:f.get('condominium_address')||null,condominium_number:f.get('condominium_number')||null,condominium_complement:f.get('condominium_complement')||null,condominium_neighborhood:f.get('condominium_neighborhood')||null,condominium_city:f.get('condominium_city')||null,condominium_state:f.get('condominium_state')||null,condominium_cep:f.get('condominium_cep')||null,number:f.get('number')||f.get('condominium_number')||null,complement:f.get('complement')||f.get('condominium_complement')||null,description:f.get('description')||null,features:[...form.querySelectorAll('input[name=feat]:checked')].map(e=>e.value),photos:editingPhotos,video_url:f.get('video_url')||null,featured:f.has('featured'),published:f.has('published')};try{let r=editId?await S.from('properties').update(row).eq('id',editId).select().single():await S.from('properties').insert(row).select().single();if(r.error)throw r.error;const urls=await uploadPhotos(r.data.id);if(urls.length){const up=await S.from('properties').update({photos:[...editingPhotos,...urls]}).eq('id',r.data.id);if(up.error)throw up.error}toast('Imóvel salvo com sucesso.','ok');clearDraft();selectedFiles=[];editingPhotos=[];editId='';await load();document.getElementById('form').innerHTML='';window.scrollTo({top:0,behavior:'smooth'})}catch(e){toast('Não foi possível salvar: '+e.message,'err');b.disabled=false;b.textContent='Salvar imóvel'}}function edit(id){newProp(items.find(x=>x.id===id))}function cancelForm(){if((selectedFiles.length||editId)&&!confirm('Descartar o preenchimento atual?'))return;selectedFiles=[];editingPhotos=[];editId='';document.getElementById('form').innerHTML=''}async function toggle(id){const x=items.find(x=>x.id===id),r=await S.from('properties').update({published:!x.published}).eq('id',id);if(r.error)toast(r.error.message,'err');else{toast(x.published?'Imóvel despublicado.':'Imóvel publicado.','ok');load()}}async function del(id){if(!confirm('Excluir este imóvel?'))return;const x=items.find(x=>x.id===id);if(x?.photos?.length){const paths=x.photos.map(u=>{const m=u.match(/\/property-photos\/([^?]+)/);return m?decodeURIComponent(m[1]):null}).filter(Boolean);if(paths.length)await S.storage.from('property-photos').remove(paths)}const r=await S.from('properties').delete().eq('id',id);if(r.error)toast(r.error.message,'err');else{toast('Imóvel excluído.','ok');load()}}boot();</script></body></html>
