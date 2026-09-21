@@ -41,7 +41,7 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
     const cached=await S.from("condominium_address_map").select("*").eq("address_key",addressKey).maybeSingle();
     if(cached.data?.condominium_name){
       field.value=cached.data.condominium_name;
-      const cq=await S.from("condominiums").select("*").eq("normalized_name",clean(cached.data.condominium_name)).maybeSingle();
+      const cq=await S.from("condominiums").select("*").eq("name",cached.data.condominium_name).maybeSingle();
       if(cq.data)applyCondoEnrichment(cq.data);
       toast("Condomínio encontrado na base VSN.","ok");return;
     }
