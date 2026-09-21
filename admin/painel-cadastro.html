@@ -168,7 +168,7 @@ async function saveCondoCandidate(){
 function setupAddress(){const e=document.getElementById('cep');let t;e.addEventListener('input',()=>{e.value=e.value.replace(/\D/g,'').slice(0,8);clearTimeout(t);if(e.value.length===8)t=setTimeout(lookupAddress,250)});e.addEventListener('blur',lookupAddress)}async function lookupAddress(){const cep=document.getElementById('cep').value.replace(/\D/g,'');if(cep.length!==8)return;const l=document.getElementById('addrLoading'),h=document.getElementById('addrHint');l.textContent='Consultando CEP...';l.style.display='inline';h.style.display='none';try{const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');if(!r.ok)throw new Error('Falha na consulta');const a=await r.json();if(a.erro)throw new Error('CEP não encontrado');document.getElementById('address').value=a.logradouro||'';document.getElementById('neighborhood').value=a.bairro||'';document.getElementById('city').value=a.localidade||'';document.getElementById('state').value=a.uf||'';h.textContent='✓ Endereço preenchido automaticamente pelo CEP';h.style.display='inline';autoCondo()}catch(e){h.textContent=e.message==='CEP não encontrado'?'CEP não encontrado. Confira o número.':'Não foi possível consultar o CEP. Preencha o endereço manualmente.';h.style.display='inline'}finally{l.style.display='none'}}function setupDrop(){const z=document.getElementById('drop');['dragenter','dragover'].forEach(v=>z.addEventListener(v,e=>{e.preventDefault();z.classList.add('drag')}));['dragleave','drop'].forEach(v=>z.addEventListener(v,e=>{e.preventDefault();z.classList.remove('drag')}));z.addEventListener('drop',e=>pick({target:{files:e.dataTransfer.files}}))}function pick(e){const valid=[...e.target.files].filter(f=>f.size<=10*1024*1024&&/^image\/(jpeg|png|webp|heic|heif)$/.test(f.type));selectedFiles=[...selectedFiles,...valid];renderPhotos()}function renderPhotos(){const p=document.getElementById('photos');if(!p)return;p.innerHTML='';editingPhotos.forEach((u,i)=>{const d=document.createElement('div');d.className='photo '+(i===0?'primary':'');d.innerHTML='<img src="'+esc(u)+'"><button type="button" onclick="removeExisting('+i+')">×</button>';p.appendChild(d)});selectedFiles.forEach((f,i)=>{const d=document.createElement('div');d.className='photo '+(editingPhotos.length===0&&i===0?'primary':'');d.innerHTML='<img src="'+URL.createObjectURL(f)+'"><button type="button" onclick="removeSelected('+i+')">×</button>';p.appendChild(d)})}function removeSelected(i){selectedFiles.splice(i,1);renderPhotos()}function removeExisting(i){editingPhotos.splice(i,1);renderPhotos()}async function resizeDataUrl(file){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const s=Math.min(1,1200/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);resolve(c.toDataURL('image/jpeg',.72))};im.onerror=reject;im.src=r.result};r.onerror=reject;r.readAsDataURL(file)})}async function generateDescription(){
   const b=document.getElementById('aiBtn');
   if(!b)return;
-  b.disabled=true;b.textContent='Analisando imóvel e fotos...';
+  b.disabled=true;b.textContent='Criando descrição...';
   try{
     const form=document.getElementById('propertyForm');
     const f=new FormData(form);
@@ -179,38 +179,41 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
     const area=String(f.get('area')||'').trim();
     const bedrooms=Number(f.get('bedrooms')||0),suites=Number(f.get('suites')||0),parking=Number(f.get('parking')||0);
     const neighborhood=String(f.get('neighborhood')||'').trim(),city=String(f.get('city')||'São Paulo').trim();
-    const address=String(f.get('address')||'').trim(),condo=String(f.get('condominium_name')||'').trim();
+    const address=String(f.get('address')||'').trim();
     const features=[...document.querySelectorAll('input[name=feat]:checked')].map(e=>String(e.value).toLowerCase());
     const condoFeatures=[...document.querySelectorAll('input[name=condo_feat]:checked')].map(e=>String(e.value).toLowerCase());
 
-    const audience=inferAudience({type,area,bedrooms,suites,parking,neighborhood,city,condo,features,condoFeatures});
-    const captions=await getPhotoCaptions();
-    const visual=photoInsights(captions);
+    const n=type.toLowerCase();
+    const a=Number(String(area).replace(/\\./g,'').replace(',','.'))||0;
+    const ftxt=[...features,...condoFeatures].join(' ');
+    let audience='praticidade e conforto no dia a dia';
+    if(/cobertura|luxo|alto padrão/.test(n+' '+ftxt)||a>=150||suites>=3) audience='conforto, boa distribuição dos ambientes e mais espaço para a rotina';
+    else if(/studio/.test(n)||a<=35||bedrooms<=1) audience='praticidade, funcionalidade e uma localização conveniente';
+    else if(a>=80||bedrooms>=3||suites>=2) audience='mais espaço, conforto e funcionalidade para a rotina';
+    else if(/mobiliado/.test(ftxt)) audience='praticidade e facilidade para morar';
 
-    const isHouse=type.toLowerCase().includes('casa');
-    const article=isHouse?'Esta':'Este',noun=isHouse?'casa':type.toLowerCase();
-    let intro='Excelente '+type+(neighborhood?' localizado'+(isHouse?'a':'')+' no bairro '+neighborhood:'')+', '+purpose+'.';
+    const isHouse=n.includes('casa');
+    const article=isHouse?'A':'O';
+    const noun=isHouse?n:type.toLowerCase();
 
+    const intro=type+(neighborhood?' no bairro '+neighborhood:'')+' '+purpose+'.';
     const details=[];
     if(area)details.push(area+' m² de área útil');
     if(bedrooms)details.push(bedrooms+' '+(bedrooms===1?'dormitório':'dormitórios'));
     if(suites)details.push(suites+' '+(suites===1?'suíte':'suítes'));
     if(parking)details.push(parking+' '+(parking===1?'vaga de garagem':'vagas de garagem'));
 
-    let p2=details.length
-      ?article+' '+noun+' conta com '+descList(details)+', em uma configuração que atende especialmente '+audience+'.'
-      :article+' '+noun+' apresenta uma oportunidade para quem busca '+audience+'.';
+    const p2=details.length
+      ?article+' '+noun+' possui '+descList(details)+'. A distribuição dos ambientes oferece '+audience+'.'
+      :article+' '+noun+' oferece uma proposta prática para quem busca '+audience+'.';
 
-    const allVisual=[...new Set([...features,...visual])];
-    let p3='';
-    if(allVisual.length)p3=allVisual.length===1?'O imóvel conta ainda com '+allVisual[0]+'.':'O imóvel conta ainda com '+descList(allVisual)+'.';
-    if(condo)p3+=(p3?' ':'')+'O imóvel está localizado no '+condo+'.';
+    const p3=features.length?'Entre os diferenciais do imóvel estão '+descList(features)+'.':'';
 
-    let p4='';
-    if(condoFeatures.length)p4='O condomínio oferece uma estrutura completa, com '+descList(condoFeatures)+'.';
+    const p4=condoFeatures.length
+      ?'O condomínio conta com '+descList(condoFeatures)+', oferecendo opções de lazer e conveniência para a rotina.'
+      :'';
 
     let p5='';
-    let nearbyText='';
     if(address){
       try{
         const controller=new AbortController();
@@ -225,29 +228,25 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
         const raw=await lr.text();
         let lj={};try{lj=JSON.parse(raw)}catch(_){lj={}};
         if(lr.ok&&Array.isArray(lj.places)&&lj.places.length){
-          console.log('[VSN] micro-localizacao',lj.source,lj.radius_meters,lj.distance_mode,lj.places);
           const groups={};lj.places.forEach(x=>{(groups[x.category]??=[]).push(x)});
-          const phrase=x=>x.name+' ('+(x.distance<1000?Math.round(x.distance/10)*10+' m':(x.distance/1000).toFixed(1).replace('.',',')+' km')+')';
           const parts=[];
-          if(groups.Transporte?.length)parts.push('transporte público como '+groups.Transporte.map(phrase).join(' e '));
-          if(groups.Supermercados?.length)parts.push('supermercados como '+groups.Supermercados.map(phrase).join(' e '));
-          if(groups.Educação?.length)parts.push('escolas e instituições de ensino como '+groups.Educação.map(phrase).join(' e '));
-          if(groups.Saúde?.length)parts.push('serviços de saúde como '+groups.Saúde.map(phrase).join(' e '));
-          if(groups.Farmácias?.length)parts.push('farmácias como '+groups.Farmácias.map(phrase).join(' e '));
-          if(groups.Comércio?.length)parts.push('comércio como '+groups.Comércio.map(phrase).join(' e '));
-          if(groups.Lazer?.length)parts.push('áreas de lazer como '+groups.Lazer.map(phrase).join(' e '));
-          if(parts.length)nearbyText='A localização oferece praticidade para o dia a dia, com '+descList(parts)+'.';
+          if(groups.Transporte?.length)parts.push('transporte público');
+          if(groups.Supermercados?.length)parts.push('supermercados');
+          if(groups.Educação?.length)parts.push('escolas e instituições de ensino');
+          if(groups.Saúde?.length)parts.push('serviços de saúde');
+          if(groups.Farmácias?.length)parts.push('farmácias');
+          if(groups.Comércio?.length)parts.push('comércio e serviços');
+          if(groups.Lazer?.length)parts.push('opções de lazer');
+          if(parts.length)p5='A localização facilita a rotina, com '+descList(parts)+' nas proximidades.';
         }
       }catch(_){}
     }
-    if(nearbyText)p5=nearbyText;
-    else if(address)p5='Localização: '+address+(neighborhood?', '+neighborhood:'')+(city?', '+city:'')+'.';
-    else if(neighborhood||city)p5='Localizado'+(isHouse?'a':'')+(neighborhood?' no bairro '+neighborhood:'')+(city?' em '+city:'')+'.';
+    if(!p5&& (neighborhood||city))p5='Localizado'+(isHouse?'a':'')+(neighborhood?' no bairro '+neighborhood:'')+(city?', em '+city:'')+', o imóvel combina praticidade de acesso com a conveniência da região.';
 
     const description=[intro,p2,p3,p4,p5].filter(Boolean).join('\n\n').trim();
     document.getElementById('description').value=description;
     document.getElementById('descCount').textContent=description.length;
-    toast(captions.length?'Descrição criada com análise local das fotos.':'Descrição criada automaticamente.','ok');
+    toast('Descrição criada automaticamente.','ok');
   }catch(e){
     console.error('[VSN] generateDescription',e);
     toast(e.message||'Falha ao gerar descrição','err');
