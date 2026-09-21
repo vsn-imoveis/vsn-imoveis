@@ -197,7 +197,39 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
     let p4='';
     if(condoFeatures.length)p4='A estrutura informada do condomínio inclui '+descList(condoFeatures)+'.';
     let p5='';
-    if(address)p5='Localização: '+address+(neighborhood?', '+neighborhood:'')+(city?', '+city:'')+'.';
+    let nearbyText='';
+    if(address){
+      try{
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),9000);
+        const lr=await fetch('/api/location-nearby.js',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          signal:controller.signal,
+          body:JSON.stringify({address,number:String(f.get('number')||''),neighborhood,city,state:String(f.get('state')||'SP')})
+        });
+        clearTimeout(timer);
+        const raw=await lr.text();
+        let lj={};
+        try{lj=JSON.parse(raw)}catch(_){lj={}};
+        if(lr.ok&&Array.isArray(lj.places)&&lj.places.length){
+          const groups={};
+          lj.places.forEach(x=>{(groups[x.category]??=[]).push(x)});
+          const phrase=x=>x.name+' ('+(x.distance<1000?Math.round(x.distance/10)*10+' m':(x.distance/1000).toFixed(1).replace('.',',')+' km')+')';
+          const parts=[];
+          if(groups.Transporte?.length)parts.push('transporte público como '+groups.Transporte.map(phrase).join(' e '));
+          if(groups.Supermercados?.length)parts.push('supermercados como '+groups.Supermercados.map(phrase).join(' e '));
+          if(groups.Educação?.length)parts.push('escolas e instituições de ensino como '+groups.Educação.map(phrase).join(' e '));
+          if(groups.Saúde?.length)parts.push('serviços de saúde como '+groups.Saúde.map(phrase).join(' e '));
+          if(groups.Farmácias?.length)parts.push('farmácias como '+groups.Farmácias.map(phrase).join(' e '));
+          if(groups.Comércio?.length)parts.push('comércio como '+groups.Comércio.map(phrase).join(' e '));
+          if(groups.Lazer?.length)parts.push('áreas de lazer como '+groups.Lazer.map(phrase).join(' e '));
+          if(parts.length)nearbyText='A localização oferece praticidade para o dia a dia, com '+descList(parts)+'.';
+        }
+      }catch(_){}
+    }
+    if(nearbyText)p5=nearbyText;
+    else if(address)p5='Localização: '+address+(neighborhood?', '+neighborhood:'')+(city?', '+city:'')+'.';
     else if(neighborhood||city)p5='Localizado'+(isHouse?'a':'')+(neighborhood?' no bairro '+neighborhood:'')+(city?(neighborhood?', em ':' em ')+city:'')+'.';
     const description=[intro,p2,p3,p4,p5].filter(Boolean).join('\n\n').trim();
     document.getElementById('description').value=description;
