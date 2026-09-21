@@ -1,77 +1,30 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="index,follow">
 <title>Imóvel | VSN Imóveis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#fff;color:#17202a;font-family:Arial,Helvetica,sans-serif}
-.page{max-width:1440px;margin:auto;padding:0 34px 70px}
-.header{height:68px;display:flex;align-items:center;justify-content:space-between}
-.brand{font-size:30px;font-weight:800;color:#9f1f2d;letter-spacing:-1px}
-.header-actions{display:flex;gap:12px;align-items:center}
-.share{border:1px solid #e3e6e9;background:#fff;border-radius:16px;padding:12px 18px;font-size:15px;box-shadow:0 4px 14px #0000000d;cursor:pointer}
-.heart{border:0;background:#fff;font-size:30px;cursor:pointer}
-.hero{border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 10px 30px #00000012}
-.gallery{height:430px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:3px;background:#fff;position:relative}
-.gallery-photo{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
-.gallery-photo:first-child{grid-row:1}
-.gallery-nav{position:absolute;top:50%;transform:translateY(-50%);width:52px;height:52px;border:0;border-radius:50%;background:#fffffff2;font-size:34px;cursor:pointer;box-shadow:0 4px 15px #0003;z-index:4}
-.gallery-nav.prev{left:16px}.gallery-nav.next{right:16px}
-.counter{position:absolute;left:18px;bottom:18px;background:#000b;color:#fff;padding:8px 12px;border-radius:9px;font-size:13px;z-index:4}
-.thumbs{display:flex;gap:9px;padding:12px 16px;overflow:auto;border-top:1px solid #eee}
-.thumbs img{width:96px;height:64px;object-fit:cover;border-radius:8px;border:2px solid transparent;cursor:pointer;flex:none}
-.thumbs img.active{border-color:#a51f2d}
-.content{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:26px;align-items:start}
-.left{padding:28px 18px 0 18px}
-.breadcrumbs{display:flex;gap:8px;flex-wrap:wrap;color:#77818a;font-size:14px;margin-bottom:20px}
-.breadcrumbs b{color:#b0b6bb}
-h1{font-size:38px;line-height:1.12;margin:0 0 8px;color:#17202a;letter-spacing:-.6px}
-.code{font-size:13px;color:#7c858d;margin-bottom:26px}
-.stats{display:flex;gap:38px;flex-wrap:wrap;margin-bottom:25px}
-.stat{display:flex;align-items:center;gap:13px;min-width:150px}
-.stat .ico{font-size:30px;color:#17202a;width:38px;text-align:center}
-.stat strong{display:block;font-size:22px}
-.stat small{display:block;color:#68737c;font-size:15px;margin-top:3px}
-.location{display:flex;gap:10px;flex-wrap:wrap;align-items:center;color:#68737c;font-size:16px;border-top:1px solid #edf0f2;padding-top:20px}
-.location a{color:#9f1f2d;text-decoration:underline}
-.description{margin-top:28px;border-top:1px solid #edf0f2;padding-top:22px}
-.description h2{font-size:22px;margin:0 0 12px}
-.description p{font-size:15px;line-height:1.75;color:#505a63}
-.price-card{margin-top:28px;border:1px solid #e4e7e9;border-radius:18px;padding:24px;background:#fff;box-shadow:0 8px 26px #00000012;position:sticky;top:18px}
-.price-card .label{font-size:14px;color:#68727b}
-.price-card .price{font-size:36px;font-weight:900;color:#9f1f2d;margin:8px 0 18px}
-.price-row{display:flex;justify-content:space-between;padding:13px 0;border-top:1px solid #eceeef;font-size:15px}
-.price-row strong{color:#20252b}
-.interest{display:block;text-align:center;text-decoration:none;background:#a51f2d;color:#fff;font-size:18px;font-weight:800;border-radius:9px;padding:15px;margin-top:14px}
-.finance,.card-wa{width:100%;display:flex;align-items:center;gap:14px;text-align:left;border:0;background:#fff;padding:17px 0;cursor:pointer;text-decoration:none;color:#20252b}
-.finance .symbol{font-size:25px}.card-wa .wa-symbol{color:#14b95b;font-size:30px}
-.finance span,.card-wa span{flex:1}.finance strong,.card-wa strong{display:block;font-size:16px}.finance small,.card-wa small{display:block;color:#68727b;margin-top:4px}
-.divider{height:1px;background:#eceeef}
-.wa-float{position:fixed;right:24px;bottom:22px;display:flex;align-items:center;gap:12px;background:#16c766;color:#fff;text-decoration:none;padding:13px 20px 13px 14px;border-radius:999px;box-shadow:0 8px 25px #0003;z-index:20}
-.wa-icon{width:43px;height:43px;border:3px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:800}
-.slide-presenter{display:none;position:fixed;inset:0;background:#000e;z-index:100;align-items:center;justify-content:center}
-.slide-presenter.open{display:flex}
-.slide-presenter img{max-width:90vw;max-height:88vh;object-fit:contain}
-.slide-close,.slide-prev,.slide-next{position:absolute;border:0;border-radius:50%;background:#fff;color:#17202a;width:48px;height:48px;font-size:32px;cursor:pointer}
-.slide-close{right:24px;top:22px}.slide-prev{left:24px;top:50%;transform:translateY(-50%)}.slide-next{right:24px;top:50%;transform:translateY(-50%)}
-.slide-count{position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:#000b;color:#fff;padding:8px 12px;border-radius:8px}
-@media(max-width:900px){.page{padding:0 18px 90px}.gallery{height:350px}.content{grid-template-columns:1fr}.price-card{position:static;margin:22px 18px 0}.left{padding:24px 8px 0}h1{font-size:31px}.stats{gap:22px}.wa-float{right:14px;bottom:14px;padding:10px 15px 10px 10px}.wa-icon{width:39px;height:39px}.wa-float strong{font-size:14px}}
-@media(max-width:650px){.gallery{height:250px;grid-template-columns:2fr 1fr 1fr}.gallery-nav{width:40px;height:40px;font-size:25px}.thumbs img{width:76px;height:52px}.brand{font-size:25px}.header{height:62px}.share{padding:9px 12px}.heart{font-size:26px}h1{font-size:27px}.stats{display:grid;grid-template-columns:1fr 1fr;gap:18px}.stat{min-width:0}.stat strong{font-size:18px}.stat small{font-size:13px}.location{font-size:14px}.wa-float strong{display:none}.wa-float{padding:7px;border-radius:50%}}
-</style>
-<style id="home-link-fix">.brand{display:inline-block;text-decoration:none;cursor:pointer}.brand:hover{opacity:.88}</style><style id="wa-final">.wa-svg{width:100%;height:100%;display:block}.wa-icon,.wa-symbol{display:flex;align-items:center;justify-content:center}.wa-icon{width:43px;height:43px;flex:0 0 43px}.wa-symbol{width:30px;height:30px;flex:0 0 30px}.wa-float{background:#25D366!important;color:#fff!important;display:flex;align-items:center;gap:10px;padding:8px 18px 8px 8px;border-radius:999px}.wa-float strong{font-size:15px}.wa-float .wa-icon svg,.card-wa .wa-symbol svg{width:100%;height:100%}</style><style id="wa-icon-only">.wa-svg{width:100%;height:100%;display:block}.wa-icon,.wa-symbol{display:flex;align-items:center;justify-content:center}.wa-icon{width:43px;height:43px}.wa-symbol{width:30px;height:30px}</style><style id="mobile-responsive-v2">@media(max-width:600px){body{overflow-x:hidden}.page{padding:0 10px 70px}.header{height:58px;gap:8px}.brand{font-size:23px}.header-actions{gap:6px}.share{padding:8px 10px;font-size:13px}.heart{font-size:24px}.gallery{height:230px;grid-template-columns:1fr}.gallery-photo:not(:first-child){display:none}.gallery-nav{width:38px;height:38px;font-size:24px}.gallery-nav.prev{left:9px}.gallery-nav.next{right:9px}.counter{left:10px;bottom:10px;font-size:11px;padding:6px 9px}.thumbs{gap:6px;padding:9px 4px}.thumbs img{width:70px;height:48px}.content{display:block}.left{padding:20px 4px 0}h1{font-size:25px;line-height:1.15}.code{margin-bottom:18px}.stats{gap:12px;margin-bottom:20px}.stat{gap:8px}.stat .ico{font-size:24px;width:30px}.stat strong{font-size:17px}.stat small{font-size:12px}.location{font-size:13px}.description p{font-size:14px;line-height:1.65}.price-card{margin:20px 4px 0;padding:18px;border-radius:14px}.price-card .price{font-size:29px}.interest{font-size:16px}.wa-float{right:12px;bottom:12px}}</style></head>
+*{box-sizing:border-box}:root{--navy:#061d2d;--gold:#d3aa62;--line:#e1e6e9;--muted:#6c7881;--soft:#f8f9fa}
+body{margin:0;color:#0b2940;background:#fff;font-family:Manrope,Arial,sans-serif}.wrap{width:min(1240px,calc(100% - 48px));margin:auto}
+.header{height:78px;display:flex;align-items:center;justify-content:space-between}.brand{display:flex;flex-direction:column;line-height:.8;color:var(--gold);text-decoration:none}.brand b{font:40px Georgia,serif;letter-spacing:-2px}.brand small{font-size:7px;letter-spacing:4px;color:var(--navy);margin:9px 0 0 6px}.header-actions{display:flex;gap:10px;align-items:center}.header-btn{border:1px solid var(--line);background:#fff;border-radius:24px;padding:10px 17px;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer}.header-btn.gold{background:var(--gold);border-color:var(--gold)}
+.hero{border-radius:14px;overflow:hidden;background:#eef1f2;box-shadow:0 12px 35px #0b294014}.gallery{height:500px;display:grid;grid-template-columns:2fr 1fr 1fr;gap:4px;position:relative}.gallery img{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}.gallery img:first-child{grid-row:span 1}.gallery button{position:absolute;border:0;background:#ffffffed;color:var(--navy);width:46px;height:46px;border-radius:50%;font-size:30px;cursor:pointer;box-shadow:0 4px 16px #0002}.prev{left:15px;top:50%;transform:translateY(-50%)}.next{right:15px;top:50%;transform:translateY(-50%)}.counter{position:absolute;left:15px;bottom:15px;background:#061d2de8;color:#fff;padding:7px 11px;border-radius:8px;font-size:11px}.thumbs{display:flex;gap:8px;padding:10px;background:#fff;overflow:auto}.thumbs img{width:82px;height:58px;object-fit:cover;border-radius:7px;border:2px solid transparent;cursor:pointer}.thumbs img.active{border-color:var(--gold)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:30px;align-items:start}.main{padding:32px 0 80px}.crumb{font-size:11px;color:#7c8992;margin-bottom:12px}.crumb b{color:var(--gold);margin:0 5px}.type{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#b78d48;font-weight:800}.title{font-family:Montserrat,Manrope,sans-serif;font-size:39px;line-height:1.12;letter-spacing:-1px;margin:7px 0 8px}.code{font-size:11px;color:#89949b}.address{margin-top:20px;padding:15px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:13px;color:#596973}.facts{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0}.fact{padding:16px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}.fact strong{display:block;font-size:18px}.fact span{display:block;font-size:10px;color:var(--muted);margin-top:4px}.block{margin-top:30px}.block h2{font-family:Montserrat;margin:0 0 13px;font-size:22px}.description{font-size:14px;line-height:1.8;color:#52616a;white-space:normal}.tags{display:flex;flex-wrap:wrap;gap:8px}.tag{padding:8px 11px;border:1px solid #e2e6e8;border-radius:20px;font-size:11px;background:#fff;color:#40525e}.tag.gold{background:#fbf5ea;border-color:#ead7b5;color:#8a682f}
+.side{padding:32px 0 80px}.card{border:1px solid var(--line);border-radius:15px;padding:22px;background:#fff;box-shadow:0 10px 28px #0b294014;position:sticky;top:18px}.eyebrow{font-size:10px;letter-spacing:2px;color:#7d8990;font-weight:800}.price{font-family:Montserrat;font-size:31px;margin:6px 0 18px;color:var(--navy)}.subprice{font-size:12px;color:#687680;margin:-10px 0 17px}.row{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0;font-size:12px}.row strong{color:var(--navy)}.cta{display:block;text-align:center;background:var(--gold);color:var(--navy);padding:14px;border-radius:25px;text-decoration:none;font-size:13px;font-weight:900;margin:10px 0}.wa{display:flex;align-items:center;justify-content:center;gap:9px;background:#25d366;color:#fff;text-decoration:none;border-radius:25px;padding:13px;font-size:13px;font-weight:800}.back{display:inline-flex;align-items:center;gap:6px;margin-top:17px;color:#52616a;font-size:12px;text-decoration:none}.empty{height:500px;display:grid;place-items:center;color:#7c8992;font-size:13px;background:#f5f7f8}
+.float{position:fixed;right:20px;bottom:18px;width:58px;height:58px;border-radius:50%;background:#25d366;color:#fff;display:grid;place-items:center;z-index:20;box-shadow:0 7px 20px #0003;font-size:26px;text-decoration:none}
+.presenter{display:none;position:fixed;inset:0;background:#06101af5;z-index:100;align-items:center;justify-content:center}.presenter.open{display:flex}.presenter img{max-width:90vw;max-height:88vh;object-fit:contain}.pbtn{position:absolute;border:0;border-radius:50%;width:48px;height:48px;background:#fff;color:var(--navy);font-size:30px;cursor:pointer}.pclose{right:20px;top:20px}.pprev{left:20px;top:50%;transform:translateY(-50%)}.pnext{right:20px;top:50%;transform:translateY(-50%)}.pcount{position:absolute;bottom:20px;background:#000b;color:#fff;padding:7px 12px;border-radius:8px;font-size:12px}
+@media(max-width:850px){.wrap{width:min(100% - 28px,650px)}.header{height:68px}.gallery{height:380px}.layout{grid-template-columns:1fr}.side{padding-top:0}.card{position:static}.main{padding-top:24px}.facts{grid-template-columns:repeat(2,1fr)}.title{font-size:31px}}
+@media(max-width:600px){.wrap{width:calc(100% - 20px)}.header{height:62px}.brand b{font-size:31px}.brand small{font-size:6px}.header-btn{padding:8px 11px}.header-btn.gold{display:none}.gallery{height:270px;grid-template-columns:1fr}.gallery img:not(:first-child){display:none}.thumbs img{width:70px;height:48px}.title{font-size:27px}.facts{gap:8px}.fact{padding:13px 9px}.fact strong{font-size:16px}.side{padding-bottom:35px}.price{font-size:27px}.float{width:52px;height:52px;right:13px;bottom:13px}}
+</style></head>
 <body>
-<div class="page">
-<header class="header">
-<a class="brand" href="https://vsn-imoveis-vsnimoveis-1268.vercel.app" aria-label="Ir para a Home">VSN Imóveis</a>
-<div class="header-actions"><button class="share" onclick="sharePage()">⌯&nbsp; Compartilhar</button><button class="heart" aria-label="Favoritar">♡</button></div>
-</header>
-<div id="app"><div style="padding:40px">Carregando imóvel...</div></div>
+<div class="wrap">
+<header class="header"><a class="brand" href="/" aria-label="VSN Imóveis"><b>VSN</b><small>IMÓVEIS</small></a><div class="header-actions"><button class="header-btn" onclick="sharePage()">Compartilhar</button><a class="header-btn gold" href="#contato">Tenho interesse</a></div></header>
+<div id="app"><div style="padding:60px 0">Carregando imóvel...</div></div>
 </div>
-<div id="slidePresenter" class="slide-presenter">
-<button class="slide-close" onclick="closePresenter()">×</button><button class="slide-prev" onclick="presenterMove(-1)">‹</button><img id="presenterImage"><button class="slide-next" onclick="presenterMove(1)">›</button><div id="presenterCount" class="slide-count"></div>
-</div>
+<div id="presenter" class="presenter"><button class="pbtn pclose" onclick="closePresenter()">×</button><button class="pbtn pprev" onclick="move(-1)">‹</button><img id="presenterImage"><button class="pbtn pnext" onclick="move(1)">›</button><div id="presenterCount" class="pcount"></div></div>
+<a id="floatWa" class="float" target="_blank" rel="noopener" aria-label="WhatsApp">◔</a>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const db=window.supabase.createClient('https://jpdfynaioepcmgqlqlht.supabase.co','sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03');
@@ -79,31 +32,36 @@ const id=new URLSearchParams(location.search).get('id'),app=document.getElementB
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
 let photos=[],current=0;
-function renderGallery(){if(!photos.length)return '<div class="gallery" style="display:block"><div style="height:100%;display:flex;align-items:center;justify-content:center;color:#777">Sem fotos disponíveis</div></div>';
-const a=photos[0],b=photos[1]||photos[0],c=photos[2]||photos[0];
-return '<div class="gallery"><img class="gallery-photo" id="photo0" src="'+esc(a)+'" onclick="openPresenter(current)"><img class="gallery-photo" id="photo1" src="'+esc(b)+'" onclick="openPresenter((current+1)%photos.length)"><img class="gallery-photo" id="photo2" src="'+esc(c)+'" onclick="openPresenter((current+2)%photos.length)"><button class="gallery-nav prev" onclick="change(-1)">‹</button><button class="gallery-nav next" onclick="change(1)">›</button><div id="counter" class="counter"></div></div><div class="thumbs" id="thumbs"></div>'}
-function show(n){if(!photos.length)return;current=(n+photos.length)%photos.length;[0,1,2].forEach(k=>{const el=document.getElementById('photo'+k);if(el)el.src=photos[(current+k)%photos.length]});document.getElementById('counter').textContent=(current+1)+' / '+photos.length;const t=document.getElementById('thumbs');if(t)t.innerHTML=photos.map((x,i)=>'<img class="'+(i===current?'active':'')+'" src="'+esc(x)+'" onclick="show('+i+')">').join('')}
-function change(n){show(current+n)}
-function openPresenter(n=current){if(!photos.length)return;current=(n+photos.length)%photos.length;document.getElementById('slidePresenter').classList.add('open');document.body.style.overflow='hidden';updatePresenter()}
+function gallery(){if(!photos.length)return '<div class="empty">Sem fotos disponíveis</div>';const a=photos[0],b=photos[1]||a,c=photos[2]||a;return '<div class="gallery"><img id="g0" src="'+esc(a)+'" onclick="openPresenter(current)"><img id="g1" src="'+esc(b)+'" onclick="openPresenter((current+1)%photos.length)"><img id="g2" src="'+esc(c)+'" onclick="openPresenter((current+2)%photos.length)"><button class="prev" onclick="show(current-1)">‹</button><button class="next" onclick="show(current+1)">›</button><div id="count" class="counter"></div></div><div class="thumbs" id="thumbs"></div>'}
+function show(n){if(!photos.length)return;current=(n+photos.length)%photos.length;[0,1,2].forEach(i=>{const e=document.getElementById('g'+i);if(e)e.src=photos[(current+i)%photos.length]});document.getElementById('count').textContent=(current+1)+' / '+photos.length;document.getElementById('thumbs').innerHTML=photos.map((p,i)=>'<img class="'+(i===current?'active':'')+'" src="'+esc(p)+'" onclick="show('+i+')">').join('')}
+function openPresenter(n){if(!photos.length)return;current=(n+photos.length)%photos.length;document.getElementById('presenter').classList.add('open');document.body.style.overflow='hidden';updatePresenter()}
 function updatePresenter(){document.getElementById('presenterImage').src=photos[current];document.getElementById('presenterCount').textContent=(current+1)+' / '+photos.length}
-function presenterMove(n){current=(current+n+photos.length)%photos.length;updatePresenter();show(current)}
-function closePresenter(){document.getElementById('slidePresenter').classList.remove('open');document.body.style.overflow=''}
+function move(n){current=(current+n+photos.length)%photos.length;updatePresenter();show(current)}
+function closePresenter(){document.getElementById('presenter').classList.remove('open');document.body.style.overflow=''}
 function sharePage(){if(navigator.share)navigator.share({title:document.title,url:location.href});else navigator.clipboard?.writeText(location.href)}
-document.addEventListener('keydown',e=>{if(!document.getElementById('slidePresenter').classList.contains('open'))return;if(e.key==='Escape')closePresenter();if(e.key==='ArrowLeft')presenterMove(-1);if(e.key==='ArrowRight')presenterMove(1)});
+document.addEventListener('keydown',e=>{if(!document.getElementById('presenter').classList.contains('open'))return;if(e.key==='Escape')closePresenter();if(e.key==='ArrowLeft')move(-1);if(e.key==='ArrowRight')move(1)});
+function list(v){const a=(Array.isArray(v)?v:[]).filter(Boolean);if(a.length<=1)return a[0]||'';if(a.length===2)return a[0]+' e '+a[1];return a.slice(0,-1).join(', ')+' e '+a[a.length-1]}
+function featureSection(title,items,gold=false){if(!items.length)return '';return '<div class="block"><h2>'+title+'</h2><div class="tags">'+items.map(x=>'<span class="tag '+(gold?'gold':'')+'">'+esc(x)+'</span>').join('')+'</div></div>'}
 async function load(){
-if(!id){app.innerHTML='<div style="padding:40px">Imóvel não informado.</div>';return}
-try{
-const {data:p,error}=await db.from('properties').select('*').eq('id',id).eq('published',true).single();if(error)throw error;
-photos=Array.isArray(p.photos)?p.photos.filter(Boolean):[];
-const valor=p.transaction_type==='rent'?(p.rent_price?brl(p.rent_price)+'/mês':'Consulte'):(p.price?brl(p.price):'Consulte');
-const area=p.area?p.area+' m²':'Consulte',beds=p.bedrooms?p.bedrooms+' quartos':'Consulte',suites=p.suites?p.suites+' suítes':'',parking=p.parking?p.parking+' vagas':'Consulte';
-const loc=[p.address,p.number].filter(Boolean).join(', '),neigh=p.neighborhood||'',city=p.city||'São Paulo',state=p.state||'SP';
-const wa='https://wa.me/5511974116234?text='+encodeURIComponent('Olá! Tenho interesse no imóvel '+(p.title||'')+(p.code?', código '+p.code:'')+'.');
-app.innerHTML='<div class="hero">'+renderGallery()+'</div><section class="content"><div class="left"><div class="breadcrumbs"><span>VSN Imóveis</span><b>›</b><span>Apartamento</span><b>›</b><span>'+esc(city)+'</span><b>›</b><span>'+esc(neigh)+'</span><b>›</b><span>'+esc(loc)+'</span></div><h1>'+esc(p.title||'Imóvel disponível')+'</h1><div class="code">'+esc(p.code||'')+'</div><div class="stats"><div class="stat"><div class="ico">⌂</div><div><strong>'+esc(area)+'</strong><small>Área útil</small></div></div><div class="stat"><div class="ico">▣</div><div><strong>'+esc(beds)+'</strong><small>'+esc(suites||'')+'</small></div></div><div class="stat"><div class="ico">▱</div><div><strong>'+esc(parking)+'</strong><small>de garagem</small></div></div></div><div class="location"><span>⌖</span><a>'+esc(loc)+'</a><b>•</b><a>'+esc(neigh)+'</a><b>•</b><span>'+esc(city)+' – '+esc(state)+'</span></div><div class="description"><h2>Sobre o imóvel</h2><p>'+esc(p.description||'Entre em contato para receber mais informações sobre este imóvel.').replace(/\n/g,'<br>')+'</p></div></div><aside class="price-card"><div class="label">Valor do imóvel</div><div class="price">'+esc(valor)+'</div><div class="price-row"><span>Condomínio</span><strong>Consulte</strong></div><div class="price-row"><span>IPTU</span><strong>Consulte</strong></div><a class="interest" href="#interesse">Tenho interesse</a><div class="divider" style="margin-top:18px"></div><button class="finance"><span class="symbol">▣</span><span><strong>Simule seu financiamento</strong><small>Veja as melhores condições</small></span><b>›</b></button><div class="divider"></div><a class="card-wa" href="'+wa+'" target="_blank" rel="noopener"><span class="wa-symbol"><svg class="wa-svg" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill="#fff" d="M22.45 18.9c-.3-.15-1.78-.88-2.06-.98-.28-.1-.48-.15-.68.15-.2.3-.78.98-.95 1.18-.18.2-.35.23-.65.08-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.68-2.08-.18-.3-.02-.47.13-.62.14-.14.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.68-1.63-.93-2.23-.25-.6-.5-.52-.68-.53h-.58c-.2 0-.53.08-.8.38-.28.3-1.05 1.03-1.05 2.5s1.08 2.9 1.23 3.1c.15.2 2.12 3.25 5.13 4.55.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.78-.73 2.03-1.43.25-.7.25-1.3.18-1.43-.08-.12-.28-.2-.58-.35z"/><path fill="#fff" d="M16.05 4.2a11.7 11.7 0 0 0-9.97 17.82L4.2 27.8l5.93-1.84a11.7 11.7 0 1 0 5.92-21.76zm0 21.35h-.01a9.65 9.65 0 0 1-4.91-1.34l-.35-.21-3.52 1.09 1.1-3.43-.23-.36a9.66 9.66 0 1 1 7.92 4.25z"/></svg></span><span><strong>Fale pelo WhatsApp</strong><small>Atendimento rápido</small></span><b>›</b></a></aside></section><a id="interesse" class="wa-float" href="'+wa+'" target="_blank" rel="noopener"><span class="wa-icon"><svg class="wa-svg" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="16" fill="#25D366"/><path fill="#fff" d="M22.45 18.9c-.3-.15-1.78-.88-2.06-.98-.28-.1-.48-.15-.68.15-.2.3-.78.98-.95 1.18-.18.2-.35.23-.65.08-.3-.15-1.27-.47-2.42-1.5-.9-.8-1.5-1.78-1.68-2.08-.18-.3-.02-.47.13-.62.14-.14.3-.35.45-.53.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.08-.15-.68-1.63-.93-2.23-.25-.6-.5-.52-.68-.53h-.58c-.2 0-.53.08-.8.38-.28.3-1.05 1.03-1.05 2.5s1.08 2.9 1.23 3.1c.15.2 2.12 3.25 5.13 4.55.72.31 1.28.5 1.72.64.72.23 1.38.2 1.9.12.58-.09 1.78-.73 2.03-1.43.25-.7.25-1.3.18-1.43-.08-.12-.28-.2-.58-.35z"/><path fill="#fff" d="M16.05 4.2a11.7 11.7 0 0 0-9.97 17.82L4.2 27.8l5.93-1.84a11.7 11.7 0 1 0 5.92-21.76zm0 21.35h-.01a9.65 9.65 0 0 1-4.91-1.34l-.35-.21-3.52 1.09 1.1-3.43-.23-.36a9.66 9.66 0 1 1 7.92 4.25z"/></svg></span><strong>Falar com corretor agora!</strong></a>';
-show(0);
-}catch(e){console.error(e);app.innerHTML='<div style="padding:40px"><h2>Imóvel não encontrado</h2><p>Este imóvel pode não estar publicado ou o link pode estar incorreto.</p></div>'}
+ if(!id){app.innerHTML='<div style="padding:50px 0">Imóvel não informado.</div>';return}
+ try{
+  const {data:p,error}=await db.from('properties').select('*').eq('id',id).eq('published',true).single();if(error)throw error;
+  photos=Array.isArray(p.photos)?p.photos.filter(Boolean):[];
+  const sale=p.for_sale||p.transaction_type==='sale'||p.transaction_type==='both',rent=p.for_rent||p.transaction_type==='rent'||p.transaction_type==='both';
+  const type=p.property_type||'Imóvel',neigh=p.neighborhood||'',city=p.city||'São Paulo',state=p.state||'SP';
+  const loc=[p.address,p.number].filter(Boolean).join(', ');
+  const purposes=sale&&rent?'Venda e locação':sale?'À venda':rent?'Para locação':'Disponível';
+  const priceSale=sale&&p.price?brl(p.price):'',priceRent=rent&&p.rent_price?brl(p.rent_price)+'/mês':'';
+  let price=priceSale||priceRent||'Consulte';if(sale&&rent)price=priceSale+' · '+priceRent;
+  const suites=Number(p.suites||0),beds=Number(p.bedrooms||0),parking=Number(p.parking||0);
+  const facts=[p.area?[Number(p.area).toLocaleString('pt-BR')+' m²','Área útil']:null,beds?[beds+' '+(beds===1?'quarto':'quartos'),'Dormitórios']:null,suites?[suites+' '+(suites===1?'suíte':'suítes'),'Suítes']:null,parking?[parking+' '+(parking===1?'vaga':'vagas'),'Garagem']:null].filter(Boolean);
+  const wa='https://wa.me/5511974116234?text='+encodeURIComponent('Olá! Tenho interesse no imóvel '+(p.title||'')+(p.code?', código '+p.code:'')+'.');
+  document.title=(p.title||'Imóvel')+' | VSN Imóveis';
+  document.getElementById('floatWa').href=wa;
+  const features=Array.isArray(p.features)?p.features:[],condoFeatures=Array.isArray(p.condo_features)?p.condo_features:[];
+  app.innerHTML='<div class="hero">'+gallery()+'</div><div class="layout"><main class="main"><div class="crumb"><a href="/">Início</a><b>›</b>'+esc(type)+'<b>›</b>'+esc(neigh||city)+'</div><div class="type">'+esc(purposes)+'</div><h1 class="title">'+esc(p.title||type+' em '+(neigh||city))+'</h1><div class="code">Código '+esc(p.code||'—')+'</div><div class="address">⌖ '+esc([loc,neigh,city+' - '+state].filter(Boolean).join(' · '))+'</div><div class="facts">'+facts.map(x=>'<div class="fact"><strong>'+esc(x[0])+'</strong><span>'+esc(x[1])+'</span></div>').join('')+'</div><div class="block"><h2>Sobre o imóvel</h2><div class="description">'+esc(p.description||'Entre em contato para receber mais informações sobre este imóvel.').replace(/\n/g,'<br>')+'</div></div>'+featureSection('Características do imóvel',features,true)+featureSection('Características do condomínio',condoFeatures)+((p.condominium_name)?'<div class="block"><h2>Condomínio</h2><div class="description"><strong>'+esc(p.condominium_name)+'</strong></div></div>':'')+'</main><aside class="side"><div class="card" id="contato"><div class="eyebrow">'+esc(purposes)+'</div><div class="price">'+esc(price)+'</div>'+(sale&&rent?'<div class="subprice">Valores de venda e locação disponíveis.</div>':'')+'<div class="row"><span>Condomínio</span><strong>'+(p.condo_fee?brl(p.condo_fee):'Consulte')+'</strong></div><div class="row"><span>IPTU</span><strong>'+(p.iptu?brl(p.iptu):'Consulte')+'</strong></div><a class="cta" href="'+wa+'" target="_blank" rel="noopener">Tenho interesse</a><a class="wa" href="'+wa+'" target="_blank" rel="noopener">WhatsApp</a><a class="back" href="/">← Voltar para imóveis</a></div></aside></div>';
+  show(0);
+ }catch(e){console.error(e);app.innerHTML='<div style="padding:60px 0"><h2>Imóvel não encontrado</h2><p>Este imóvel pode não estar publicado ou o link pode estar incorreto.</p><a class="back" href="/">← Voltar para imóveis</a></div>'}
 }
 load();
-</script>
-</body>
-</html>
+</script></body></html>
