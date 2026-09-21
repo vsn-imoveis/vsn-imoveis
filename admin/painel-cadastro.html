@@ -48,7 +48,8 @@ function addressData(){const f=document.getElementById("propertyForm");return{ce
     const rr=await fetch("/api/identify-condo-structural.js",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:d.address,number:d.number,neighborhood:d.neighborhood,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||""}),signal:AbortSignal.timeout(30000)});
     const raw=await rr.text();
     let result={};try{result=JSON.parse(raw)}catch(_){throw new Error("A API retornou uma resposta inválida.")};
-    if(!rr.ok)throw new Error(result.error||"Falha na API");\n    applyCondoEnrichment(result);
+    if(!rr.ok)throw new Error(result.error||"Falha na API");
+    applyCondoEnrichment(result);
     const candidates=[];
     const addCandidate=(name,source)=>{
       let n=String(name||"").replace(/<[^>]+>/g," ").replace(/\\s+/g," ").trim();
