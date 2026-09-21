@@ -16,3 +16,4 @@ jobs:
           set -e
           curl --fail --silent --show-error --max-time 30             "https://jpdfynaioepcmgqlqlht.supabase.co/functions/v1/quintoandar-import?token=vsn-quintoandar-import-2026-09-21"
           echo
+          echo "QuintoAndar importer started; the Edge Function continues in chained batches."
