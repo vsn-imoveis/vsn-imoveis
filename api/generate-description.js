@@ -50,16 +50,12 @@ export default async function handler(req,res){
     let p4='';
     if(condoFeatures.length) p4='A estrutura informada do condomínio inclui '+formatList(condoFeatures.map(x=>x.toLowerCase()))+'.';
 
-    let locationText='';
-    if(address){
-      const nearby=await findNearby(address,neighborhood,city);
-      locationText=buildLocationText(nearby,neighborhood,city);
-    }
-
-    const p5=locationText || (address
+    const p5=address
       ? 'Localização: '+address+(neighborhood?', '+neighborhood:'')+(city?', '+city: '')+'.'
-      : (neighborhood||city?'Localizado'+(isHouse?'a':'')+(neighborhood?' no bairro '+neighborhood:'')+(city?(neighborhood?', em ':' em ')+city:'')+'.':''));
-
+      : (neighborhood||city
+        ? 'Localizado'+(isHouse?'a':'')+(neighborhood?' no bairro '+neighborhood:'')+(city?(neighborhood?', em ':' em ')+city:'')+'.'
+        : '');
+ 
     const description=[intro,p2,p3,p4,p5].filter(Boolean).join('\n\n').trim();
     return res.status(200).json({description});
   }catch(e){
