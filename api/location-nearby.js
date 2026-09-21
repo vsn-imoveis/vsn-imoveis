@@ -10,7 +10,7 @@ export default async function handler(req,res){
     const geo=await geoRes.json();
     if(!geo?.[0])return res.status(404).json({error:'Endereço não localizado.'});
     const lat=Number(geo[0].lat),lon=Number(geo[0].lon);
-    const query='[out:json][timeout:12];(nwr(around:1500,'+lat+','+lon+')[name][amenity~"school|kindergarten|college|university|hospital|clinic|pharmacy|restaurant|bank|fuel|gym|marketplace"];nwr(around:1500,'+lat+','+lon+')[name][shop~"supermarket|mall|convenience|bakery|department_store"];nwr(around:1500,'+lat+','+lon+')[name][highway="bus_stop"];nwr(around:1500,'+lat+','+lon+')[name][railway~"station|subway_entrance|halt|tram_stop"];nwr(around:1500,'+lat+','+lon+)[name][leisure~"park|fitness_centre"];);out center tags;';
+    const query='[out:json][timeout:12];(nwr(around:800,'+lat+','+lon+')[name][amenity~"school|kindergarten|college|university|hospital|clinic|pharmacy|restaurant|bank|fuel|gym|marketplace"];nwr(around:800,'+lat+','+lon+')[name][shop~"supermarket|mall|convenience|bakery|department_store"];nwr(around:800,'+lat+','+lon+')[name][highway="bus_stop"];nwr(around:800,'+lat+','+lon+')[name][railway~"station|subway_entrance|halt|tram_stop"];nwr(around:800,'+lat+','+lon+)[name][leisure~"park|fitness_centre"];);out center tags;';
     const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'text/plain','User-Agent':'VSN-Imoveis/1.0'},body:query});
     if(!r.ok)return res.status(200).json({places:[],message:'Localização encontrada, mas os serviços próximos não puderam ser consultados.'});
     const j=await r.json();
