@@ -95,7 +95,7 @@ async function saveCondoCandidate(){
     const data={ok:true,condominium_id:cr.data.id,features:condoRow.features};
     window.__pendingCondo=null;
     msg.innerHTML='<div style="margin-top:10px;padding:11px;border:1px solid #b9d8c0;background:#f3fbf5;border-radius:10px"><b>✓ Condomínio confirmado:</b> '+esc(p.name)+'</div>';
-    const e=document.getElementById("condoDebug");if(e){let arr=[];try{arr=JSON.parse(e.textContent||"[]")}catch(_){}arr.push({etapa:"7. SALVAMENTO NA BASE VSN",salvo:true,registro:data||null});e.textContent=JSON.stringify(arr,null,2)}
+    const debugEl=document.getElementById("condoDebug");if(debugEl){let arr=[];try{arr=JSON.parse(debugEl.textContent||"[]")}catch(_){}arr.push({etapa:"7. SALVAMENTO NA BASE VSN",salvo:true,registro:data||null});debugEl.textContent=JSON.stringify(arr,null,2)}
     toast("Condomínio confirmado e adicionado à base VSN.","ok");
   }catch(e){toast("Não foi possível adicionar à base: "+e.message,"err")}
 }
