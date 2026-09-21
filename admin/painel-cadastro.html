@@ -206,7 +206,7 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
           method:'POST',
           headers:{'Content-Type':'application/json'},
           signal:controller.signal,
-          body:JSON.stringify({address,number:String(f.get('number')||''),neighborhood,city,state:String(f.get('state')||'SP')})
+          body:JSON.stringify({address,number:String(f.get('number')||''),neighborhood,city,state:String(f.get('state')||'SP'),cep:String(f.get('cep')||'')})
         });
         clearTimeout(timer);
         const raw=await lr.text();
