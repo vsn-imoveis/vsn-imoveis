@@ -196,7 +196,7 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
   }
 }
 function inferAudience({type,area,bedrooms,suites,parking,neighborhood,city,condo,features,condoFeatures}){
-  const a=Number(String(area).replace(/\\./g,'').replace(',','.'))||0;
+  const a=Number(String(area).replace(/\./g,'').replace(',','.'))||0;
   const n=String(type||'').toLowerCase();
   const f=[...features,...condoFeatures].join(' ').toLowerCase();
   if(/cobertura|alto padrão|luxo/.test(n+' '+f) || a>=180 || suites>=3 || parking>=3)return 'compradores que valorizam espaço, conforto e padrão superior';
