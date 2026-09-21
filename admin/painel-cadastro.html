@@ -199,6 +199,45 @@ async function resizeDataUrl(file){return new Promise((resolve,reject)=>{const r
     const features=[...document.querySelectorAll('input[name=feat]:checked')].map(e=>String(e.value).toLowerCase());
     const condoFeatures=[...document.querySelectorAll('input[name=condo_feat]:checked')].map(e=>String(e.value).toLowerCase());
 
+    // Puxa automaticamente os dados do condomínio encontrado na base VSN.
+    // A busca prioriza endereço/número/cidade/estado para evitar confundir condomínios com o mesmo nome.
+    let condoDbFeatures=[];
+    let condoProximity=[];
+    let condoMatched=null;
+    const condoName=String(f.get('condominium_name')||'').trim();
+    const condoAddress=String(f.get('condominium_address')||f.get('address')||'').trim();
+    const condoNumber=String(f.get('condominium_number')||f.get('number')||'').trim();
+    const condoCity=String(f.get('condominium_city')||city||'São Paulo').trim();
+    const condoState=String(f.get('condominium_state')||f.get('state')||'SP').trim();
+
+    if(condoName && S){
+      try{
+        let cq=S.from('condominiums')
+          .select('id,name,address,number,city,state,features')
+          .eq('name',condoName)
+          .eq('city',condoCity)
+          .eq('state',condoState)
+          .limit(20);
+        const {data:condos,error:condoErr}=await cq;
+        if(!condoErr && Array.isArray(condos) && condos.length){
+          condoMatched=condos.find(x=>String(x.address||'').trim().toLowerCase()===condoAddress.toLowerCase() && String(x.number||'').trim()===condoNumber)
+            || condos.find(x=>String(x.address||'').trim().toLowerCase()===condoAddress.toLowerCase())
+            || condos[0];
+          condoDbFeatures=Array.isArray(condoMatched?.features)?condoMatched.features.filter(Boolean):[];
+          if(condoMatched?.id){
+            const pr=await S.from('condominium_proximity')
+              .select('category,place_names,description')
+              .eq('condominium_id',condoMatched.id)
+              .order('category');
+            if(!pr.error)condoProximity=pr.data||[];
+          }
+        }
+      }catch(e){console.warn('[VSN] dados do condomínio na descrição',e)}
+    }
+
+    // Características vindas da base entram junto com as marcadas manualmente.
+    condoFeatures=[...new Set([...condoFeatures,...condoDbFeatures.map(x=>String(x).toLowerCase())])];
+
     const n=type.toLowerCase();
     const a=Number(String(area).replace(/\\./g,'').replace(',','.'))||0;
     const ftxt=[...features,...condoFeatures].join(' ');
@@ -230,7 +269,22 @@ async function resizeDataUrl(file){return new Promise((resolve,reject)=>{const r
       :'';
 
     let p5='';
-    if(address){
+
+    // Quando a coleta do QuintoAndar já tiver terminado para este condomínio,
+    // as proximidades estruturadas entram diretamente na descrição.
+    if(condoProximity.length){
+      const proximityParts=[];
+      condoProximity.forEach(x=>{
+        const names=Array.isArray(x.place_names)?x.place_names.filter(Boolean):[];
+        if(names.length)proximityParts.push(names.length===1?names[0]:descList(names));
+      });
+      const uniqueProximity=[...new Set(proximityParts)];
+      if(uniqueProximity.length){
+        p5='A localização oferece praticidade no dia a dia, com proximidade a '+descList(uniqueProximity)+'.';
+      }
+    }
+
+    if(!p5 && address){
       try{
         const controller=new AbortController();
         const timer=setTimeout(()=>controller.abort(),9000);
