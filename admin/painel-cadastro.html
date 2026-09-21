@@ -192,10 +192,10 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
     if(parking)details.push(parking+' '+(parking===1?'vaga de garagem':'vagas de garagem'));
     let p2=details.length?article+' '+noun+' conta com '+descList(details)+', oferecendo uma configuração confortável e funcional para diferentes necessidades.':article+' '+noun+' apresenta uma excelente oportunidade para quem busca qualidade de vida e praticidade.';
     let p3='';
-    if(features.length)p3='Entre os diferenciais do imóvel estão '+descList(features)+'.';
+    if(features.length)p3=(features.length===1?'O imóvel conta ainda com '+features[0]+'.':'O imóvel conta ainda com '+descList(features)+'.');
     if(condo)p3+=(p3?' ':'')+'O imóvel está localizado no '+condo+'.';
     let p4='';
-    if(condoFeatures.length)p4='A estrutura informada do condomínio inclui '+descList(condoFeatures)+'.';
+    if(condoFeatures.length)p4='O condomínio oferece uma estrutura completa, com '+descList(condoFeatures)+'.';
     let p5='';
     let nearbyText='';
     if(address){
@@ -213,6 +213,7 @@ function setupAddress(){const e=document.getElementById('cep');let t;e.addEventL
         let lj={};
         try{lj=JSON.parse(raw)}catch(_){lj={}};
         if(lr.ok&&Array.isArray(lj.places)&&lj.places.length){
+          console.log('[VSN] micro-localizacao',lj.source,lj.radius_meters,lj.distance_mode,lj.places);
           const groups={};
           lj.places.forEach(x=>{(groups[x.category]??=[]).push(x)});
           const phrase=x=>x.name+' ('+(x.distance<1000?Math.round(x.distance/10)*10+' m':(x.distance/1000).toFixed(1).replace('.',',')+' km')+')';
