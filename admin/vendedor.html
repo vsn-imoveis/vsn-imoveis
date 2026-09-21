@@ -523,12 +523,10 @@ function reportTable(list){
     const loc=[x.neighborhood,x.city].filter(Boolean).join(', ');
     const tower=x.tower||'';
     const enterprise=x.condominium_name||x.condominium||'';
-    const loftId=x.loft_id||x.id_loft||x.loftId||'';
     const origin=x.origin||x.source||x.origem||'VSN';
     const relevance=x.relevance??x.relevance_index??x.indice_relevancia??'';
     return `<tr>
       <td class="report-code">${esc(x.code||'—')}</td>
-      <td>${esc(loftId||'—')}</td>
       <td>${esc(origin||'—')}</td>
       <td>${esc(relevance||'—')}</td>
       <td>${cover?`<img class="report-photo" src="${esc(cover)}" alt="">`:'—'}</td>
@@ -540,7 +538,7 @@ function reportTable(list){
   }).join('');
   return `<table class="report-table">
     <thead><tr>
-      <th>Código do anúncio</th><th>Código do anúncio</th><th>Origem</th><th>Índice de relevância</th><th>Fotos</th><th>Endereço</th><th>Tipo</th><th>Torre</th><th>Empreendimento</th>
+      <th>Código do anúncio</th><th>Origem</th><th>Índice de relevância</th><th>Fotos</th><th>Endereço</th><th>Tipo</th><th>Torre</th><th>Empreendimento</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
