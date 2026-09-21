@@ -142,6 +142,23 @@ a{color:inherit;text-decoration:none}
 .grid.list-mode .pcard .body{flex:1}
 .grid.list-mode .pcard .actions{flex-direction:column;justify-content:center;padding:16px;width:150px}
 
+/* ===== Report table ===== */
+.report-wrap{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-sm);overflow:auto}
+.report-table{width:100%;border-collapse:separate;border-spacing:0;min-width:1180px;font-size:13px}
+.report-table th{background:#f7f8fa;color:#68727d;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.35px;padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.report-table td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle;white-space:nowrap}
+.report-table tbody tr:hover{background:#fafbfc}
+.report-table tbody tr:last-child td{border-bottom:0}
+.report-code{font-weight:700;color:var(--text)}
+.report-photo{width:54px;height:42px;border-radius:5px;object-fit:cover;background:#eef1f4;display:block}
+.report-address{min-width:260px;white-space:normal;line-height:1.25}
+.report-address b{display:block;color:var(--text);font-size:13px}
+.report-address span{display:block;color:var(--muted);margin-top:2px}
+.report-muted{color:var(--muted)}
+.report-tower{font-weight:600}
+.report-enterprise{max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.report-type{color:var(--text)}
+
 /* ===== Empty / loading ===== */
 .empty{grid-column:1/-1;text-align:center;padding:70px 20px;color:var(--muted)}
 .empty .circle{width:80px;height:80px;border-radius:50%;background:#f8f0e2;color:var(--gold);display:grid;place-items:center;margin:0 auto 18px}
@@ -477,7 +494,11 @@ function renderSkeletons(){
 
 function renderGrid(){
   const list=filtered();
-  $('#grid').className='grid'+(VIEW==='list'?' list-mode':'');
+  if(VIEW==='list'){
+    $('#grid').className='report-wrap';
+  }else{
+    $('#grid').className='grid';
+  }
   if(!list.length){
     $('#grid').innerHTML=`<div class="empty">
       <div class="circle">${I.building}</div>
@@ -487,7 +508,42 @@ function renderGrid(){
     </div>`;
     return;
   }
-  $('#grid').innerHTML=list.map(card).join('');
+  if(VIEW==='list'){
+    $('#grid').innerHTML=reportTable(list);
+  }else{
+    $('#grid').innerHTML=list.map(card).join('');
+  }
+}
+function reportTable(list){
+  const rows=list.map(x=>{
+    const photos=Array.isArray(x.photos)?x.photos:[];
+    const cover=photos[0]||'';
+    const sale=x.for_sale??x.transaction_type!=='rent';
+    const addr=[x.address,x.number].filter(Boolean).join(', ');
+    const loc=[x.neighborhood,x.city].filter(Boolean).join(', ');
+    const tower=x.tower||'';
+    const enterprise=x.condominium_name||x.condominium||'';
+    const loftId=x.loft_id||x.id_loft||x.loftId||'';
+    const origin=x.origin||x.source||x.origem||'VSN';
+    const relevance=x.relevance??x.relevance_index??x.indice_relevancia??'';
+    return `<tr>
+      <td class="report-code">${esc(x.code||'—')}</td>
+      <td>${esc(loftId||'—')}</td>
+      <td>${esc(origin||'—')}</td>
+      <td>${esc(relevance||'—')}</td>
+      <td>${cover?`<img class="report-photo" src="${esc(cover)}" alt="">`:'—'}</td>
+      <td class="report-address"><b>${esc(addr||'Endereço não informado')}</b><span>${esc(loc)}</span></td>
+      <td class="report-type">${esc(x.property_type||'—')}</td>
+      <td class="report-tower">${esc(tower||'—')}</td>
+      <td class="report-enterprise" title="${esc(enterprise)}">${esc(enterprise||'—')}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="report-table">
+    <thead><tr>
+      <th>Código</th><th>ID Loft</th><th>Origem</th><th>Índice de relevância</th><th>Fotos</th><th>Endereço</th><th>Tipo</th><th>Torre</th><th>Empreendimento</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
 }
 
 function card(x){
