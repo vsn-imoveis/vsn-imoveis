@@ -27,11 +27,6 @@ async function handler(req,res){
     const data=await rr.json().catch(()=>({}));
     const name=String(data.condominium_name||"").trim();
     if(!name) return res.status(200).json({...data,searched_address:searched,address_key:addressKey,from_database:false,saved_to_database:false,database_configured:true});
-    const condoPayload={normalized_name:norm(name),name,address,number,neighborhood:neighborhood||null,city:city||"São Paulo",state:state||"SP",cep:cep||null,features:Array.isArray(data.features)?data.features:[],delivery_year:Number.isInteger(Number(data.delivery_year))?Number(data.delivery_year):null,source_urls:Array.isArray(data.sources)?data.sources:[],evidence:data.evidence||null,confidence:data.confidence||null,last_enriched_at:new Date().toISOString(),updated_at:new Date().toISOString()};
-    const up=await api("/rest/v1/condominiums?on_conflict=normalized_name",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=representation"},body:JSON.stringify(condoPayload)});
-    const condo=Array.isArray(up.j)?up.j[0]:null;
-    const mp={address_key:addressKey,address,number,neighborhood:neighborhood||null,city:city||"São Paulo",state:state||"SP",cep:cep||null,condominium_name:name,condominium_id:condo?.id||null,source:(Array.isArray(data.sources)&&data.sources[0]?.title)||"Pesquisa pública",updated_at:new Date().toISOString()};
-    const mu=await api("/rest/v1/condominium_address_map?on_conflict=address_key",{method:"POST",headers:{Prefer:"resolution=merge-duplicates,return=representation"},body:JSON.stringify(mp)});
     return res.status(200).json({...data,condominium_id:condo?.id||null,features:condo?.features||data.features||[],sources:condo?.source_urls||data.sources||[],searched_address:searched,address_key:addressKey,from_database:false,saved_to_database:up.r.ok&&mu.r.ok,database_configured:true,database_write_status:{condominium:up.r.status,address_map:mu.r.status}});
   }catch(e){return res.status(500).json({error:"Erro interno na identificação do condomínio.",message:String(e?.message||e),candidates:[]});}
 }
