@@ -22,7 +22,7 @@ body{margin:0;color:#0b2940;background:#fff;font-family:Manrope,Arial,sans-serif
 <header class="site-header"><a class="brand" href="/" aria-label="VSN Imóveis"><b>VSN</b><small>IMÓVEIS</small></a><div class="header-search"><input id="headerSearch" placeholder="Buscar imóvel — Bairro, cidade, código ou condomínio" onkeydown="if(event.key==='Enter')doHeaderSearch()"><button onclick="doHeaderSearch()" aria-label="Buscar"><i class="fa fa-search"></i></button></div><div class="header-actions"><a class="header-btn gold" href="#contato">Fale comigo</a><a class="header-btn login" href="/admin/painel-login.html"><i class="fa fa-sign-in" aria-hidden="true"></i> Entrar</a></div></header>
 <div class="wrap"><div id="app"><div style="padding:60px 0">Carregando imóvel...</div></div>
 </div>
-<div id="financeModal" class="finance-modal" onclick="if(event.target===this)closeFinance()"><div class="finance-box"><div class="finance-head"><div><h2>Simule sua entrada e financiamento</h2><p id="financeProperty"></p></div><button class="finance-close" onclick="closeFinance()" aria-label="Fechar">×</button></div><div class="finance-fields"><div class="finance-field"><label for="financeIncome">Sua renda mensal bruta</label><input id="financeIncome" inputmode="decimal" placeholder="Ex.: R$ 8.000,00"></div><div class="finance-field"><label for="financeEntry">Valor de entrada</label><input id="financeEntry" inputmode="decimal" placeholder="20% do imóvel"></div></div><div class="finance-note">Se você deixar a entrada em branco, a simulação considera 20% do valor do imóvel. Você pode alterar esse valor. O único dado necessário do cliente é a renda mensal.</div><div id="financeResults" class="finance-results"></div><div class="finance-footer">Estimativa para comparação inicial, considerando SAC em até 35 anos e referência de comprometimento de renda de 30%. Não inclui seguros, tarifas, TR/IPCA, avaliação, ITBI, registro e outros custos. A taxa e a aprovação dependem do perfil, relacionamento, imóvel e análise de crédito de cada banco. No Inter, a taxa informada é + IPCA e o banco informa entrada a partir de 25%; por isso, com 20% de entrada ele será sinalizado como fora do limite. Fonte das taxas: páginas dos bancos e levantamento de mercado atualizado em setembro de 2026.</div></div></div><div id="presenter" class="presenter"><button class="pbtn pclose" onclick="closePresenter()">×</button><button class="pbtn pprev" onclick="move(-1)">‹</button><img id="presenterImage"><button class="pbtn pnext" onclick="move(1)">›</button><div id="presenterCount" class="pcount"></div></div>
+<div id="financeModal" class="finance-modal" onclick="if(event.target===this)closeFinance()"><div class="finance-box"><div class="finance-head"><div><h2>Simule sua entrada e financiamento</h2><p id="financeProperty"></p></div><button class="finance-close" onclick="closeFinance()" aria-label="Fechar">×</button></div><div class="finance-fields"><div class="finance-field"><label for="financeIncome">Sua renda mensal bruta</label><input id="financeIncome" inputmode="decimal" placeholder="Ex.: R$ 8.000,00"></div><div class="finance-field"><label for="financeEntry">Valor de entrada</label><input id="financeEntry" inputmode="decimal" placeholder="20% do imóvel"></div></div><div class="finance-note">A entrada já vem preenchida com 20% do valor do imóvel. Você pode alterar esse valor. A renda é usada para calcular a capacidade estimada de financiamento e verificar se o imóvel cabe no limite de parcela de 30%.</div><div id="financeResults" class="finance-results"></div><div class="finance-footer">Estimativa para comparação inicial, considerando SAC em até 35 anos e referência de comprometimento de renda de 30%. Não inclui seguros, tarifas, TR/IPCA, avaliação, ITBI, registro e outros custos. A taxa e a aprovação dependem do perfil, relacionamento, imóvel e análise de crédito de cada banco. No Inter, a taxa informada é + IPCA e o banco informa entrada a partir de 25%; por isso, com 20% de entrada ele será sinalizado como fora do limite. Fonte das taxas: páginas dos bancos e levantamento de mercado atualizado em setembro de 2026.</div></div></div><div id="presenter" class="presenter"><button class="pbtn pclose" onclick="closePresenter()">×</button><button class="pbtn pprev" onclick="move(-1)">‹</button><img id="presenterImage"><button class="pbtn pnext" onclick="move(1)">›</button><div id="presenterCount" class="pcount"></div></div>
 <a id="floatWa" class="float" target="_blank" rel="noopener" aria-label="Falar no WhatsApp" title="Falar no WhatsApp"><i class="fa fa-whatsapp" aria-hidden="true"></i></a>
 
 <script>function doHeaderSearch(){const v=document.getElementById('headerSearch').value.trim();if(v)window.location.href='/?busca='+encodeURIComponent(v);}</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -42,6 +42,12 @@ function moneyInput(v){const n=Number(String(v||'').replace(/[^0-9,.-]/g,'').rep
 function formatInputMoney(v){return v?brl(v):''}
 function financeMonthlyRate(annual){return Math.pow(1+annual/100,1/12)-1}
 function financeSac(principal,annual,months=420){const m=financeMonthlyRate(annual);return principal/months+principal*m}
+function financeMaxPrincipal(monthlyLimit,annual,months=420){const m=financeMonthlyRate(annual);const f=(1/months)+m;return f>0?Math.max(0,monthlyLimit/f):0}
+function formatFinanceInput(el){
+  const n=moneyInput(el.value);
+  el.value=n?brl(n):'';
+  requestAnimationFrame(()=>{try{el.setSelectionRange(el.value.length,el.value.length)}catch(_){}});
+}
 function openFinance(){
   const p=window.__propertyForFinance;
   if(!p)return;
@@ -49,6 +55,7 @@ function openFinance(){
   document.body.style.overflow='hidden';
   document.getElementById('financeProperty').textContent=(p.title||'Imóvel')+' · '+brl(p.salePrice||0);
   const entry=document.getElementById('financeEntry');
+  if(!entry.value)entry.value=brl((p.salePrice||0)*.20);
   document.getElementById('financeIncome').focus();
   calculateFinance();
 }
@@ -67,21 +74,38 @@ function calculateFinance(){
   ];
   const out=banks.map(b=>{
     const minEntry=p.salePrice*(1-b.max);
-    const requested=p.salePrice-entry;
-    const allowed=p.salePrice*b.max;
-    const financed=Math.min(Math.max(requested,0),allowed);
-    const adjustedEntry=p.salePrice-financed;
-    const installment=financeSac(financed,b.rate,420);
+    const requested=Math.max(0,p.salePrice-entry);
+    const creditByIncome=income>0?financeMaxPrincipal(income*.30,b.rate,420):Infinity;
+    const maxByBank=p.salePrice*b.max;
+    const maxFinance=Math.min(maxByBank,creditByIncome);
+    const approved=Math.min(requested,maxFinance);
+    const installment=financeSac(requested,b.rate,420);
+    const firstInstallment=financeSac(approved,b.rate,420);
     const incomeNeed=installment/.30;
-    const entryOk=entry+0.01>=minEntry;
-    const incomeOk=!income||income>=incomeNeed;
-    const status=entryOk?(incomeOk?'ok':'warn'):'warn';
-    const note=!entryOk?'Entrada mínima estimada: '+brl(minEntry):(!income?'Renda mínima estimada: '+brl(incomeNeed):incomeOk?'Renda compatível com a parcela estimada.':'Renda abaixo da referência de 30% da parcela.');
-    return '<div class="finance-bank"><h3>'+esc(b.name)+'</h3><div class="finance-rate">'+b.rate.toFixed(2).replace('.',',')+'% a.a. + '+b.index+' · até '+Math.round(b.max*100)+'%</div><div class="finance-main">'+brl(installment)+'</div><div class="finance-label">1ª parcela estimada · SAC · 420 meses</div><div class="mini">Financiamento: <strong>'+brl(financed)+'</strong><br>Entrada usada: <strong>'+brl(adjustedEntry)+'</strong><br>Renda ref.: <strong>'+brl(incomeNeed)+'</strong></div><div class="mini '+status+'" style="margin-top:8px">'+esc(note)+'</div></div>';
+    const incomeOk=income>0&&requested<=maxFinance+0.01;
+    const bankLimitOk=requested<=maxByBank+0.01;
+    const requiredEntry=Math.max(minEntry,p.salePrice-Math.max(0,creditByIncome));
+    let statusText='';
+    if(!income){
+      statusText='Informe a renda para calcular a capacidade de financiamento.';
+    }else if(incomeOk){
+      statusText='Pode financiar este valor pela renda informada.';
+    }else if(!bankLimitOk){
+      statusText='Entrada mínima estimada: '+brl(minEntry)+'.';
+    }else{
+      statusText='Pela renda, o máximo estimado é '+brl(Math.max(0,creditByIncome))+'.';
+    }
+    const statusClass=incomeOk?'ok':'warn';
+    return '<div class="finance-bank"><h3>'+esc(b.name)+'</h3><div class="finance-rate">'+b.rate.toFixed(2).replace('.',',')+'% a.a. + '+b.index+' · até '+Math.round(b.max*100)+'%</div><div class="finance-main">'+brl(installment)+'</div><div class="finance-label">Parcela inicial estimada do valor solicitado · SAC · 420 meses</div><div class="mini">Financiamento solicitado: <strong>'+brl(requested)+'</strong><br>Entrada: <strong>'+brl(entry)+'</strong><br>Renda: <strong>'+brl(income)+'</strong><br>Limite de parcela (30%): <strong>'+brl(income*.30)+'</strong><br>Renda necessária: <strong>'+brl(incomeNeed)+'</strong><br>Máx. pela renda: <strong>'+brl(Math.max(0,isFinite(creditByIncome)?creditByIncome:0))+'</strong></div><div class="mini '+statusClass+'" style="margin-top:9px">'+esc(statusText)+'</div>'+(income&&!incomeOk?'<div class="mini" style="margin-top:6px">Entrada necessária estimada: <strong>'+brl(requiredEntry)+'</strong></div>':'')+'</div>';
   }).join('');
   document.getElementById('financeResults').innerHTML=out;
 }
-document.addEventListener('input',e=>{if(e.target.id==='financeIncome'||e.target.id==='financeEntry')calculateFinance()});
+document.addEventListener('input',e=>{
+  if(e.target.id==='financeIncome'||e.target.id==='financeEntry'){
+    formatFinanceInput(e.target);
+    calculateFinance();
+  }
+});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('financeModal')?.classList.contains('open'))closeFinance()});
 function sharePage(){if(navigator.share)navigator.share({title:document.title,url:location.href});else navigator.clipboard?.writeText(location.href)}
 document.addEventListener('keydown',e=>{if(!document.getElementById('presenter').classList.contains('open'))return;if(e.key==='Escape')closePresenter();if(e.key==='ArrowLeft')move(-1);if(e.key==='ArrowRight')move(1)});
