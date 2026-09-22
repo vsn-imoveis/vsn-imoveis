@@ -195,14 +195,16 @@ async function saveSiteProfile(){
   const btn=document.querySelector('#siteTab .profile-actions .red');
   if(btn){btn.disabled=true;btn.textContent='Salvando...'}
   const row={id:true,site_name:document.getElementById('siteName')?.value.trim()||'VSN Imóveis',logo_url:document.getElementById('siteLogoUrl')?.value.trim()||null,phone:document.getElementById('sitePhone')?.value.trim()||null,whatsapp:document.getElementById('siteWhatsapp')?.value.trim()||null,email:document.getElementById('siteEmail')?.value.trim()||null,creci:document.getElementById('siteCreci')?.value.trim()||null,instagram:document.getElementById('siteInstagram')?.value.trim()||null,facebook:document.getElementById('siteFacebook')?.value.trim()||null,youtube:document.getElementById('siteYoutube')?.value.trim()||null,address:document.getElementById('siteAddress')?.value.trim()||null,about:document.getElementById('siteAbout')?.value.trim()||null,updated_at:new Date().toISOString()};
-  const {error}=await S.from('site_settings').upsert(row,{onConflict:'id'});
-  if(error){
-    toast('Não foi possível salvar: '+error.message,'err');
+  try{
+    const {data:saved,error}=await S.from('site_settings').update(row).eq('id',true).select('*').maybeSingle();
+    if(error)throw error;
+    if(!saved)throw new Error('Configuração do site não encontrada.');
+    toast('Perfil do site atualizado com sucesso.','ok');
+  }catch(error){
+    toast('Não foi possível salvar: '+(error.message||error),'err');
+  }finally{
     if(btn){btn.disabled=false;btn.textContent='Salvar perfil do site'}
-    return;
   }
-  toast('Perfil do site atualizado com sucesso.','ok');
-  if(btn){btn.disabled=false;btn.textContent='Salvar perfil do site'}
 }
 function closeProfile(){document.getElementById('profileModal')?.classList.remove('open')}
 function viewProperty(id){if(!id)return;window.open('/imovel.html?id='+encodeURIComponent(id),'_blank','noopener,noreferrer')}function goCadastro(){window.location.href='painel-cadastro.html'}
