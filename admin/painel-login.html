@@ -122,7 +122,7 @@ async function saveProfile(){
       avatar=S.storage.from('profile-photos').getPublicUrl(path).data.publicUrl;
     }
     const row={full_name:document.getElementById('profileName').value.trim(),phone:document.getElementById('profilePhone').value.trim(),cpf_cnpj:document.getElementById('profileCpfCnpj').value.trim(),creci:document.getElementById('profileCreci')?.value.trim()||'',company:document.getElementById('profileCompany').value.trim(),bio:document.getElementById('profileBio').value.trim(),avatar_url:avatar,updated_at:new Date().toISOString()};
-    const {error}=await S.from('profiles').upsert({id:user.id,...row},{onConflict:'id'});if(error)throw error;
+    const {data:saved,error}=await S.from('profiles').update(row).eq('id',user.id).select('id,role,user_type,full_name,phone,cpf_cnpj,creci,company,bio,avatar_url,updated_at').maybeSingle();if(error)throw error;if(!saved)throw new Error('Perfil não encontrado para este usuário.');
     currentProfile={...currentProfile,...row};await loadProfileSummary(user);toast('Perfil atualizado com sucesso.','ok');closeProfile();
   }catch(e){toast('Não foi possível salvar o perfil: '+(e.message||e),'err');if(btn){btn.disabled=false;btn.textContent='Salvar perfil'}}
 }
