@@ -43,16 +43,21 @@ function formatInputMoney(v){return v?brl(v):''}
 function financeMonthlyRate(annual){return Math.pow(1+annual/100,1/12)-1}
 function financeSac(principal,annual,months=420){const m=financeMonthlyRate(annual);return principal/months+principal*m}
 function financeMaxPrincipal(monthlyLimit,annual,months=420){const m=financeMonthlyRate(annual);const f=(1/months)+m;return f>0?Math.max(0,monthlyLimit/f):0}
-function financeDigits(v){return String(v||'').replace(/\\D/g,'')}
-function financeSetRaw(el,digits){
-  const raw=financeDigits(digits);
-  el.dataset.financeRaw=raw;
-  el.value=raw?brl(Number(raw)):'';
+function financeDigits(v){return String(v||'').replace(/\D/g,'')}
+function financeRender(el,raw){
+  const digits=financeDigits(raw).replace(/^0+(?=\d)/,'');
+  el.dataset.financeRaw=digits;
+  el.value=digits?brl(Number(digits)):'';
   try{el.setSelectionRange(el.value.length,el.value.length)}catch(_){}
 }
+function financeRawValue(el){
+  const raw=financeDigits(el.dataset.financeRaw||'');
+  if(raw)return Number(raw);
+  return moneyInput(el.value);
+}
 function formatFinanceInput(el){
-  const raw=financeDigits(el.value);
-  financeSetRaw(el,raw);
+  const n=financeRawValue(el);
+  financeRender(el,n?String(Math.round(n)):'');
 }
 function openFinance(){
   const p=window.__propertyForFinance;
@@ -68,8 +73,8 @@ function openFinance(){
 function closeFinance(){document.getElementById('financeModal').classList.remove('open');document.body.style.overflow=''}
 function calculateFinance(){
   const p=window.__propertyForFinance;if(!p)return;
-  const income=moneyInput(document.getElementById('financeIncome').value);
-  const entryRaw=moneyInput(document.getElementById('financeEntry').value);
+  const income=financeRawValue(document.getElementById('financeIncome'));
+  const entryRaw=financeRawValue(document.getElementById('financeEntry'));
   const entry=entryRaw>0?entryRaw:p.salePrice*.20;
   const banks=[
     {name:'CAIXA',rate:10.26,index:'TR',max:0.80},
@@ -109,59 +114,53 @@ function calculateFinance(){
 document.addEventListener('focusin',e=>{
   if(e.target.id==='financeIncome'||e.target.id==='financeEntry'){
     const el=e.target;
-    if(el.value && !el.dataset.financeFocused){
-      el.dataset.financeRaw=String(moneyInput(el.value)||'').replace(/\\.0+$/,'');
-      el.select();
-      el.dataset.financeFocused='1';
+    if(!el.dataset.financeRaw && el.value){
+      const n=moneyInput(el.value);
+      el.dataset.financeRaw=n?String(Math.round(n)):'';
     }
+    el.dataset.financeReplace='1';
+    setTimeout(()=>el.select(),0);
   }
 });
-document.addEventListener('focusout',e=>{
+document.addEventListener('keydown',e=>{
+  const el=e.target;
+  if(el.id!=='financeIncome'&&el.id!=='financeEntry')return;
+  if(e.ctrlKey||e.metaKey||e.altKey)return;
+  if(/^\d$/.test(e.key)){
+    e.preventDefault();
+    const current=financeDigits(el.dataset.financeRaw||'');
+    const next=el.dataset.financeReplace==='1'?e.key:current+e.key;
+    el.dataset.financeReplace='0';
+    financeRender(el,next);
+    calculateFinance();
+    return;
+  }
+  if(e.key==='Backspace'||e.key==='Delete'){
+    e.preventDefault();
+    const current=financeDigits(el.dataset.financeRaw||'');
+    const next=el.dataset.financeReplace==='1'?'':current.slice(0,-1);
+    el.dataset.financeReplace='0';
+    financeRender(el,next);
+    calculateFinance();
+    return;
+  }
+});
+document.addEventListener('paste',e=>{
+  const el=e.target;
+  if(el.id!=='financeIncome'&&el.id!=='financeEntry')return;
+  e.preventDefault();
+  const txt=(e.clipboardData||window.clipboardData)?.getData('text')||'';
+  const n=moneyInput(txt);
+  financeRender(el,n?String(Math.round(n)):'');
+  el.dataset.financeReplace='0';
+  calculateFinance();
+});
+document.addEventListener('blur',e=>{
   if(e.target.id==='financeIncome'||e.target.id==='financeEntry'){
-    e.target.dataset.financeFocused='';
+    e.target.dataset.financeReplace='0';
     formatFinanceInput(e.target);
   }
-});
-document.addEventListener('beforeinput',e=>{
-  const el=e.target;
-  if((el.id!=='financeIncome'&&el.id!=='financeEntry')||e.isComposing)return;
-  const type=e.inputType||'';
-  const data=e.data||'';
-  const current=financeDigits(el.dataset.financeRaw||moneyInput(el.value));
-  if(type==='insertText' && /\\d/.test(data)){
-    e.preventDefault();
-    const next=el.dataset.financeFocused==='1' && el.selectionStart!==el.selectionEnd
-      ?data.replace(/\\D/g,'')
-      :current+data.replace(/\\D/g,'');
-    financeSetRaw(el,next);
-    calculateFinance();
-    return;
-  }
-  if(type==='insertFromPaste'){
-    e.preventDefault();
-    const pasted=financeDigits(data || (e.clipboardData?.getData('text')||''));
-    financeSetRaw(el,pasted);
-    calculateFinance();
-    return;
-  }
-  if(type==='deleteContentBackward'){
-    e.preventDefault();
-    financeSetRaw(el,current.slice(0,-1));
-    calculateFinance();
-    return;
-  }
-  if(type==='deleteContentForward'){
-    e.preventDefault();
-    financeSetRaw(el,current.slice(0,-1));
-    calculateFinance();
-  }
-});
-document.addEventListener('input',e=>{
-  if(e.target.id==='financeIncome'||e.target.id==='financeEntry'){
-    if(!e.target.dataset.financeRaw)formatFinanceInput(e.target);
-    calculateFinance();
-  }
-});
+},true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('financeModal')?.classList.contains('open'))closeFinance()});
 function sharePage(){if(navigator.share)navigator.share({title:document.title,url:location.href});else navigator.clipboard?.writeText(location.href)}
 document.addEventListener('keydown',e=>{if(!document.getElementById('presenter').classList.contains('open'))return;if(e.key==='Escape')closePresenter();if(e.key==='ArrowLeft')move(-1);if(e.key==='ArrowRight')move(1)});
