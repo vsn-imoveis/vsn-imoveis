@@ -43,9 +43,14 @@ function formatInputMoney(v){return v?brl(v):''}
 function financeMonthlyRate(annual){return Math.pow(1+annual/100,1/12)-1}
 function financeSac(principal,annual,months=420){const m=financeMonthlyRate(annual);return principal/months+principal*m}
 function financeMaxPrincipal(monthlyLimit,annual,months=420){const m=financeMonthlyRate(annual);const f=(1/months)+m;return f>0?Math.max(0,monthlyLimit/f):0}
-function formatFinanceInput(el){
-  const n=moneyInput(el.value);
+function formatFinanceInput(el,typing=false){
+  const raw=String(el.value||'');
+  if(!raw.trim()){el.value='';return}
+  const n=typing
+    ?Number(raw.replace(/\D/g,''))
+    :moneyInput(raw);
   el.value=n?brl(n):'';
+  try{el.setSelectionRange(el.value.length,el.value.length)}catch(_){}
 }
 function openFinance(){
   const p=window.__propertyForFinance;
@@ -101,11 +106,20 @@ function calculateFinance(){
 }
 document.addEventListener('input',e=>{
   if(e.target.id==='financeIncome'||e.target.id==='financeEntry'){
+    formatFinanceInput(e.target,true);
     calculateFinance();
   }
 });
+document.addEventListener('paste',e=>{
+  if(e.target.id==='financeIncome'||e.target.id==='financeEntry'){
+    setTimeout(()=>{
+      formatFinanceInput(e.target,false);
+      calculateFinance();
+    },0);
+  }
+});
 document.addEventListener('blur',e=>{
-  if(e.target.id==='financeIncome'||e.target.id==='financeEntry')formatFinanceInput(e.target);
+  if(e.target.id==='financeIncome'||e.target.id==='financeEntry')formatFinanceInput(e.target,false);
 },true);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.getElementById('financeModal')?.classList.contains('open'))closeFinance()});
 function sharePage(){if(navigator.share)navigator.share({title:document.title,url:location.href});else navigator.clipboard?.writeText(location.href)}
