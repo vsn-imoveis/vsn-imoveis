@@ -195,8 +195,19 @@ async function saveSiteProfile(){
   if(currentProfile?.role!=='admin')return;
   const btn=document.querySelector('#siteTab .profile-actions .red');
   if(btn){btn.disabled=true;btn.textContent='Salvando...'}
-  let sitePhotoUrl=null; const current=await S.from('site_settings').select('site_photo_url').eq('id',true).maybeSingle(); if(current.error)throw current.error; sitePhotoUrl=current.data?.site_photo_url||null; const file=document.getElementById('sitePhotoFile')?.files?.[0]; if(file){const ext=(file.name.split('.').pop()||'jpg').toLowerCase(); const path='site/'+Date.now()+'.'+ext; const up=await S.storage.from('site-assets').upload(path,file,{contentType:file.type||'image/jpeg',upsert:true}); if(up.error)throw up.error; sitePhotoUrl=S.storage.from('site-assets').getPublicUrl(path).data.publicUrl;} const row={id:true,site_name:document.getElementById('siteName')?.value.trim()||'VSN Imóveis',logo_url:document.getElementById('siteLogoUrl')?.value.trim()||null,site_photo_url:sitePhotoUrl,phone:document.getElementById('sitePhone')?.value.trim()||null,whatsapp:document.getElementById('siteWhatsapp')?.value.trim()||null,email:document.getElementById('siteEmail')?.value.trim()||null,creci:document.getElementById('siteCreci')?.value.trim()||null,instagram:document.getElementById('siteInstagram')?.value.trim()||null,facebook:document.getElementById('siteFacebook')?.value.trim()||null,youtube:document.getElementById('siteYoutube')?.value.trim()||null,address:document.getElementById('siteAddress')?.value.trim()||null,about:document.getElementById('siteAbout')?.value.trim()||null,updated_at:new Date().toISOString()};
   try{
+    const current=await S.from('site_settings').select('site_photo_url').eq('id',true).maybeSingle();
+    if(current.error)throw current.error;
+    let sitePhotoUrl=current.data?.site_photo_url||null;
+    const file=document.getElementById('sitePhotoFile')?.files?.[0];
+    if(file){
+      const ext=(file.name.split('.').pop()||'jpg').toLowerCase();
+      const path='site/'+Date.now()+'.'+ext;
+      const up=await S.storage.from('site-assets').upload(path,file,{contentType:file.type||'image/jpeg',upsert:true});
+      if(up.error)throw up.error;
+      sitePhotoUrl=S.storage.from('site-assets').getPublicUrl(path).data.publicUrl;
+    }
+    const row={id:true,site_name:document.getElementById('siteName')?.value.trim()||'VSN Imóveis',logo_url:document.getElementById('siteLogoUrl')?.value.trim()||null,site_photo_url:sitePhotoUrl,phone:document.getElementById('sitePhone')?.value.trim()||null,whatsapp:document.getElementById('siteWhatsapp')?.value.trim()||null,email:document.getElementById('siteEmail')?.value.trim()||null,creci:document.getElementById('siteCreci')?.value.trim()||null,instagram:document.getElementById('siteInstagram')?.value.trim()||null,facebook:document.getElementById('siteFacebook')?.value.trim()||null,youtube:document.getElementById('siteYoutube')?.value.trim()||null,address:document.getElementById('siteAddress')?.value.trim()||null,about:document.getElementById('siteAbout')?.value.trim()||null,updated_at:new Date().toISOString()};
     const {data:saved,error}=await S.from('site_settings').update(row).eq('id',true).select('*').maybeSingle();
     if(error)throw error;
     if(!saved)throw new Error('Configuração do site não encontrada.');
