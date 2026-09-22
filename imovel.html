@@ -105,7 +105,7 @@ async function load(){
   const priceSale=sale&&p.price?brl(p.price):'',priceRent=rent&&p.rent_price?brl(p.rent_price)+'/mês':'';
   let price=priceSale||priceRent||'Consulte';if(sale&&rent)price=priceSale+' · '+priceRent;
   const suites=Number(p.suites||0),beds=Number(p.bedrooms||0),parking=Number(p.parking||0);
-  const facts=[p.area?[Number(p.area).toLocaleString('pt-BR')+' m²','Área útil']:null,beds?[beds+' '+(beds===1?'quarto':'quartos'),'Dormitórios']:null,suites?[suites+' '+(suites===1?'suíte':'suítes'),'Suítes']:null,parking?[parking+' '+(parking===1?'vaga':'vagas'),'Garagem']:null].filter(Boolean);
+  const bathrooms=Number(p.bathrooms||0);const facts=[p.area?[Number(p.area).toLocaleString('pt-BR')+' m²','Área útil']:null,beds?[beds+' '+(beds===1?'quarto':'quartos'),'Dormitórios']:null,suites?[suites+' '+(suites===1?'suíte':'suítes'),'Suítes']:null,bathrooms?[bathrooms+' '+(bathrooms===1?'banheiro':'banheiros'),'Banheiros']:null,parking?[parking+' '+(parking===1?'vaga':'vagas'),'Garagem']:null].filter(Boolean);
   const wa='https://wa.me/5511974116234?text='+encodeURIComponent('Olá! Tenho interesse no imóvel '+(p.title||'')+(p.code?', código '+p.code:'')+'.');
   document.title=(p.title||'Imóvel')+' | VSN Imóveis';
    document.getElementById('floatWa').href=wa;
