@@ -34,7 +34,8 @@ function searchProperties(){
   if(mode==='Comprar')list=list.filter(p=>p.for_sale||p.transaction_type==='sale'||p.transaction_type==='both');
   if(mode==='Alugar')list=list.filter(p=>p.for_rent||p.transaction_type==='rent'||p.transaction_type==='both');
   if(mode==='Lançamentos')list=list.filter(p=>/lançamento|lancamento/i.test((p.title||'')+' '+(p.property_type||'')));
-  renderProperties(list,'allPropertyCards');
+  renderProperties(list.filter(p=>p.featured===true),'propertyCards');
+  renderProperties(list.filter(p=>p.featured!==true),'allPropertyCards');
   document.getElementById('allPropertyCards')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function populateNeighborhoods(){
