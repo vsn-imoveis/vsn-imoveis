@@ -18,10 +18,10 @@ export default async function handler(req, res) {
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const brevoKey = process.env.BREVO_EMAIL_API;
-  const from = process.env.BREVO_FROM_EMAIL || 'vsnimoveis@gmail.com';
-  if (!serviceKey || !brevoKey) {
-    console.error('Faltam SUPABASE_SERVICE_ROLE_KEY ou BREVO_EMAIL_API.');
-    return res.status(500).json({ error: 'O serviço de cadastro ainda não está configurado no servidor.' });
+  const from = process.env.BREVO_FROM_EMAIL;
+  if (!serviceKey || !brevoKey || !from) {
+    console.error('Faltam SUPABASE_SERVICE_ROLE_KEY, BREVO_EMAIL_API ou BREVO_FROM_EMAIL.');
+    return res.status(500).json({ error: 'Cadastro não configurado: confira as chaves do Supabase e do Brevo e o remetente verificado (BREVO_FROM_EMAIL) na Vercel.' });
   }
 
   const password = 'VSN' + digits.slice(-4);
