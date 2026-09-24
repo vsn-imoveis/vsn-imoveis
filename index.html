@@ -35,7 +35,7 @@ function searchProperties(){
   if(mode==='Alugar')list=list.filter(p=>p.for_rent||p.transaction_type==='rent'||p.transaction_type==='both');
   if(mode==='Lançamentos')list=list.filter(p=>/lançamento|lancamento/i.test((p.title||'')+' '+(p.property_type||'')));
   renderProperties(list.filter(p=>p.featured===true),'propertyCards');
-  renderProperties(list.filter(p=>p.featured!==true),'allPropertyCards');
+  renderProperties(list,'allPropertyCards');
   // Mantém a posição atual da tela após aplicar os filtros.
 }
 function populateNeighborhoods(){
