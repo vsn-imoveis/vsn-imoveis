@@ -9,12 +9,12 @@ export default async function handler(req, res) {
   const nome = String(req.body?.nome || '').trim();
   const email = String(req.body?.email || '').trim().toLowerCase();
   const celular = String(req.body?.celular || '').trim();
-  const digits = celular.replace(/\\D/g, '');
+  const digits = celular.replace(/\D/g, '');
 
   if (!nome || !email || digits.length < 4) {
     return res.status(400).json({ error: 'Informe nome, e-mail e um celular válido.' });
   }
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Informe um e-mail válido.' });
   }
 
