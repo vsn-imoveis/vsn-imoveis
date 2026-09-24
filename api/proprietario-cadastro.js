@@ -54,6 +54,20 @@ export default async function handler(req, res) {
     }
     userId = createdBody.id;
 
+    const profileResponse = await fetch(supabaseUrl + '/rest/v1/profiles', {
+      method: 'POST',
+      headers: { ...{ apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ id: userId, user_type: 'proprietario', role: 'proprietario', full_name: nome, phone: celular })
+    });
+    if (!profileResponse.ok) {
+      const profileBody = await profileResponse.text().catch(() => '');
+      console.error('Supabase profile upsert:', profileResponse.status, profileBody);
+      await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(userId), {
+        method: 'DELETE', headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }
+      }).catch(() => {});
+      return res.status(502).json({ error: 'Não foi possível criar o perfil do proprietário.' });
+    }
+
     const mailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'api-key': brevoKey, accept: 'application/json' },
@@ -76,7 +90,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'A conta não pôde ser concluída porque o e-mail não foi enviado. Confira o remetente do Brevo e tente novamente.' });
     }
 
-    return res.status(201).json({ ok: true });
+    return res.status(201).json({ ok: true, userId });
   } catch (error) {
     console.error('Proprietor signup error:', error);
     if (userId) {
