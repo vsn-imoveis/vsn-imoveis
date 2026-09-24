@@ -19,8 +19,19 @@ function searchProperties(){
   const priceRange=(document.getElementById('searchPrice')?.value||'').trim();
   const mode=currentMode();
   let list=allProperties.slice();
+
   if(type)list=list.filter(p=>(p.property_type||'').toLowerCase()===type.toLowerCase());
-  if(city)list=list.filter(p=>(p.city||'').toLowerCase()===city.toLowerCase());
+
+  // Aceita variações comuns do nome da cidade (ex.: "São Paulo - SP").
+  if(city){
+    const normalize=s=>String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().trim();
+    const selectedCity=normalize(city);
+    list=list.filter(p=>{
+      const propertyCity=normalize(p.city);
+      return propertyCity===selectedCity||propertyCity.startsWith(selectedCity+' ')||propertyCity.startsWith(selectedCity+'-')||propertyCity.startsWith(selectedCity+'/');
+    });
+  }
+
   if(neighborhood)list=list.filter(p=>(p.neighborhood||'').toLowerCase()===neighborhood.toLowerCase());
   if(priceRange){
     list=list.filter(p=>{
@@ -31,11 +42,17 @@ function searchProperties(){
       return true;
     });
   }
+
+  // A seção "Todos os imóveis" mostra todos os anúncios que atendem aos filtros,
+  // sem excluir imóveis de venda ou locação conforme a aba selecionada.
+  const allMatching=list.slice();
+
   if(mode==='Comprar')list=list.filter(p=>p.for_sale||p.transaction_type==='sale'||p.transaction_type==='both');
   if(mode==='Alugar')list=list.filter(p=>p.for_rent||p.transaction_type==='rent'||p.transaction_type==='both');
   if(mode==='Lançamentos')list=list.filter(p=>/lançamento|lancamento/i.test((p.title||'')+' '+(p.property_type||'')));
+
   renderProperties(list.filter(p=>p.featured===true),'propertyCards');
-  renderProperties(list,'allPropertyCards');
+  renderProperties(allMatching,'allPropertyCards');
   // Mantém a posição atual da tela após aplicar os filtros.
 }
 function populateNeighborhoods(){
