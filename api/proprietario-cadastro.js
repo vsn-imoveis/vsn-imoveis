@@ -47,7 +47,46 @@ export default async function handler(req, res) {
     if (!created.ok) {
       const msg = createdBody.msg || createdBody.message || createdBody.error_description || createdBody.error;
       if (created.status === 422 || /already|registered|exists/i.test(String(msg || ''))) {
-        return res.status(409).json({ error: 'Este e-mail já possui cadastro. Entre com sua senha ou use “Esqueci minha senha”.' });
+        // Reaproveita somente uma conta que já esteja cadastrada como proprietária.
+        const usersResponse = await fetch(supabaseUrl + '/auth/v1/admin/users?page=1&per_page=1000', {
+          headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }
+        });
+        const usersBody = await usersResponse.json().catch(() => ({}));
+        const users = Array.isArray(usersBody) ? usersBody : (usersBody.users || []);
+        const existingUser = users.find(user => String(user.email || '').toLowerCase() === email);
+        if (!usersResponse.ok || !existingUser) {
+          return res.status(409).json({ error: 'Este e-mail já possui cadastro. Não foi possível confirmar que a conta pertence a um proprietário.' });
+        }
+
+        const profileResponse = await fetch(
+          supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(existingUser.id) + '&select=id,user_type,role&limit=1',
+          { headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey } }
+        );
+        const profiles = await profileResponse.json().catch(() => []);
+        if (!profileResponse.ok) {
+          console.error('Supabase existing profile lookup:', profileResponse.status, profiles);
+          return res.status(502).json({ error: 'Não foi possível verificar o perfil da conta existente.' });
+        }
+
+        const existingProfile = Array.isArray(profiles) ? profiles[0] : null;
+        const existingType = String(existingProfile?.user_type || existingProfile?.role || existingUser.user_metadata?.user_type || '').toLowerCase();
+        if (existingType !== 'proprietario' && existingType !== 'proprietário') {
+          return res.status(409).json({ error: 'Este e-mail já está associado a uma conta que não é de proprietário. Use outro e-mail ou confira o cadastro existente.' });
+        }
+
+        if (!existingProfile) {
+          const profileCreate = await fetch(supabaseUrl + '/rest/v1/profiles', {
+            method: 'POST',
+            headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+            body: JSON.stringify({ id: existingUser.id, user_type: 'proprietario', full_name: existingUser.user_metadata?.full_name || nome, phone: existingUser.user_metadata?.phone || celular })
+          });
+          if (!profileCreate.ok) {
+            console.error('Supabase existing profile create:', profileCreate.status, await profileCreate.text().catch(() => ''));
+            return res.status(502).json({ error: 'A conta existe, mas não foi possível preparar o perfil do proprietário.' });
+          }
+        }
+
+        return res.status(200).json({ ok: true, userId: existingUser.id, reused: true });
       }
       console.error('Supabase admin create user:', created.status, createdBody);
       return res.status(502).json({ error: 'Não foi possível criar a conta no momento.' });
