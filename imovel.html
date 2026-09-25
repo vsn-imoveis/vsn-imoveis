@@ -17,7 +17,35 @@ body{margin:0;color:#0b2940;background:#fff;font-family:Manrope,Arial,sans-serif
 .presenter{display:none;position:fixed;inset:0;background:rgba(244,246,247,.96);z-index:100;align-items:center;justify-content:center;overflow:hidden}.presenter.open{display:flex}.presenter:before{content:"";position:absolute;inset:-35px;background:var(--presenter-bg) center/cover no-repeat;filter:blur(28px);opacity:.22;transform:scale(1.08)}.presenter img{position:relative;z-index:2;max-width:min(88vw,1180px);max-height:84vh;object-fit:contain;border-radius:12px;box-shadow:0 18px 55px rgba(6,29,45,.20)}.pbtn{position:absolute;z-index:4;border:0;border-radius:50%;width:50px;height:50px;background:#fff;color:var(--navy);font-size:30px;cursor:pointer;box-shadow:0 5px 18px rgba(6,29,45,.14)}.pclose{right:24px;top:20px}.pprev{left:24px;top:50%;transform:translateY(-50%)}.pnext{right:24px;top:50%;transform:translateY(-50%)}.pcount{position:absolute;z-index:4;left:24px;top:24px;background:#fff;color:var(--navy);padding:9px 13px;border-radius:9px;font-size:12px;font-weight:800;box-shadow:0 5px 18px rgba(6,29,45,.10)}
 @media(max-width:850px){.site-header{padding:0 20px;gap:14px}.header-search{max-width:none}.header-search input{font-size:12px;height:40px;padding-left:15px}.header-search input::placeholder{font-size:11px}.header-btn.gold{padding:10px 14px}.wrap{width:min(100% - 28px,650px)}.header{height:68px}.gallery{height:380px}.layout{grid-template-columns:1fr}.side{padding-top:0;margin-top:0}.card{position:static}.main{padding-top:24px}.facts{grid-template-columns:repeat(2,1fr)}.title{font-size:31px}}
 @media(max-width:600px){.site-header{height:70px;padding:0 14px;gap:9px}.brand{width:78px;align-items:flex-start}.brand b{font-size:31px}.brand small{font-size:5px;letter-spacing:3px;margin-left:8px}.header-search{min-width:0}.header-search input{height:38px;padding-left:12px;padding-right:42px}.header-search input::placeholder{font-size:9px}.header-search button{width:30px;height:30px;top:4px;right:4px}.header-btn.gold{padding:9px 10px;font-size:10px}.wrap{width:calc(100% - 20px)}.header{height:62px}.brand b{font-size:31px}.brand small{font-size:6px}.header-btn{padding:8px 11px}.header-btn.gold{display:none}.gallery{height:270px;grid-template-columns:1fr}.gallery img:not(:first-child){display:none}.thumbs img{width:70px;height:48px}.title{font-size:27px}.facts{gap:8px}.fact{padding:13px 9px}.fact strong{font-size:16px}.side{padding-bottom:35px}.price{font-size:27px}.float{width:52px;height:52px;right:13px;bottom:13px;font-size:26px}.float i{margin-top:13px}}
-</style><style>.condo-carousel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.condo-carousel-head h2{margin-bottom:13px}.condo-carousel-head button{border:1px solid var(--line);background:#fff;color:var(--navy);width:34px;height:34px;border-radius:50%;font-size:22px;cursor:pointer}.condo-track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;scrollbar-width:none}.condo-track::-webkit-scrollbar{display:none}.condo-card{flex:0 0 285px;border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;color:var(--navy);background:#fff;scroll-snap-align:start;box-shadow:0 6px 18px #0b294010}.condo-card img,.condo-card-img{width:100%;height:155px;object-fit:cover;display:block;background:#eef1f2}.condo-card-body{padding:13px}.condo-card-body strong{display:block;font:700 19px Montserrat;margin-bottom:6px}.condo-card-body div{font-size:11px;color:var(--muted);margin-bottom:8px}.condo-card-body small{display:block;font-size:11px;line-height:1.45;color:#52616a;min-height:32px}@media(max-width:900px){.finance-box{max-height:calc(100vh - 20px);padding:18px}.finance-results{grid-template-columns:repeat(2,1fr);overflow:hidden}.finance-bank{min-width:0}.finance-footer{font-size:9px}}@media(max-width:900px){.finance-fields{grid-template-columns:1fr 1fr}.finance-results{grid-template-columns:1fr}.finance-box{padding:16px}.condo-card{flex-basis:255px}.condo-card img,.condo-card-img{height:140px}}</style></head>
+</style><style>.condo-carousel-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.condo-carousel-head h2{margin-bottom:13px}.condo-carousel-head button{border:1px solid var(--line);background:#fff;color:var(--navy);width:34px;height:34px;border-radius:50%;font-size:22px;cursor:pointer}.condo-track{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 10px;scrollbar-width:none}.condo-track::-webkit-scrollbar{display:none}.condo-card{flex:0 0 285px;border:1px solid var(--line);border-radius:12px;overflow:hidden;text-decoration:none;color:var(--navy);background:#fff;scroll-snap-align:start;box-shadow:0 6px 18px #0b294010}.condo-card img,.condo-card-img{width:100%;height:155px;object-fit:cover;display:block;background:#eef1f2}.condo-card-body{padding:13px}.condo-card-body strong{display:block;font:700 19px Montserrat;margin-bottom:6px}.condo-card-body div{font-size:11px;color:var(--muted);margin-bottom:8px}.condo-card-body small{display:block;font-size:11px;line-height:1.45;color:#52616a;min-height:32px}@media(max-width:900px){.finance-box{max-height:calc(100vh - 20px);padding:18px}.finance-results{grid-template-columns:repeat(2,1fr);overflow:hidden}.finance-bank{min-width:0}.finance-footer{font-size:9px}}@media(max-width:900px){.finance-fields{grid-template-columns:1fr 1fr}.finance-results{grid-template-columns:1fr}.finance-box{padding:16px}.condo-card{flex-basis:255px}.condo-card img,.condo-card-img{height:140px}}<style>
+/* Correção do modal de financiamento em telas pequenas */
+@media(max-width:600px){
+  .finance-modal{
+    align-items:flex-start;
+    justify-content:center;
+    padding:10px;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .finance-box{
+    width:100%;
+    max-height:calc(100dvh - 20px);
+    overflow-y:auto;
+    overflow-x:hidden;
+    padding:16px;
+    margin:auto 0;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  .finance-results{
+    display:grid;
+    grid-template-columns:1fr;
+    overflow:visible;
+    gap:10px;
+  }
+  .finance-bank{width:100%;min-width:0}
+}
+</style></style></head>
 <body>
 <header class="site-header"><a id="siteBrand" class="brand" href="/" aria-label="VSN Imóveis"><b id="siteBrandName">VSN</b><small id="siteBrandSub">IMÓVEIS</small></a><div class="header-search"><input id="headerSearch" placeholder="Buscar imóvel — Bairro, cidade, código ou condomínio" onkeydown="if(event.key==='Enter')doHeaderSearch()"><button onclick="doHeaderSearch()" aria-label="Buscar"><i class="fa fa-search"></i></button></div><div class="header-actions"><a class="header-btn gold" href="#contato">Fale comigo</a><a class="header-btn login" href="/admin/painel-login.html"><i class="fa fa-sign-in" aria-hidden="true"></i> Entrar</a></div></header>
 <div class="wrap"><div id="app"><div style="padding:60px 0">Carregando imóvel...</div></div>
