@@ -154,14 +154,29 @@ async function loadUserAdmin(){
 }
 function renderUserAdmin(){
   const el=document.getElementById('usersContent');if(!el)return;
-  if(!adminUsers.length){el.innerHTML='<p class="muted">Nenhum usuário encontrado.</p>';return}
-  el.innerHTML=adminUsers.map(u=>{
+  const createForm='<div class="user-admin-card" style="margin-bottom:18px"><h3 style="margin-top:0">Cadastrar usuário</h3><p class="muted">O usuário receberá um convite por e-mail para definir a senha.</p><div class="grid"><div><label>Nome completo</label><input id="newUserName" placeholder="Nome do usuário"></div><div><label>E-mail</label><input id="newUserEmail" type="email" placeholder="nome@exemplo.com"></div><div><label>Função</label><select id="newUserRole"><option value="corretor">Corretor</option><option value="proprietario">Proprietário</option><option value="admin">Administrador</option></select></div></div><button class="red" id="createUserBtn" onclick="createManagedUser()">Cadastrar e enviar convite</button></div>';
+  if(!adminUsers.length){el.innerHTML=createForm+'<p class="muted">Nenhum usuário cadastrado.</p>';return}
+  el.innerHTML=createForm+adminUsers.map(u=>{
     const ov=window.__adminOverrides?.[u.id]||{};
     const roleLabel=u.role==='admin'?'Administrador':u.role==='proprietario'?'Proprietário':'Corretor';
     const avatar=u.avatar_url?'<img class="user-admin-avatar" src="'+esc(u.avatar_url)+'" alt="">':'<div class="user-admin-avatar">'+esc((u.full_name||u.email||'U').trim().charAt(0).toUpperCase())+'</div>';
     const perms=adminPermissions.map(p=>{const v=Object.prototype.hasOwnProperty.call(ov,p.key)?(ov[p.key]?'allow':'deny'):'inherit';return '<div class="permission-item"><div><span>'+esc(p.label)+'</span><small>'+esc(p.description||'')+'</small></div><select data-user="'+esc(u.id)+'" data-perm="'+esc(p.key)+'"><option value="inherit" '+(v==='inherit'?'selected':'')+'>Herdar função</option><option value="allow" '+(v==='allow'?'selected':'')+'>Permitir</option><option value="deny" '+(v==='deny'?'selected':'')+'>Bloquear</option></select></div>'}).join('');
-    return '<div class="user-admin-card" data-user-card="'+esc(u.id)+'"><div class="user-admin-head"><div class="user-admin-ident">'+avatar+'<div><div class="user-admin-name">'+esc(u.full_name||'Usuário sem nome')+'</div><div class="user-admin-email">'+esc(u.email||'')+'</div></div></div><select class="user-admin-role" data-role-user="'+esc(u.id)+'" '+(u.id===currentProfile?.id?'disabled':'')+'><option value="corretor" '+(u.role==='corretor'?'selected':'')+'>Corretor</option><option value="proprietario" '+(u.role==='proprietario'?'selected':'')+'>Proprietário</option><option value="admin" '+(u.role==='admin'?'selected':'')+'>Administrador</option></select></div><div class="permission-grid">'+perms+'</div><button class="red users-save" onclick="saveUserPermissions(\''+esc(u.id)+'\')">Salvar permissões</button></div>';
+    return '<div class="user-admin-card" data-user-card="'+esc(u.id)+'"><div class="user-admin-head"><div class="user-admin-ident">'+avatar+'<div><div class="user-admin-name">'+esc(u.full_name||'Usuário sem nome')+'</div><div class="user-admin-email">'+esc(u.email||'')+'</div></div></div><select class="user-admin-role" data-role-user="'+esc(u.id)+'" '+(u.id===currentProfile?.id?'disabled':'')+'><option value="corretor" '+(u.role==='corretor'?'selected':'')+'>Corretor</option><option value="proprietario" '+(u.role==='proprietario'?'selected':'')+'>Proprietário</option><option value="admin" '+(u.role==='admin'?'selected':'')+'>Administrador</option></select></div><div class="grid" style="margin-top:14px"><div><label>Nome completo</label><input data-profile-field="full_name" value="'+esc(u.full_name||'')+'"></div><div><label>Telefone</label><input data-profile-field="phone" value="'+esc(u.phone||'')+'"></div><div><label>CPF / CNPJ</label><input data-profile-field="cpf_cnpj" value="'+esc(u.cpf_cnpj||'')+'"></div><div><label>CRECI</label><input data-profile-field="creci" value="'+esc(u.creci||'')+'"></div><div><label>Empresa / Imobiliária</label><input data-profile-field="company" value="'+esc(u.company||'')+'"></div></div><div class="permission-grid">'+perms+'</div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="red users-save" onclick="saveUserPermissions(\''+esc(u.id)+'\')">Salvar alterações e permissões</button>'+(u.id!==currentProfile?.id?'<button type="button" style="background:#fff0f0;color:#a21d24;border:1px solid #f0caca" onclick="deleteManagedUser(\''+esc(u.id)+'\')">Excluir usuário</button>':'')+'</div></div>';
   }).join('');
+}
+async function createManagedUser(){
+  const btn=document.getElementById('createUserBtn');if(!btn)return;
+  const full_name=document.getElementById('newUserName')?.value.trim(),email=document.getElementById('newUserEmail')?.value.trim(),role=document.getElementById('newUserRole')?.value||'corretor';
+  if(!full_name||!email){toast('Preencha nome e e-mail do usuário.','err');return}
+  btn.disabled=true;btn.textContent='Enviando convite...';
+  try{const r=await S.functions.invoke('admin-user-management',{body:{action:'create',full_name,email,role}});if(r.error)throw r.error;if(r.data?.error)throw new Error(r.data.error);toast(r.data?.message||'Usuário cadastrado e convite enviado.','ok');await loadUserAdmin()}
+  catch(e){toast('Não foi possível cadastrar: '+(e.message||e),'err');btn.disabled=false;btn.textContent='Cadastrar e enviar convite'}
+}
+async function deleteManagedUser(userId){
+  const target=adminUsers.find(x=>x.id===userId);if(!target)return;
+  if(!confirm('Excluir definitivamente o usuário '+(target.email||target.full_name)+'? A conta não poderá mais acessar o sistema.'))return;
+  try{const r=await S.functions.invoke('admin-user-management',{body:{action:'delete',user_id:userId}});if(r.error)throw r.error;if(r.data?.error)throw new Error(r.data.error);toast('Usuário excluído.','ok');await loadUserAdmin()}
+  catch(e){toast('Não foi possível excluir: '+(e.message||e),'err')}
 }
 async function saveUserPermissions(userId){
   const card=document.querySelector('[data-user-card="'+CSS.escape(userId)+'"]');if(!card)return;
@@ -169,10 +184,9 @@ async function saveUserPermissions(userId){
   try{
     const roleSel=card.querySelector('[data-role-user="'+CSS.escape(userId)+'"]');
     const target=adminUsers.find(x=>x.id===userId);if(!target)throw new Error('Usuário não encontrado.');
-    if(roleSel&&!roleSel.disabled&&roleSel.value!==target.role){
-      const r=await S.from('profiles').update({role:roleSel.value}).eq('id',userId);
-      if(r.error)throw r.error;
-    }
+    const profilePatch={};card.querySelectorAll('[data-profile-field]').forEach(input=>profilePatch[input.dataset.profileField]=input.value.trim());
+    if(roleSel&&!roleSel.disabled&&roleSel.value!==target.role)profilePatch.role=roleSel.value;
+    if(Object.keys(profilePatch).length){const r=await S.functions.invoke('admin-user-management',{body:{action:'update',user_id:userId,...profilePatch}});if(r.error)throw r.error;if(r.data?.error)throw new Error(r.data.error)}
     for(const sel of card.querySelectorAll('select[data-perm]')){
       const key=sel.dataset.perm,val=sel.value;
       if(val==='inherit'){
