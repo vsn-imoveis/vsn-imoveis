@@ -37,7 +37,13 @@ export default async function handler(req, res) {
     }
 
     const genericMessage = 'Se o e-mail estiver cadastrado, você receberá uma nova senha.';
-    if (!user || user.user_metadata?.user_type !== 'proprietario') {
+    if (!user) {
+      return res.status(200).json({ ok: true, message: genericMessage });
+    }
+    const profileResponse = await fetch(supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(user.id) + '&select=role&limit=1', { headers: { ...headers, Accept: 'application/json' } });
+    const profileRows = await profileResponse.json().catch(() => []);
+    const userRole = Array.isArray(profileRows) ? profileRows[0]?.role : null;
+    if (!profileResponse.ok || userRole !== 'proprietario') {
       return res.status(200).json({ ok: true, message: genericMessage });
     }
 
