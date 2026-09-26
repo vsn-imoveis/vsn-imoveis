@@ -26,7 +26,7 @@
 <div class="step"><div class="num">3</div><div><b>Acompanhe as solicitações</b><span>Alterações de cadastro e publicação dependem da aprovação da administração.</span></div></div>
 <p class="hint" style="color:#cbd6dd">Sua senha inicial será VSN + os 4 últimos dígitos do celular informado. Você poderá entrar com seu e-mail e essa senha.</p></aside>
 </section>
-<section id="dashboard" class="panel dashboard"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h2>Olá, <span id="userName">proprietário</span>!</h2><button id="logout" class="logout" type="button">Sair</button></div><p>Sua conta foi autenticada.</p><div class="pending"><b>Próxima etapa: validar seu imóvel.</b><br>O gerenciamento de imóveis será liberado depois que a VSN confirmar o vínculo do imóvel à sua conta. Qualquer alteração ou publicação ficará pendente de aprovação administrativa.</div><p id="accountEmail" style="margin-top:18px"></p></section>
+<section id="dashboard" class="panel dashboard"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><h2>Olá, <span id="userName">proprietário</span>!</h2><button id="logout" class="logout" type="button">Sair</button></div><p>Sua conta foi autenticada.</p><div id="ownerProperties" aria-live="polite"><div class="pending">Carregando seus imóveis...</div></div><p id="accountEmail" style="margin-top:18px"></p></section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -40,7 +40,28 @@ function setMode(m){mode=m;$('tabLogin').classList.toggle('active',m==='login');
 $('tabLogin').onclick=()=>setMode('login');$('tabSignup').onclick=()=>setMode('signup');
 $('authForm').addEventListener('submit',async e=>{e.preventDefault();$('submitBtn').disabled=true;$('submitBtn').textContent='Aguarde...';try{const email=$('email').value.trim().toLowerCase();if(mode==='signup'){const phone=$('phone').value.trim();const digits=phone.replace(/\\D/g,'');if(digits.length<4)throw new Error('Informe um celular válido com pelo menos 4 dígitos.');await fetch('/api/proprietario-cadastro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nome:$('name').value.trim(),email,celular:phone})}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Não foi possível criar a conta.');return {error:j.error};});message('Cadastro realizado! Enviamos sua senha e o link de acesso para seu e-mail.');}else{const password=$('password').value;const {error}=await sb.auth.signInWithPassword({email,password});if(error)throw error;await loadSession();}}catch(err){message(err.message||'Não foi possível concluir. Tente novamente.','error');}finally{$('submitBtn').disabled=false;$('submitBtn').textContent=mode==='signup'?'Criar minha conta':'Entrar na minha conta';}});
 $('recover').onclick=async()=>{const email=$('email').value.trim().toLowerCase();if(!email){message('Informe seu e-mail para recuperar a senha.','error');$('email').focus();return;}const btn=$('recover');btn.disabled=true;btn.textContent='Enviando...';try{const r=await fetch('/api/proprietario-recuperar-senha',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Não foi possível solicitar a recuperação.');message(j.message||'Se o e-mail estiver cadastrado, enviaremos uma nova senha.');}catch(err){message(err.message||'Não foi possível solicitar a recuperação.','error');}finally{btn.disabled=false;btn.textContent='Esqueci minha senha';}};
-async function loadSession(){const {data}=await sb.auth.getSession();const u=data.session?.user;if(!u){$('authView').style.display='grid';$('dashboard').classList.remove('show');return;}const {data:profile}=await sb.from('profiles').select('full_name,role').eq('id',u.id).maybeSingle();if(profile&&profile.role!=='proprietario'){await sb.auth.signOut();message('Esta área é exclusiva para contas de proprietário.','error');return;} $('authView').style.display='none';$('dashboard').classList.add('show');$('userName').textContent=profile?.full_name||u.user_metadata?.full_name||'proprietário';$('accountEmail').textContent='Conta: '+u.email;}
+function escapeHtml(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));}
+function money(value){if(value===null||value===undefined||value==='')return '';return Number(value).toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});}
+async function loadOwnerProperties(userId){
+  const target=$('ownerProperties');
+  target.innerHTML='<div class="pending">Carregando seus imóveis...</div>';
+  const {data:properties,error}=await sb.from('properties').select('id,title,code,transaction_type,property_type,address,number,complement,neighborhood,city,state,published,price,rent_price').eq('owner_id',userId).order('created_at',{ascending:false});
+  if(error){
+    console.error('[VSN] owner properties:',error);
+    target.innerHTML='<div class="pending">Não foi possível carregar seus imóveis neste momento. Atualize a página ou entre em contato com a VSN.</div>';
+    return;
+  }
+  if(!properties||properties.length===0){
+    target.innerHTML='<div class="pending"><b>Nenhum imóvel vinculado à sua conta.</b><br>A equipe VSN precisa confirmar o vínculo do imóvel à sua conta. Entre em contato com a administração para validar o cadastro.</div>';
+    return;
+  }
+  target.innerHTML='<h3 style="font:700 18px Montserrat,Manrope,sans-serif;margin:22px 0 12px">Meu(s) imóvel(is)</h3>'+properties.map(p=>{
+    const address=[p.address,p.number,p.complement,p.neighborhood,p.city,p.state].filter(Boolean).join(', ');
+    const prices=[p.price?('Venda: '+money(p.price)):'',p.rent_price?('Locação: '+money(p.rent_price)+'/mês'):''].filter(Boolean).join(' · ');
+    return '<article style="border:1px solid #e2e7ea;border-radius:12px;padding:18px;margin:12px 0;background:#fff"><h3 style="font:700 17px Montserrat,Manrope,sans-serif;margin:0 0 8px">'+escapeHtml(p.title||'Imóvel cadastrado')+'</h3>'+(address?'<p style="margin:0 0 8px;color:#6c7881">'+escapeHtml(address)+'</p>':'')+(prices?'<p style="margin:0 0 8px">'+escapeHtml(prices)+'</p>':'')+'<p style="margin:0;color:#6c7881;font-size:12px">Código: '+escapeHtml(p.code||'—')+' · '+(p.published?'Publicado':'Aguardando validação administrativa')+'</p></article>';
+  }).join('')+'<div class="pending"><b>Seu imóvel está vinculado à conta.</b><br>Alterações e publicação continuam sujeitas à aprovação administrativa da VSN.</div>';
+}
+async function loadSession(){const {data}=await sb.auth.getSession();const u=data.session?.user;if(!u){$('authView').style.display='grid';$('dashboard').classList.remove('show');return;}const {data:profile}=await sb.from('profiles').select('full_name,role').eq('id',u.id).maybeSingle();if(profile&&profile.role!=='proprietario'){await sb.auth.signOut();message('Esta área é exclusiva para contas de proprietário.','error');return;} $('authView').style.display='none';$('dashboard').classList.add('show');$('userName').textContent=profile?.full_name||u.user_metadata?.full_name||'proprietário';$('accountEmail').textContent='Conta: '+u.email;await loadOwnerProperties(u.id);}
 $('logout').onclick=async()=>{await sb.auth.signOut();location.reload();};
 sb.auth.onAuthStateChange(()=>{setTimeout(loadSession,0);});loadSession();
 </script></body></html>
