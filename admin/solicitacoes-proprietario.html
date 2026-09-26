@@ -6,7 +6,7 @@ const allowed=new Set(Object.keys(labels));
 function fmt(k,v){if(v===null||v===undefined||v==='')return '—';if(['price','rent_price','condo_fee','iptu'].includes(k))return Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});if(k==='area')return v+' m²';return String(v)}
 async function boot(){
  const {data:{session}}=await S.auth.getSession();if(!session){$('status').innerHTML='Faça login no painel administrativo para acessar as solicitações. <a href="painel-login.html">Entrar</a>';return}
- const {data:user}=await S.auth.getUser();const {data:profile}=await S.from('profiles').select('role').eq('id',user.user.id).maybeSingle();
+ 
  const {data:perm,error:permError}=await S.rpc('has_permission',{requested_permission:'properties.edit'});
  if(permError||perm!==true){$('status').textContent='Acesso restrito: seu usuário não tem permissão para revisar alterações de imóveis.';return}
  $('status').textContent='Carregando solicitações...';await load();
