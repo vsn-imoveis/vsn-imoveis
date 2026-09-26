@@ -23,9 +23,9 @@ export default async function handler(req, res) {
   const brevoKey = process.env.BREVO_EMAIL_API;
   const from = process.env.BREVO_FROM_EMAIL;
   const supabaseUrl = process.env.SUPABASE_URL || 'https://jpdfynaioepcmgqlqlht.supabase.co';
-  if (!serviceKey || !brevoKey || !from) {
-    console.error('Faltam SUPABASE_SERVICE_ROLE_KEY, BREVO_EMAIL_API ou BREVO_FROM_EMAIL.');
-    return res.status(500).json({ error: 'Envio não configurado. Confira as chaves do Supabase e do Brevo na Vercel.' });
+  if (!serviceKey) {
+    console.error('Falta SUPABASE_SERVICE_ROLE_KEY.');
+    return res.status(500).json({ error: 'Cadastro não configurado. Confira a chave do Supabase na Vercel.' });
   }
 
   const headers = { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey };
@@ -68,6 +68,11 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Somente um administrador pode enviar os dados de acesso.' });
     }
 
+    if (!brevoKey || !from) {
+      console.error('Faltam BREVO_EMAIL_API ou BREVO_FROM_EMAIL.');
+      return res.status(500).json({ error: 'Envio de e-mail não configurado. Confira as chaves do Brevo na Vercel.' });
+    }
+
     const password = 'VSN' + digits.slice(-4);
     const usersResponse = await fetch(supabaseUrl + '/auth/v1/admin/users?page=1&per_page=1000', { headers });
     const usersBody = await usersResponse.json().catch(() => ({}));
@@ -94,20 +99,8 @@ export default async function handler(req, res) {
         return res.status(409).json({ error: 'Este e-mail já está associado a uma conta que não é de proprietário. Use outro e-mail ou confira o cadastro existente.' });
       }
 
-      const updated = await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(owner.id), {
-        method: 'PUT',
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          password,
-          user_metadata: { ...(owner.user_metadata || {}), full_name: nome, phone: celular, user_type: 'proprietario' }
-        })
-      });
-      const updatedBody = await updated.json().catch(() => ({}));
-      if (!updated.ok) {
-        console.error('Supabase owner password update:', updated.status, updatedBody);
-        return res.status(502).json({ error: 'Não foi possível atualizar a senha da conta do proprietário.' });
-      }
-      await sendAccessEmail(password);
+      // Conta de proprietário existente: não alterar senha/dados nem reenviar e-mail.
+      // Retorna o mesmo ID para permitir vincular essa conta a vários imóveis.
       return res.status(200).json({ ok: true, userId: owner.id, reused: true });
     }
 
