@@ -1,0 +1,48 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Solicitações de proprietários | VSN</title><link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet"><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>:root{--navy:#061d2d;--gold:#d3aa62;--muted:#6c7881;--line:#e2e7ea}*{box-sizing:border-box}body{margin:0;background:#f4f6f7;color:#102b40;font-family:Manrope,Arial,sans-serif}.top{background:var(--navy);color:white;padding:18px max(20px,calc((100% - 1120px)/2));display:flex;justify-content:space-between;align-items:center}.top a{color:white;text-decoration:none}.wrap{max-width:1120px;margin:32px auto;padding:0 18px}.card{background:white;border:1px solid var(--line);border-radius:15px;padding:22px;margin:14px 0}.muted{color:var(--muted);font-size:13px}.btn{border:0;border-radius:22px;padding:11px 18px;font-weight:800;cursor:pointer}.gold{background:var(--gold);color:var(--navy)}.gray{background:#eef1f3;color:var(--navy)}.reject{background:#fff0ef;color:#9b2e27}.badge{display:inline-block;padding:5px 9px;border-radius:16px;background:#fff4d9;color:#815b13;font-size:11px;font-weight:800}.changes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:16px 0}.change{background:#f7f9fa;border:1px solid #e8ecef;border-radius:9px;padding:10px;font-size:13px;overflow-wrap:anywhere}.change b{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.empty{padding:22px;background:#fff8e9;border:1px solid #f0d9a9;border-radius:12px}@media(max-width:650px){.changes{grid-template-columns:1fr}.wrap{padding:0 12px}.card{padding:16px}.actions button{flex:1}}</style></head><body><header class="top"><a href="painel-login.html">← Voltar ao painel VSN</a><b>Solicitações de proprietários</b></header><main class="wrap"><h1 style="font:800 28px Montserrat,Manrope,sans-serif;margin-bottom:6px">Solicitações de alterações</h1><p class="muted">Revise as mudanças enviadas pelos proprietários. O anúncio só será atualizado depois da aprovação.</p><div id="status" class="muted">Verificando acesso...</div><div id="requests"></div></main><script>
+const U='https://jpdfynaioepcmgqlqlht.supabase.co',K='sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03',S=supabase.createClient(U,K),$=id=>document.getElementById(id);
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const labels={title:'Título',property_type:'Tipo do imóvel',address:'Endereço',number:'Número',complement:'Complemento',neighborhood:'Bairro',city:'Cidade',state:'Estado',cep:'CEP',condominium_name:'Condomínio',price:'Valor de venda',rent_price:'Valor de locação',condo_fee:'Condomínio',iptu:'IPTU',area:'Área útil',bedrooms:'Dormitórios',suites:'Suítes',bathrooms:'Banheiros',parking:'Vagas',description:'Descrição'};
+const allowed=new Set(Object.keys(labels));
+function fmt(k,v){if(v===null||v===undefined||v==='')return '—';if(['price','rent_price','condo_fee','iptu'].includes(k))return Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});if(k==='area')return v+' m²';return String(v)}
+async function boot(){
+ const {data:{session}}=await S.auth.getSession();if(!session){$('status').innerHTML='Faça login no painel administrativo para acessar as solicitações. <a href="painel-login.html">Entrar</a>';return}
+ const {data:user}=await S.auth.getUser();const {data:profile}=await S.from('profiles').select('role').eq('id',user.user.id).maybeSingle();
+ const {data:perm,error:permError}=await S.rpc('has_permission',{requested_permission:'properties.edit'});
+ if(permError||perm!==true){$('status').textContent='Acesso restrito: seu usuário não tem permissão para revisar alterações de imóveis.';return}
+ $('status').textContent='Carregando solicitações...';await load();
+}
+async function load(){
+ const {data,error}=await S.from('property_owner_edit_requests').select('id,property_id,owner_id,changes,status,owner_message,admin_note,created_at,properties(title,code,address,neighborhood,city)').eq('status','pending').order('created_at',{ascending:true});
+ if(error){$('status').textContent='Erro ao carregar: '+error.message;return}
+ $('status').textContent=(data?.length||0)+' solicitação(ões) aguardando análise.';
+ if(!data?.length){$('requests').innerHTML='<div class="empty">Nenhuma solicitação pendente no momento.</div>';return}
+ $('requests').innerHTML=data.map(r=>{
+  const p=r.properties||{},changes=r.changes||{};
+  const entries=Object.entries(changes).filter(([k])=>allowed.has(k));
+  return '<article class="card" id="req_'+r.id+'"><span class="badge">Aguardando aprovação</span><h2 style="font:700 19px Montserrat,Manrope,sans-serif;margin:12px 0 6px">'+esc(p.title||'Imóvel')+'</h2><p class="muted" style="margin:0">Código: '+esc(p.code||'—')+' · '+esc([p.address,p.neighborhood,p.city].filter(Boolean).join(', '))+'</p><p class="muted">Enviada em '+new Date(r.created_at).toLocaleString('pt-BR')+'</p><div class="changes">'+entries.map(([k,v])=>'<div class="change"><b>'+esc(labels[k])+'</b>'+esc(fmt(k,v))+'</div>').join('')+'</div><label style="display:block;font-size:12px;color:var(--muted);margin:8px 0">Observação para o proprietário (opcional)</label><textarea id="note_'+r.id+'" rows="2" style="width:100%;padding:11px;border:1px solid #dce2e6;border-radius:9px;font:inherit" placeholder="Ex.: ajuste necessário..."></textarea><div class="actions"><button class="btn gold" onclick="approveRequest(\''+r.id+'\')">Aprovar e aplicar alterações</button><button class="btn reject" onclick="rejectRequest(\''+r.id+'\')">Recusar solicitação</button></div></article>';
+ }).join('');
+}
+async function approveRequest(id){
+ const card=$('req_'+id);if(!card)return;
+ if(!confirm('Aprovar esta solicitação e aplicar as alterações ao imóvel?'))return;
+ const {data:req,error}=await S.from('property_owner_edit_requests').select('*').eq('id',id).eq('status','pending').single();if(error){alert('Não foi possível carregar a solicitação: '+error.message);return}
+ const changes=req.changes||{},row={};for(const [k,v] of Object.entries(changes)){if(allowed.has(k))row[k]=v}
+ if(!Object.keys(row).length){alert('A solicitação não contém campos reconhecidos.');return}
+ const upd=await S.from('properties').update(row).eq('id',req.property_id).eq('owner_id',req.owner_id);
+ if(upd.error){alert('Não foi possível aplicar as alterações: '+upd.error.message);return}
+ const {data:{user}}=await S.auth.getUser();
+ const note=$('note_'+id)?.value.trim()||null;
+ const done=await S.from('property_owner_edit_requests').update({status:'approved',admin_note:note,reviewed_by:user.id,reviewed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('status','pending');
+ if(done.error){alert('As alterações foram aplicadas, mas não foi possível atualizar o status da solicitação: '+done.error.message);return}
+ alert('Solicitação aprovada e alterações aplicadas.');await load();
+}
+async function rejectRequest(id){
+ const note=$('note_'+id)?.value.trim()||prompt('Informe o motivo da recusa (opcional):')||null;
+ if(!confirm('Recusar esta solicitação?'))return;
+ const {data:{user}}=await S.auth.getUser();
+ const r=await S.from('property_owner_edit_requests').update({status:'rejected',admin_note:note,reviewed_by:user.id,reviewed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('status','pending');
+ if(r.error){alert('Não foi possível recusar: '+r.error.message);return}
+ await load();
+}
+boot();
+</script></body></html>
