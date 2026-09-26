@@ -11,7 +11,7 @@
   function resetLogin(){const el=loginElement();if(!el)return;if(el.id==='siteLoginButton'){el.textContent='Entrar';el.onclick=()=>window.openAccessModal?.()}else{el.innerHTML='<i class="fa fa-sign-in" aria-hidden="true"></i> Entrar';el.href='/admin/painel-login.html';el.onclick=null}}
   async function render(session){
     const h=host(),el=loginElement();if(!h||!el)return;
-    if(!session?.user){const old=h.querySelector('.site-auth-controls');if(old)old.remove();resetLogin();return}
+    if(!session?.user){const old=h.querySelector('.site-auth-controls');if(old)old.remove();el.hidden=false;resetLogin();return}
     let profile={};try{const r=await client.from('profiles').select('role,full_name,avatar_url').eq('id',session.user.id).maybeSingle();profile=r.data||{}}catch(_){}
     const role=profile.role||session.user.user_metadata?.role||'';
     const dest=role==='proprietario'?'/proprietario/':'/admin/painel-login.html';
