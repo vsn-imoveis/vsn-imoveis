@@ -12,6 +12,7 @@ export default async function handler(req, res) {
   const email = String(req.body?.email || '').trim().toLowerCase();
   const celular = String(req.body?.celular || '').trim();
   const digits = celular.replace(/\D/g, '');
+  const action = String(req.body?.action || 'create').toLowerCase();
   if (!nome || !email || digits.length < 4) {
     return res.status(400).json({ error: 'Informe nome, e-mail e um celular válido.' });
   }
@@ -68,11 +69,6 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Somente um administrador pode enviar os dados de acesso.' });
     }
 
-    if (!brevoKey || !from) {
-      console.error('Faltam BREVO_EMAIL_API ou BREVO_FROM_EMAIL.');
-      return res.status(500).json({ error: 'Envio de e-mail não configurado. Confira as chaves do Brevo na Vercel.' });
-    }
-
     const password = 'VSN' + digits.slice(-4);
     const usersResponse = await fetch(supabaseUrl + '/auth/v1/admin/users?page=1&per_page=1000', { headers });
     const usersBody = await usersResponse.json().catch(() => ({}));
@@ -99,9 +95,33 @@ export default async function handler(req, res) {
         return res.status(409).json({ error: 'Este e-mail já está associado a uma conta que não é de proprietário. Use outro e-mail ou confira o cadastro existente.' });
       }
 
-      // Conta de proprietário existente: não alterar senha/dados nem reenviar e-mail.
-      // Retorna o mesmo ID para permitir vincular essa conta a vários imóveis.
-      return res.status(200).json({ ok: true, userId: owner.id, reused: true });
+      // Conta já existente antes do cadastro: não altera conta nem dispara e-mail.
+      if (owner.user_metadata?.owner_access_email_pending !== true) {
+        return res.status(200).json({ ok: true, userId: owner.id, reused: true, sent: false });
+      }
+
+      // A conta foi criada pelo cadastro do imóvel e aguarda o envio manual pelo botão.
+      if (action !== 'send_access') {
+        return res.status(200).json({ ok: true, userId: owner.id, reused: true, pendingEmail: true, sent: false });
+      }
+      if (!brevoKey || !from) {
+        return res.status(500).json({ error: 'Envio de e-mail não configurado. Confira as chaves do Brevo na Vercel.' });
+      }
+      const pendingPassword = 'VSN' + digits.slice(-4);
+      await sendAccessEmail(pendingPassword);
+      const metadataUpdate = await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(owner.id), {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_metadata: { ...(owner.user_metadata || {}), owner_access_email_pending: false } })
+      });
+      if (!metadataUpdate.ok) {
+        console.error('Could not clear owner email pending flag:', metadataUpdate.status, await metadataUpdate.text().catch(() => ''));
+      }
+      return res.status(200).json({ ok: true, userId: owner.id, reused: true, sent: true });
+    }
+
+    if (action === 'send_access') {
+      return res.status(404).json({ error: 'Conta de proprietário ainda não foi criada. Salve o imóvel antes de enviar o acesso.' });
     }
 
     const created = await fetch(supabaseUrl + '/auth/v1/admin/users', {
@@ -109,7 +129,7 @@ export default async function handler(req, res) {
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email, password, email_confirm: true,
-        user_metadata: { full_name: nome, phone: celular, user_type: 'proprietario' }
+        user_metadata: { full_name: nome, phone: celular, user_type: 'proprietario', owner_access_email_pending: true }
       })
     });
     const createdBody = await created.json().catch(() => ({}));
@@ -130,13 +150,8 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'Não foi possível criar o perfil do proprietário.' });
     }
 
-    try {
-      await sendAccessEmail(password);
-    } catch (mailError) {
-      await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(createdUserId), { method: 'DELETE', headers }).catch(() => {});
-      return res.status(502).json({ error: mailError.message });
-    }
-    return res.status(201).json({ ok: true, userId: createdUserId });
+    // O cadastro do imóvel não envia e-mail automaticamente. O botão fará o envio depois.
+    return res.status(201).json({ ok: true, userId: createdUserId, pendingEmail: true, sent: false });
   } catch (error) {
     console.error('Proprietor signup/access error:', error);
     return res.status(500).json({ error: error.message || 'Falha ao concluir o cadastro. Tente novamente.' });
