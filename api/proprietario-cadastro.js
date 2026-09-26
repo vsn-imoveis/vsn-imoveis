@@ -139,13 +139,26 @@ export default async function handler(req, res) {
     }
     createdUserId = createdBody.id;
 
+    // O gatilho de auth.users já cria um perfil básico. Removemos somente esse perfil
+    // recém-criado e inserimos o perfil definitivo para evitar ON CONFLICT DO UPDATE,
+    // que é bloqueado pela proteção de role/user_type.
+    const removeDefaultProfile = await fetch(
+      supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(createdUserId),
+      { method: 'DELETE', headers }
+    );
+    if (!removeDefaultProfile.ok) {
+      console.error('Supabase default profile cleanup:', removeDefaultProfile.status, await removeDefaultProfile.text().catch(() => ''));
+      await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(createdUserId), { method: 'DELETE', headers }).catch(() => {});
+      return res.status(502).json({ error: 'Não foi possível preparar o perfil do proprietário.' });
+    }
+
     const profileResponse = await fetch(supabaseUrl + '/rest/v1/profiles', {
       method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+      headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
       body: JSON.stringify({ id: createdUserId, user_type: 'proprietario', role: 'proprietario', full_name: nome, phone: celular })
     });
     if (!profileResponse.ok) {
-      console.error('Supabase profile upsert:', profileResponse.status, await profileResponse.text().catch(() => ''));
+      console.error('Supabase profile insert:', profileResponse.status, await profileResponse.text().catch(() => ''));
       await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(createdUserId), { method: 'DELETE', headers }).catch(() => {});
       return res.status(502).json({ error: 'Não foi possível criar o perfil do proprietário.' });
     }
