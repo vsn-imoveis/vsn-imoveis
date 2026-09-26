@@ -4,11 +4,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método não permitido.' });
   }
 
+  const authHeader = String(req.headers.authorization || '');
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  if (!token) return res.status(401).json({ error: 'Sessão administrativa não identificada. Entre novamente.' });
+
   const nome = String(req.body?.nome || '').trim();
   const email = String(req.body?.email || '').trim().toLowerCase();
   const celular = String(req.body?.celular || '').trim();
   const digits = celular.replace(/\D/g, '');
-
   if (!nome || !email || digits.length < 4) {
     return res.status(400).json({ error: 'Informe nome, e-mail e um celular válido.' });
   }
@@ -19,125 +22,130 @@ export default async function handler(req, res) {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const brevoKey = process.env.BREVO_EMAIL_API;
   const from = process.env.BREVO_FROM_EMAIL;
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://jpdfynaioepcmgqlqlht.supabase.co';
   if (!serviceKey || !brevoKey || !from) {
     console.error('Faltam SUPABASE_SERVICE_ROLE_KEY, BREVO_EMAIL_API ou BREVO_FROM_EMAIL.');
-    return res.status(500).json({ error: 'Cadastro não configurado: confira as chaves do Supabase e do Brevo e o remetente verificado (BREVO_FROM_EMAIL) na Vercel.' });
+    return res.status(500).json({ error: 'Envio não configurado. Confira as chaves do Supabase e do Brevo na Vercel.' });
   }
 
-  const password = 'VSN' + digits.slice(-4);
-  const supabaseUrl = process.env.SUPABASE_URL || 'https://jpdfynaioepcmgqlqlht.supabase.co';
-  let userId;
-
-  try {
-    const created = await fetch(supabaseUrl + '/auth/v1/admin/users', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: serviceKey,
-        Authorization: 'Bearer ' + serviceKey
-      },
-      body: JSON.stringify({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: { full_name: nome, phone: celular, user_type: 'proprietario' }
-      })
-    });
-    const createdBody = await created.json().catch(() => ({}));
-    if (!created.ok) {
-      const msg = createdBody.msg || createdBody.message || createdBody.error_description || createdBody.error;
-      if (created.status === 422 || /already|registered|exists/i.test(String(msg || ''))) {
-        // Reaproveita somente uma conta que já esteja cadastrada como proprietária.
-        const usersResponse = await fetch(supabaseUrl + '/auth/v1/admin/users?page=1&per_page=1000', {
-          headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }
-        });
-        const usersBody = await usersResponse.json().catch(() => ({}));
-        const users = Array.isArray(usersBody) ? usersBody : (usersBody.users || []);
-        const existingUser = users.find(user => String(user.email || '').toLowerCase() === email);
-        if (!usersResponse.ok || !existingUser) {
-          return res.status(409).json({ error: 'Este e-mail já possui cadastro. Não foi possível confirmar que a conta pertence a um proprietário.' });
-        }
-
-        const profileResponse = await fetch(
-          supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(existingUser.id) + '&select=id,user_type,role&limit=1',
-          { headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey } }
-        );
-        const profiles = await profileResponse.json().catch(() => []);
-        if (!profileResponse.ok) {
-          console.error('Supabase existing profile lookup:', profileResponse.status, profiles);
-          return res.status(502).json({ error: 'Não foi possível verificar o perfil da conta existente.' });
-        }
-
-        const existingProfile = Array.isArray(profiles) ? profiles[0] : null;
-        const existingType = String(existingProfile?.user_type || existingProfile?.role || existingUser.user_metadata?.user_type || '').toLowerCase();
-        if (existingType !== 'proprietario' && existingType !== 'proprietário') {
-          return res.status(409).json({ error: 'Este e-mail já está associado a uma conta que não é de proprietário. Use outro e-mail ou confira o cadastro existente.' });
-        }
-
-        if (!existingProfile) {
-          const profileCreate = await fetch(supabaseUrl + '/rest/v1/profiles', {
-            method: 'POST',
-            headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-            body: JSON.stringify({ id: existingUser.id, user_type: 'proprietario', full_name: existingUser.user_metadata?.full_name || nome, phone: existingUser.user_metadata?.phone || celular })
-          });
-          if (!profileCreate.ok) {
-            console.error('Supabase existing profile create:', profileCreate.status, await profileCreate.text().catch(() => ''));
-            return res.status(502).json({ error: 'A conta existe, mas não foi possível preparar o perfil do proprietário.' });
-          }
-        }
-
-        return res.status(200).json({ ok: true, userId: existingUser.id, reused: true });
-      }
-      console.error('Supabase admin create user:', created.status, createdBody);
-      return res.status(502).json({ error: 'Não foi possível criar a conta no momento.' });
-    }
-    userId = createdBody.id;
-
-    const profileResponse = await fetch(supabaseUrl + '/rest/v1/profiles', {
-      method: 'POST',
-      headers: { ...{ apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ id: userId, user_type: 'proprietario', role: 'proprietario', full_name: nome, phone: celular })
-    });
-    if (!profileResponse.ok) {
-      const profileBody = await profileResponse.text().catch(() => '');
-      console.error('Supabase profile upsert:', profileResponse.status, profileBody);
-      await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(userId), {
-        method: 'DELETE', headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }
-      }).catch(() => {});
-      return res.status(502).json({ error: 'Não foi possível criar o perfil do proprietário.' });
-    }
-
-    const mailResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+  const headers = { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey };
+  const sendAccessEmail = async (password) => {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'api-key': brevoKey, accept: 'application/json' },
       body: JSON.stringify({
         sender: { name: 'VSN Imóveis', email: from },
         to: [{ email, name: nome }],
-        subject: 'Sua senha de acesso – VSN Imóveis',
-        textContent: `Olá, ${nome}!\n\nSeu cadastro na Área do Proprietário da VSN Imóveis foi realizado.\n\nSua senha de acesso é: ${password}\n\nAcesse sua conta pelo link abaixo:\nhttps://vsn-imoveis.vercel.app/proprietario/\n\nEntre com seu e-mail cadastrado e a senha informada acima.\n\nAtenciosamente,\nEquipe VSN Imóveis`
+        subject: 'Seu acesso à Área do Proprietário – VSN Imóveis',
+        textContent: `Olá, ${nome}!\n\nSeu acesso à Área do Proprietário da VSN Imóveis está disponível.\n\nLogin: ${email}\nSenha: ${password}\n\nAcesse: https://vsn-imoveis.vercel.app/proprietario/\n\nPor segurança, recomendamos alterar a senha após o primeiro acesso.\n\nAtenciosamente,\nEquipe VSN Imóveis`
       })
     });
-    const mailBody = await mailResponse.json().catch(() => ({}));
-    if (!mailResponse.ok) {
-      console.error('Brevo proprietor email:', mailResponse.status, mailBody);
-      if (userId) {
-        await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(userId), {
-          method: 'DELETE',
-          headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }
-        }).catch(() => {});
-      }
-      return res.status(502).json({ error: 'A conta não pôde ser concluída porque o e-mail não foi enviado. Confira o remetente do Brevo e tente novamente.' });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error('Brevo proprietor access email:', response.status, body);
+      throw new Error('A conta foi preparada, mas o e-mail não foi enviado. Confira o remetente e a configuração do Brevo.');
+    }
+  };
+
+  let createdUserId = '';
+  try {
+    // Confirma a sessão e exige perfil administrativo antes de criar ou redefinir acesso.
+    const callerResponse = await fetch(supabaseUrl + '/auth/v1/user', {
+      headers: { apikey: serviceKey, Authorization: 'Bearer ' + token }
+    });
+    const caller = await callerResponse.json().catch(() => ({}));
+    if (!callerResponse.ok || !caller.id) {
+      return res.status(401).json({ error: 'Sessão inválida ou expirada. Entre novamente.' });
     }
 
-    return res.status(201).json({ ok: true, userId });
-  } catch (error) {
-    console.error('Proprietor signup error:', error);
-    if (userId) {
-      await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(userId), {
-        method: 'DELETE',
-        headers: { apikey: serviceKey, Authorization: 'Bearer ' + serviceKey }
-      }).catch(() => {});
+    const adminResponse = await fetch(
+      supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(caller.id) + '&select=role&limit=1',
+      { headers }
+    );
+    const adminProfiles = await adminResponse.json().catch(() => []);
+    const adminRole = String(Array.isArray(adminProfiles) ? adminProfiles[0]?.role || '' : '').toLowerCase();
+    if (!adminResponse.ok || adminRole !== 'admin') {
+      return res.status(403).json({ error: 'Somente um administrador pode enviar os dados de acesso.' });
     }
-    return res.status(500).json({ error: 'Falha ao concluir o cadastro. Tente novamente.' });
+
+    const password = 'VSN' + digits.slice(-4);
+    const usersResponse = await fetch(supabaseUrl + '/auth/v1/admin/users?page=1&per_page=1000', { headers });
+    const usersBody = await usersResponse.json().catch(() => ({}));
+    const users = Array.isArray(usersBody) ? usersBody : (usersBody.users || []);
+    if (!usersResponse.ok) {
+      console.error('Supabase users lookup:', usersResponse.status, usersBody);
+      return res.status(502).json({ error: 'Não foi possível consultar as contas cadastradas.' });
+    }
+
+    let owner = users.find(user => String(user.email || '').toLowerCase() === email);
+    if (owner) {
+      const profileResponse = await fetch(
+        supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(owner.id) + '&select=id,user_type,role&limit=1',
+        { headers }
+      );
+      const profiles = await profileResponse.json().catch(() => []);
+      const profile = Array.isArray(profiles) ? profiles[0] : null;
+      if (!profileResponse.ok) {
+        console.error('Supabase owner profile lookup:', profileResponse.status, profiles);
+        return res.status(502).json({ error: 'Não foi possível verificar o perfil da conta existente.' });
+      }
+      const ownerType = String(profile?.role || profile?.user_type || owner.user_metadata?.user_type || '').toLowerCase();
+      if (!['proprietario', 'proprietário'].includes(ownerType)) {
+        return res.status(409).json({ error: 'Este e-mail já está associado a uma conta que não é de proprietário. Use outro e-mail ou confira o cadastro existente.' });
+      }
+
+      const updated = await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(owner.id), {
+        method: 'PUT',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password,
+          user_metadata: { ...(owner.user_metadata || {}), full_name: nome, phone: celular, user_type: 'proprietario' }
+        })
+      });
+      const updatedBody = await updated.json().catch(() => ({}));
+      if (!updated.ok) {
+        console.error('Supabase owner password update:', updated.status, updatedBody);
+        return res.status(502).json({ error: 'Não foi possível atualizar a senha da conta do proprietário.' });
+      }
+      await sendAccessEmail(password);
+      return res.status(200).json({ ok: true, userId: owner.id, reused: true });
+    }
+
+    const created = await fetch(supabaseUrl + '/auth/v1/admin/users', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email, password, email_confirm: true,
+        user_metadata: { full_name: nome, phone: celular, user_type: 'proprietario' }
+      })
+    });
+    const createdBody = await created.json().catch(() => ({}));
+    if (!created.ok) {
+      console.error('Supabase admin create user:', created.status, createdBody);
+      return res.status(502).json({ error: 'Não foi possível criar a conta do proprietário.' });
+    }
+    createdUserId = createdBody.id;
+
+    const profileResponse = await fetch(supabaseUrl + '/rest/v1/profiles', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ id: createdUserId, user_type: 'proprietario', role: 'proprietario', full_name: nome, phone: celular })
+    });
+    if (!profileResponse.ok) {
+      console.error('Supabase profile upsert:', profileResponse.status, await profileResponse.text().catch(() => ''));
+      await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(createdUserId), { method: 'DELETE', headers }).catch(() => {});
+      return res.status(502).json({ error: 'Não foi possível criar o perfil do proprietário.' });
+    }
+
+    try {
+      await sendAccessEmail(password);
+    } catch (mailError) {
+      await fetch(supabaseUrl + '/auth/v1/admin/users/' + encodeURIComponent(createdUserId), { method: 'DELETE', headers }).catch(() => {});
+      return res.status(502).json({ error: mailError.message });
+    }
+    return res.status(201).json({ ok: true, userId: createdUserId });
+  } catch (error) {
+    console.error('Proprietor signup/access error:', error);
+    return res.status(500).json({ error: error.message || 'Falha ao concluir o cadastro. Tente novamente.' });
   }
 }
