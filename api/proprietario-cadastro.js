@@ -81,7 +81,7 @@ export default async function handler(req, res) {
     let owner = users.find(user => String(user.email || '').toLowerCase() === email);
     if (owner) {
       const profileResponse = await fetch(
-        supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(owner.id) + '&select=id,user_type,role&limit=1',
+        supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(owner.id) + '&select=id,role&limit=1',
         { headers }
       );
       const profiles = await profileResponse.json().catch(() => []);
@@ -90,7 +90,7 @@ export default async function handler(req, res) {
         console.error('Supabase owner profile lookup:', profileResponse.status, profiles);
         return res.status(502).json({ error: 'Não foi possível verificar o perfil da conta existente.' });
       }
-      const ownerType = String(profile?.role || profile?.user_type || owner.user_metadata?.user_type || '').toLowerCase();
+      const ownerType = String(profile?.role || '').toLowerCase();
       if (!['proprietario', 'proprietário'].includes(ownerType)) {
         return res.status(409).json({ error: 'Este e-mail já está associado a uma conta que não é de proprietário. Use outro e-mail ou confira o cadastro existente.' });
       }
@@ -129,7 +129,7 @@ export default async function handler(req, res) {
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email, password, email_confirm: true,
-        user_metadata: { full_name: nome, phone: celular, user_type: 'proprietario', owner_access_email_pending: true }
+        user_metadata: { full_name: nome, phone: celular, owner_access_email_pending: true }
       })
     });
     const createdBody = await created.json().catch(() => ({}));
@@ -141,7 +141,7 @@ export default async function handler(req, res) {
 
     // O gatilho de auth.users já cria um perfil básico. Removemos somente esse perfil
     // recém-criado e inserimos o perfil definitivo para evitar ON CONFLICT DO UPDATE,
-    // que é bloqueado pela proteção de role/user_type.
+    // que é bloqueado pela proteção de role.
     const removeDefaultProfile = await fetch(
       supabaseUrl + '/rest/v1/profiles?id=eq.' + encodeURIComponent(createdUserId),
       { method: 'DELETE', headers }
@@ -155,7 +155,7 @@ export default async function handler(req, res) {
     const profileResponse = await fetch(supabaseUrl + '/rest/v1/profiles', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({ id: createdUserId, user_type: 'proprietario', role: 'proprietario', full_name: nome, phone: celular })
+      body: JSON.stringify({ id: createdUserId, role: 'proprietario', full_name: nome, phone: celular })
     });
     if (!profileResponse.ok) {
       console.error('Supabase profile insert:', profileResponse.status, await profileResponse.text().catch(() => ''));
