@@ -20,8 +20,8 @@ function renderDashboard(){const el=document.getElementById('dashboard');if(!el)
 function renderList(){const list=document.getElementById('list');if(!list)return;const q=(document.getElementById('filterSearch')?.value||'').trim().toLowerCase(),tr=document.getElementById('filterTransaction')?.value||'',pub=document.getElementById('filterPublished')?.value||'',typ=document.getElementById('filterType')?.value||'',filtered=items.filter(x=>{const text=[x.id,x.code,x.title,x.address,x.neighborhood,x.condominium_name,x.tower,x.unit_number].filter(Boolean).join(' ').toLowerCase();return(!q||text.includes(q))&&(!tr||x.transaction_type===tr)&&(!pub||(pub==='published'?x.published:!x.published))&&(!typ||x.property_type===typ)}),meta=document.getElementById('reportMeta');if(meta)meta.innerHTML='<b>'+filtered.length+'</b> de '+items.length+' imóvel(is) · '+reportPrefs.columns.length+' coluna(s) visível(is)';const cols=reportPrefs.columns.map(id=>REPORT_COLUMNS.find(c=>c.id===id)).filter(Boolean);if(!filtered.length){list.innerHTML='<p class="help">Nenhum imóvel encontrado com os filtros selecionados.</p>';return}list.innerHTML='<div class="table-wrap"><table class="report-table"><thead><tr><th>Ações</th>'+cols.map(c=>'<th>'+esc(c.label)+'</th>').join('')+'</tr></thead><tbody>'+filtered.map(x=>'<tr><td class="actions-cell"><button class="btn gray" data-action="view" data-id="'+esc(x.id)+'">Ver imóvel</button><button class="btn gray" data-action="edit" data-id="'+esc(x.id)+'">Editar</button><button class="btn gray" data-action="toggle" data-id="'+esc(x.id)+'">'+(x.published?'Despublicar':'Publicar')+'</button><button class="btn gray" data-action="delete" data-id="'+esc(x.id)+'">Excluir</button></td>'+cols.map(c=>{const v=c.value(x);if(c.id==='cover')return '<td><div class="cover cover-link" data-action="view" data-id="'+esc(x.id)+'" title="Abrir imóvel">'+(v?'<img src="'+esc(v)+'" alt="Capa">':'<span>Sem foto</span>')+'</div></td>';return '<td>'+esc(v??'—')+'</td>'}).join('')+'</tr>').join('')+'</tbody></table></div>';list.querySelectorAll('[data-action]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.dataset.id;if(btn.dataset.action==='view')viewProperty(id);else if(btn.dataset.action==='edit')edit(id);else if(btn.dataset.action==='toggle')toggle(id);else del(id)}))}async function load(){const list=document.getElementById('list');if(list)list.innerHTML='<p class="help">Carregando imóveis...</p>';const {data,error}=await S.from('properties').select('*').order('created_at',{ascending:false});if(error){if(list)list.innerHTML='<p class="danger">Erro ao carregar imóveis: '+esc(error.message)+'</p>';return}items=data||[];const types=[...new Set(items.map(x=>x.property_type).filter(Boolean))].sort();const sel=document.getElementById('filterType');if(sel){const cur=sel.value;sel.innerHTML='<option value="">Todos</option>'+types.map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('');sel.value=types.includes(cur)?cur:''}renderDashboard();renderList()}function toast(msg,type='ok'){let t=document.getElementById('vsnToast');if(!t){t=document.createElement('div');t.id='vsnToast';t.style.cssText='position:fixed;right:20px;bottom:20px;z-index:9999;padding:13px 17px;border-radius:10px;background:#202a33;color:#fff;font-weight:700;box-shadow:0 8px 25px rgba(0,0,0,.18)';document.body.appendChild(t)}t.textContent=msg;t.style.background=type==='err'?'#b42318':'#202a33';clearTimeout(window.__vsnToast);window.__vsnToast=setTimeout(()=>t.remove(),2800)}
 let currentProfile=null;
 async function loadProfileSummary(user){
-  const {data}=await S.from('profiles').select('user_type,role,full_name,avatar_url').eq('id',user.id).maybeSingle();
-  currentProfile=data||{user_type:'corretor',role:'corretor',full_name:user.user_metadata?.full_name||'',avatar_url:''};
+  const {data}=await S.from('profiles').select('role,full_name,avatar_url').eq('id',user.id).maybeSingle();
+  currentProfile=data||{role:'corretor',full_name:user.user_metadata?.full_name||'',avatar_url:''};
   document.getElementById('user').textContent=currentProfile.full_name||user.user_metadata?.full_name||'Usuário';
   const mini=document.getElementById('profileAvatarMini');
   const adminBtn=document.getElementById('adminUsersBtn');if(adminBtn)adminBtn.classList.toggle('show',currentProfile.role==='admin');
@@ -36,13 +36,13 @@ async function openProfile(){
   const {data:{user}}=await S.auth.getUser();
   if(!user)return;
   const {data,error}=await S.from('profiles').select('*').eq('id',user.id).maybeSingle();
-  currentProfile=data||{id:user.id,user_type:'corretor',role:'corretor',full_name:'',phone:'',cpf_cnpj:'',creci:'',company:'',bio:'',avatar_url:''};
+  currentProfile=data||{id:user.id,role:'corretor',full_name:'',phone:'',cpf_cnpj:'',creci:'',company:'',bio:'',avatar_url:''};
   if(error){document.getElementById('profileContent').innerHTML='<p class="danger">Não foi possível carregar o perfil: '+esc(error.message)+'</p>';return}
   renderProfileForm(user,currentProfile);
 }
 function renderProfileForm(user,p){
-  const role=p.role==='admin'?'Administrador':(p.user_type==='proprietario'?'Proprietário':'Corretor');
-  const showCreci=p.user_type!=='proprietario';
+  const role=p.role==='admin'?'Administrador':(p.role==='proprietario'?'Proprietário':'Corretor');
+  const showCreci=p.role!=='proprietario';
   const isAdmin=p.role==='admin';
   document.getElementById('profileContent').innerHTML=
     '<div class="profile-tabs">'+
@@ -123,7 +123,7 @@ async function saveProfile(){
       avatar=S.storage.from('profile-photos').getPublicUrl(path).data.publicUrl;
     }
     const row={full_name:document.getElementById('profileName').value.trim(),phone:document.getElementById('profilePhone').value.trim(),cpf_cnpj:document.getElementById('profileCpfCnpj').value.trim(),creci:document.getElementById('profileCreci')?.value.trim()||'',company:document.getElementById('profileCompany').value.trim(),bio:document.getElementById('profileBio').value.trim(),avatar_url:avatar,updated_at:new Date().toISOString()};
-    const {data:saved,error}=await S.from('profiles').update(row).eq('id',user.id).select('id,role,user_type,full_name,phone,cpf_cnpj,creci,company,bio,avatar_url,updated_at').maybeSingle();if(error)throw error;if(!saved)throw new Error('Perfil não encontrado para este usuário.');
+    const {data:saved,error}=await S.from('profiles').update(row).eq('id',user.id).select('id,role,full_name,phone,cpf_cnpj,creci,company,bio,avatar_url,updated_at').maybeSingle();if(error)throw error;if(!saved)throw new Error('Perfil não encontrado para este usuário.');
     currentProfile={...currentProfile,...row};await loadProfileSummary(user);toast('Perfil atualizado com sucesso.','ok');closeProfile();
   }catch(e){toast('Não foi possível salvar o perfil: '+(e.message||e),'err');if(btn){btn.disabled=false;btn.textContent='Salvar perfil'}}
 }
