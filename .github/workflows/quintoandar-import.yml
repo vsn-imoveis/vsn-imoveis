@@ -14,6 +14,12 @@ jobs:
       - name: Start importer
         run: |
           set -e
-          curl --fail --silent --show-error --max-time 30             "https://jpdfynaioepcmgqlqlht.supabase.co/functions/v1/quintoandar-import?token=vsn-quintoandar-import-2026-09-21"
+          curl --fail --silent --show-error --max-time 30 "https://jpdfynaioepcmgqlqlht.supabase.co/functions/v1/quintoandar-import?token=vsn-quintoandar-import-2026-09-21"
           echo
           echo "Importer trigger completed."
+      - name: Enrich condominium features and construction year
+        run: |
+          set -e
+          curl --fail --silent --show-error --max-time 60 "https://jpdfynaioepcmgqlqlht.supabase.co/functions/v1/condo-features-sync?token=vsn-condo-features-2026-09-21-7f3c9b2a"
+          echo
+          echo "Condominium enrichment batch completed."
