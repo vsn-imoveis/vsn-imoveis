@@ -2,6 +2,12 @@ name: Run construction year lookup
 
 on:
   workflow_dispatch:
+    inputs:
+      after_id:
+        description: "Cursor returned by the previous batch (leave blank for the first batch)"
+        required: false
+        type: string
+        default: ""
 
 jobs:
   lookup-construction-years:
@@ -12,12 +18,16 @@ jobs:
         env:
           SUPABASE_FUNCTION_URL: https://jpdfynaioepcmgqlqlht.supabase.co/functions/v1/condo-construction-year-copy
           FUNCTION_TOKEN: ${{ secrets.CONDO_CONSTRUCTION_YEAR_TOKEN }}
+          AFTER_ID: ${{ inputs.after_id }}
         run: |
           set -euo pipefail
           if [ -z "${FUNCTION_TOKEN:-}" ]; then
             echo "::error::Missing GitHub secret CONDO_CONSTRUCTION_YEAR_TOKEN"
             exit 1
           fi
-          curl --fail --silent --show-error --max-time 600 \
-            "${SUPABASE_FUNCTION_URL}?token=${FUNCTION_TOKEN}"
+          URL="${SUPABASE_FUNCTION_URL}?token=${FUNCTION_TOKEN}"
+          if [ -n "${AFTER_ID:-}" ]; then
+            URL="${URL}&after_id=${AFTER_ID}"
+          fi
+          curl --fail --silent --show-error --max-time 600 "${URL}"
           echo
