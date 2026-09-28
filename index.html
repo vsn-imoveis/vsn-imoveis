@@ -43,14 +43,13 @@ function searchProperties(){
     });
   }
 
-  // A seção "Todos os imóveis" mostra todos os anúncios que atendem aos filtros,
-  // sem excluir imóveis de venda ou locação conforme a aba selecionada.
-  const allMatching=list.slice();
-
+  // Aplica a modalidade selecionada antes de preencher as duas seções,
+  // para que "Todos os imóveis" também respeite Comprar/Alugar/Lançamentos.
   if(mode==='Comprar')list=list.filter(p=>p.for_sale||p.transaction_type==='sale'||p.transaction_type==='both');
   if(mode==='Alugar')list=list.filter(p=>p.for_rent||p.transaction_type==='rent'||p.transaction_type==='both');
   if(mode==='Lançamentos')list=list.filter(p=>/lançamento|lancamento/i.test((p.title||'')+' '+(p.property_type||'')));
 
+  const allMatching=list.slice();
   renderProperties(list.filter(p=>p.featured===true),'propertyCards');
   renderProperties(allMatching,'allPropertyCards');
   // Mantém a posição atual da tela após aplicar os filtros.
