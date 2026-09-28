@@ -44,6 +44,11 @@ body{padding-left:0!important}
  .vsn-sidebar-toggle{width:34px;height:34px;margin-right:8px}
  .content{padding-left:14px!important;padding-right:14px!important}
 }
+</style><style id="vsn-sidebar-scroll-flow-v1">
+/* Menu acompanha a rolagem da página, em vez de ficar preso à janela. */
+.admin-sidebar{position:absolute!important;top:var(--vsn-sidebar-top)!important;left:0!important;bottom:auto!important;height:auto!important;min-height:calc(100vh - var(--vsn-sidebar-top))!important;overflow:visible!important}
+.admin-sidebar .sidebar-menu{overflow:visible!important}
+#vsnSidebarToggle{position:absolute!important;left:calc(var(--vsn-sidebar-width) - 18px)!important;top:calc(var(--vsn-sidebar-top) + 50vh)!important;transform:translateY(-50%)!important}
 </style></head>
 <body>
 <header class="top"><button type="button" class="vsn-sidebar-toggle" id="vsnSidebarToggle" aria-label="Recolher menu lateral" aria-expanded="true" title="Recolher/expandir menu">☰</button><div class="brand">VSN<small>IMÓVEIS</small></div><div class="user"><div class="avatar">VS</div><span>Portal do proprietário</span></div></header><aside class="admin-sidebar"><a class="sidebar-brand" href="painel-login.html" aria-label="VSN Imóveis"><strong>VSN</strong><small>IMÓVEIS</small></a><nav class="sidebar-menu" aria-label="Menu administrativo"><a class="sidebar-link " href="painel-login.html"><span class="sidebar-ico">⌂</span><span>Painel</span></a><a class="sidebar-link " href="painel-cadastro.html"><span class="sidebar-ico">⌂</span><span>Imóveis</span></a><div class="sidebar-group"><a class="sidebar-link " href="lancamentos.html"><span class="sidebar-ico">⌂</span><span>Lançamentos</span></a><div class="sidebar-sub"><a href="lancamentos.html">Cadastrar lançamento</a><a href="listar-lancamentos.html">Listar lançamentos</a></div></div><div class="sidebar-divider"></div><a class="sidebar-link " href="painel-login.html#clientes"><span class="sidebar-ico">♙</span><span>Clientes</span></a><a class="sidebar-link active" href="proprietario.html"><span class="sidebar-ico">♙</span><span>Usuários</span></a><a class="sidebar-link " href="solicitacoes-proprietario.html"><span class="sidebar-ico">▤</span><span>Solicitações</span></a><a class="sidebar-link " href="painel-login.html#configuracoes"><span class="sidebar-ico">⚙</span><span>Configurações</span></a></nav></aside>
