@@ -16,10 +16,11 @@
     const role=profile.role||session.user.user_metadata?.role||'';
     const dest=role==='proprietario'?'/proprietario/':'/admin/painel-login.html';
     const display=profile.full_name||session.user.user_metadata?.full_name||session.user.email?.split('@')[0]||'Minha conta';
-    const photo=profile.avatar_url?'<img class="site-auth-avatar" src="'+esc(profile.avatar_url)+'" alt="">':'<span class="site-auth-avatar">'+esc(display.trim().charAt(0).toUpperCase())+'</span>';
+    const firstName=display.trim().split(/\\s+/)[0]||'Minha conta';
+    const photo=profile.avatar_url?'<img class="site-auth-avatar" src="'+esc(profile.avatar_url)+'" alt="">':'<span class="site-auth-avatar">'+esc(firstName.charAt(0).toUpperCase())+'</span>';
     const old=h.querySelector('.site-auth-controls');if(old)old.remove();
     const group=document.createElement('div');group.className='site-auth-controls';
-    group.innerHTML='<a class="site-auth-profile" href="'+dest+'" aria-label="Abrir perfil">'+photo+'<span>Perfil</span></a><span class="site-auth-name">'+esc(display)+'</span><button type="button" class="site-auth-bell" aria-label="Notificações" title="Notificações">🔔</button><button type="button" class="site-auth-logout">Sair</button>';
+    group.innerHTML='<a class="site-auth-profile" href="'+dest+'" aria-label="Abrir perfil">'+photo+'<span>'+esc(firstName)+'</span></a><button type="button" class="site-auth-bell" aria-label="Notificações" title="Notificações">🔔</button><button type="button" class="site-auth-logout">Sair</button>';
     group.querySelector('.site-auth-bell').addEventListener('click',()=>location.href=role==='proprietario'?'/proprietario/':'/admin/solicitacoes-proprietario.html');
     group.querySelector('.site-auth-logout').addEventListener('click',async()=>{const b=group.querySelector('.site-auth-logout');b.disabled=true;b.textContent='Saindo...';const {error}=await client.auth.signOut();if(error){b.disabled=false;b.textContent='Sair';alert('Não foi possível sair: '+error.message);return}render(null)});
     el.hidden=true;h.appendChild(group);
