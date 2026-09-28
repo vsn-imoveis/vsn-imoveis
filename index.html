@@ -12,7 +12,7 @@ function currentMode(){
   const active=document.querySelector('.tab.active');
   return active?active.textContent.trim():'Comprar';
 }
-function searchProperties(){
+function searchProperties(applyFilters=false){
   const type=(document.getElementById('searchType')?.value||'').trim();
   const city=(document.getElementById('searchCity')?.value||'').trim();
   const region=(document.getElementById('searchRegion')?.value||'').trim();
@@ -21,10 +21,10 @@ function searchProperties(){
   const mode=currentMode();
   let list=allProperties.slice();
 
-  if(type)list=list.filter(p=>(p.property_type||'').toLowerCase()===type.toLowerCase());
+  if(applyFilters&&type)list=list.filter(p=>(p.property_type||'').toLowerCase()===type.toLowerCase());
 
   // Aceita variações comuns do nome da cidade (ex.: "São Paulo - SP").
-  if(city){
+  if(applyFilters&&city){
     const normalize=s=>String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase().trim();
     const selectedCity=normalize(city);
     list=list.filter(p=>{
@@ -33,9 +33,9 @@ function searchProperties(){
     });
   }
 
-  if(region)list=list.filter(p=>String(p.region||window.locationRegionByNeighborhood?.[p.neighborhood]||'').toLowerCase()===region.toLowerCase());
-  if(neighborhood)list=list.filter(p=>(p.neighborhood||'').toLowerCase()===neighborhood.toLowerCase());
-  if(priceRange){
+  if(applyFilters&&region)list=list.filter(p=>String(p.region||window.locationRegionByNeighborhood?.[p.neighborhood]||'').toLowerCase()===region.toLowerCase());
+  if(applyFilters&&neighborhood)list=list.filter(p=>(p.neighborhood||'').toLowerCase()===neighborhood.toLowerCase());
+  if(applyFilters&&priceRange){
     list=list.filter(p=>{
       const value=Number((mode==='Alugar' ? p.rent_price : p.price) || 0);
       if(mode==='Alugar'){
@@ -107,11 +107,12 @@ function updatePriceOptions(mode){
     ? '<option value="">Todos</option><option value="rent-0-2000">Até R$ 2 mil/mês</option><option value="rent-2000-5000">R$ 2 mil a R$ 5 mil/mês</option><option value="rent-5000-10000">R$ 5 mil a R$ 10 mil/mês</option><option value="rent-10000+">Acima de R$ 10 mil/mês</option>'
     : '<option value="">Todos</option><option value="0-500000">Até R$ 500 mil</option><option value="500000-1000000">R$ 500 mil – R$ 1 milhão</option><option value="1000000+">Acima de R$ 1 milhão</option>';
 }
-document.getElementById('searchPropertiesBtn')?.addEventListener('click',searchProperties);
+document.getElementById('searchPropertiesBtn')?.addEventListener('click',()=>searchProperties(true));
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
   updatePriceOptions(currentMode());
+  searchProperties(false);
 }));
 async function loadProperties(){
   try{
@@ -121,8 +122,7 @@ async function loadProperties(){
     const data=await r.json();
     allProperties=Array.isArray(data)?data:[];
     populateNeighborhoods();
-    renderProperties(allProperties.filter(p=>p.featured===true),'propertyCards');
-    renderProperties(allProperties,'allPropertyCards');
+    searchProperties(false);
   }catch(e){
     console.error('Erro ao carregar imóveis:',e);
     propertyCards.innerHTML='<div class="property-loading">Não foi possível carregar os imóveis agora.</div>';
