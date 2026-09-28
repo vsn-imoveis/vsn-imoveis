@@ -132,3 +132,5 @@ async function loadSiteSettings(){
 }
 loadSiteSettings();
 </script><div class="access-overlay" id="accessModal" role="dialog" aria-modal="true" aria-labelledby="accessTitle" onclick="if(event.target===this)closeAccessModal()"><div class="access-box"><button class="access-close" type="button" aria-label="Fechar" onclick="closeAccessModal()">×</button><h2 id="accessTitle">Acessar minha conta</h2><p>Como você deseja entrar na VSN Imóveis?</p><div class="access-options"><button type="button" onclick="window.location.href='/admin/painel-login.html'">Sou corretor</button><button type="button" class="secondary" onclick="window.location.href='/proprietario/'">Sou proprietário</button></div></div></div><script>function openAccessModal(){const modal=document.getElementById("accessModal");if(modal){modal.classList.add("open");document.body.style.overflow="hidden"}}function closeAccessModal(){const modal=document.getElementById("accessModal");if(modal){modal.classList.remove("open");document.body.style.overflow=""}}</script><script src="/site-auth.js"></script></body></html>
+
+<!-- Disparo de nova publicação automática pela Vercel. -->
