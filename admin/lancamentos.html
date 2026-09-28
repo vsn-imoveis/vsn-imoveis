@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VSN Imóveis | Cadastro de lançamentos</title>
+<title>VSN Imóveis | Cadastro de lançamentos</title><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--dark:#061d2d;--gold:#d3aa62;--text:#0b2940;--muted:#6c7881;--line:#e1e6e9;--bg:#f6f8fa;--green:#168044;--red:#b42318}
@@ -10,7 +10,7 @@
 </style>
 </head>
 <body>
-<header class="site-header"><a class="brand-text" href="../index.html" aria-label="VSN Imóveis"><span>VSN</span><small>IMÓVEIS</small></a><nav class="site-nav" aria-label="Navegação principal"><a href="../index.html#comprar">Comprar</a><a href="../index.html#alugar">Alugar</a><a href="../index.html#vender">Vender meu imóvel</a><a href="../index.html#sobre">Sobre nós</a><a href="../index.html#contato">Contato</a></nav><div class="site-actions"><a class="wa-top" href="https://wa.me/5511974116234" aria-label="WhatsApp">☏</a><a class="contact-link" href="https://wa.me/5511974116234">Fale comigo</a><a class="login-link" href="painel-login.html">Entrar</a><span class="header-user" id="userLabel"></span><button class="header-logout" id="logout" hidden>Sair</button></div></header>
+<header class="site-header"><a class="brand-text" href="../index.html" aria-label="VSN Imóveis"><span>VSN</span><small>IMÓVEIS</small></a><nav class="site-nav" aria-label="Navegação principal"><a href="../index.html#comprar">Comprar</a><a href="../index.html#alugar">Alugar</a><a href="../index.html#vender">Vender meu imóvel</a><a href="../index.html#sobre">Sobre nós</a><a href="../index.html#contato">Contato</a></nav><div class="site-actions"><a class="wa-top" href="https://wa.me/5511974116234" aria-label="WhatsApp"><i class="fa fa-whatsapp" aria-hidden="true"></i></a><a class="contact-link" href="https://wa.me/5511974116234">Fale comigo</a><a class="login-link" href="painel-login.html">Entrar</a><span class="header-user" id="userLabel"></span><button class="header-logout" id="logout" hidden>Sair</button></div></header>
 <div class="wrap">
 <section id="loginPanel" class="panel login" hidden><h2>Acesso administrativo</h2><p class="muted">Entre com sua conta de administrador para cadastrar lançamentos.</p><form id="loginForm"><div class="field full"><label>E-mail</label><input id="email" type="email" autocomplete="username" required></div><div class="field full" style="margin-top:12px"><label>Senha</label><input id="password" type="password" autocomplete="current-password" required></div><div class="actions"><button class="primary">Entrar</button></div><div id="loginMsg" class="status"></div></form></section>
 <section id="app" hidden>
