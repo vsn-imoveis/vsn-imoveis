@@ -76,8 +76,8 @@ function populateNeighborhoods(){
     const values=[...new Set(allProperties.map(p=>p.neighborhood).filter(Boolean))].filter(v=>!selected||String(window.locationRegionByNeighborhood[v]||'').toLowerCase()===selected.toLowerCase()).sort((a,b)=>a.localeCompare(b,'pt-BR'));
     neighborhoodEl.innerHTML='<option value="">Todos</option>'+values.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');
   }
-  regionEl.addEventListener('change',()=>{fillNeighborhoods();searchProperties();});
-  neighborhoodEl.addEventListener('change',searchProperties);
+  regionEl.addEventListener('change',fillNeighborhoods);
+  // Região e bairro só filtram os imóveis ao clicar em Buscar.
   fillNeighborhoods();
 }
 function populateNeighborhoods_LEGACY(){
@@ -112,7 +112,6 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
   updatePriceOptions(currentMode());
-  searchProperties();
 }));
 async function loadProperties(){
   try{
