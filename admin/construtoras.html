@@ -26,6 +26,20 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 .table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:12px 10px;border-bottom:1px solid #edf0f2;text-align:left;white-space:nowrap}th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}td{font-size:13px}.subtext{display:block;color:var(--muted);font-size:11px;margin-top:4px}.badge{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}.published{background:#eaf7ef;color:#176b3c}.draft{background:#f1f3f5;color:#66717a}
 .search{margin-bottom:14px}
 @media(max-width:760px){.admin-top{height:72px;padding:0 12px;gap:8px}.admin-brand{flex-basis:72px}.admin-brand span{font-size:32px}.admin-brand small{font-size:6px;letter-spacing:3px}.profile-avatar{width:30px;height:30px}.updates-bell{width:36px;height:36px}.header-logout{padding:9px 10px;font-size:12px}.admin-sidebar{width:58px;top:72px}.sidebar-link{justify-content:center;padding:10px 4px}.sidebar-link span:not(.sidebar-ico){display:none}.sidebar-sub{display:none}.wrap{margin-left:58px;padding:18px 10px 100px}.field,.field.third{grid-column:1/-1}.head{align-items:flex-start;flex-direction:column}.head h1{font-size:23px}.panel{padding:14px}.profile-btn{padding:5px 9px 5px 5px;gap:6px;font-size:12px}}
+
+/* Cabeçalho padronizado com as demais telas administrativas */
+.admin-top{height:112px!important;background:#061d2d!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;padding:0 4.7%!important;gap:18px!important;box-sizing:border-box}
+.admin-brand{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;text-decoration:none!important;color:#d3aa62!important;line-height:1!important;flex:0 0 112px!important}
+.admin-brand span{font:40px Georgia,"Times New Roman",serif!important;letter-spacing:-1px!important;color:#d3aa62!important}
+.admin-brand small{font:7px Arial,sans-serif!important;letter-spacing:4px!important;color:#fff!important;margin-top:8px!important}
+.admin-header-actions{margin-left:auto!important;display:flex!important;align-items:center!important;gap:14px!important}
+.profile-btn{display:flex!important;align-items:center!important;gap:10px!important;border:0!important;border-radius:28px!important;background:#fff!important;color:#102b40!important;padding:8px 16px 8px 8px!important;font:600 14px Arial,sans-serif!important}
+.header-user{font-size:12px!important;color:#fff!important;white-space:nowrap}
+.profile-btn .header-user{color:#102b40!important;font-size:14px!important}
+.profile-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#e8eaf0;color:#102b40;font-weight:800}
+.updates-bell{width:46px;height:46px;border:1px solid #365163;border-radius:50%;display:grid;place-items:center;text-decoration:none;font-size:20px}
+.header-logout{border:1px solid #365163!important;background:transparent!important;color:#fff!important;border-radius:10px!important;padding:11px 16px!important;font:inherit!important;cursor:pointer}
+@media(max-width:760px){.admin-top{height:86px!important;padding:0 12px!important;gap:8px!important}.admin-brand{flex-basis:72px!important}.admin-brand span{font-size:32px!important}.admin-brand small{font-size:6px!important;letter-spacing:3px!important}.admin-header-actions{gap:6px!important}.profile-btn{padding:5px 9px 5px 5px!important;gap:6px!important;font-size:12px!important}.profile-avatar{width:30px;height:30px}.updates-bell{width:36px;height:36px}.header-logout{padding:9px 10px!important;font-size:12px!important}}
 </style>
 </head>
 <body>
@@ -91,7 +105,7 @@ $('#builderForm').addEventListener('submit',async e=>{e.preventDefault();const f
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const{data,error}=await db.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});if(error){msg($('#loginMsg'),error.message,true);return;}await verifyAdmin(data.session);});
 async function verifyAdmin(session){sessionUser=session?.user;if(!sessionUser){showLogin();return;}const{data,error}=await db.from('profiles').select('role,full_name').eq('id',sessionUser.id).maybeSingle();if(error||data?.role!=='admin'){await db.auth.signOut();showLogin();msg($('#loginMsg'),'Acesso restrito a administradores.',true);return;}const nm=(data?.full_name||sessionUser.user_metadata?.full_name||sessionUser.email||'Usuário').trim();$('#userLabel').textContent=nm.split(/\s+/)[0];$('#userInitial').textContent=(nm[0]||'U').toUpperCase();showApp();await load();}
 $('#logout').onclick=async()=>{await db.auth.signOut();sessionUser=null;showLogin();};
-$('#vsnSidebarToggle').onclick=()=>document.body.classList.toggle('sidebar-collapsed');
+$('#vsnSidebarToggle').onclick=()=>{const collapsed=document.body.classList.toggle('vsn-sidebar-collapsed');$('#vsnSidebarToggle').setAttribute('aria-expanded',String(!collapsed));};
 /* Corrigido: removida chamada síncrona inválida de getSession que interrompia o JavaScript e deixava a tela em branco. */
 (async()=>{const{data:{session}}=await db.auth.getSession();if(session)await verifyAdmin(session);else showLogin();db.auth.onAuthStateChange((_e,s)=>{if(s&&!sessionUser)verifyAdmin(s);});})();
 </script>
