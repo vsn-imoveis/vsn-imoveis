@@ -45,6 +45,14 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 #userAvatar{width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;max-width:38px!important;max-height:38px!important;flex:0 0 38px!important;overflow:hidden!important;border-radius:50%!important;position:relative!important;padding:0!important}
 #userAvatar img{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0!important;min-height:0!important;object-fit:cover!important;border-radius:50%!important}
 @media(max-width:760px){#userAvatar{width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;max-width:30px!important;max-height:30px!important;flex-basis:30px!important}}
+
+.modal-overlay{position:fixed;inset:0;z-index:2000;background:rgba(4,20,32,.62);display:flex;align-items:center;justify-content:center;padding:22px;overflow-y:auto}
+.modal-overlay[hidden]{display:none!important}
+.modal-dialog{width:min(900px,100%);max-height:calc(100vh - 44px);overflow-y:auto;background:#f5f7f9;border-radius:16px;box-shadow:0 20px 70px #0005;padding:20px}
+.modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.modal-head h2{margin:0;font-size:22px;color:var(--text)}
+.form-panel{margin:0}
+@media(max-width:760px){.modal-overlay{padding:10px}.modal-dialog{max-height:calc(100vh - 20px);padding:12px}.modal-head h2{font-size:19px}}
 </style>
 </head>
 <body>
@@ -70,7 +78,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <div class="table-wrap"><table><thead><tr><th>Construtora</th><th>Contato</th><th>Site</th><th>Status</th><th>Ações</th></tr></thead><tbody id="rows"></tbody></table></div>
 <div id="empty" class="muted" style="padding:15px 0" hidden>Nenhuma construtora cadastrada.</div><div id="listMsg" class="status"></div>
 </div>
-<div class="panel">
+<div class="modal-overlay" id="builderModal" hidden><div class="modal-dialog"><div class="modal-head"><h2 id="modalTitle">Nova construtora</h2><button type="button" class="btn secondary" id="closeModalBtn" aria-label="Fechar">✕</button></div><div class="panel form-panel">
 <form id="builderForm">
 <input type="hidden" name="id">
 <div class="grid">
@@ -86,7 +94,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <div class="actions"><button type="button" class="btn secondary" id="resetBtn">Limpar formulário</button><button type="submit" class="btn primary" id="saveBtn">Salvar construtora</button></div>
 <div id="formMsg" class="status"></div>
 </form>
-</div>
+</div></div></div>
 </section>
 </div></div>
 <script>
@@ -96,13 +104,13 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function msg(el,t,err=false){el.textContent=t;el.style.color=err?'#b42318':'#168044';}
 function showLogin(){ $('#loginPanel').hidden=false;$('#app').hidden=true; } function showApp(){ $('#loginPanel').hidden=true;$('#app').hidden=false; }
 function resetForm(){const f=$('#builderForm');f.reset();f.elements.id.value='';f.elements.active.checked=true;$('#formMsg').textContent='';}
-function setForm(d){const f=$('#builderForm');resetForm();for(const k of ['name','legal_name','document','phone','website','description','logo_url']){if(f.elements[k])f.elements[k].value=d[k]||''}f.elements.id.value=d.id||'';f.elements.active.checked=d.active!==false;window.scrollTo({top:0,behavior:'smooth'});}
+function openFormModal(title){$('#modalTitle').textContent=title;$('#builderModal').hidden=false;document.body.style.overflow='hidden';}\nfunction closeFormModal(){ $('#builderModal').hidden=true;document.body.style.overflow='';}\nfunction setForm(d){const f=$('#builderForm');resetForm();for(const k of ['name','legal_name','document','phone','website','description','logo_url']){if(f.elements[k])f.elements[k].value=d[k]||''}f.elements.id.value=d.id||'';f.elements.active.checked=d.active!==false;openFormModal('Editar construtora');}
 function val(f,k){return String(f.elements[k]?.value||'').trim();}
 async function load(){const q=$('#q').value.trim().toLowerCase();const{data,error}=await db.from('developers').select('id,name,legal_name,document,phone,website,description,logo_url,active,updated_at').order('name');if(error){msg($('#listMsg'),'Erro ao carregar: '+error.message,true);return;}all=data||[];const rows=all.filter(d=>!q||[d.name,d.legal_name,d.document].some(v=>String(v||'').toLowerCase().includes(q)));$('#rows').innerHTML=rows.map(d=>'<tr><td><strong>'+esc(d.name)+'</strong><span class="subtext">'+esc(d.legal_name||d.document||'')+'</span></td><td>'+esc(d.phone||'—')+'</td><td>'+(d.website?'<a href="'+esc(d.website)+'" target="_blank" rel="noopener">Abrir site</a>':'—')+'</td><td><span class="badge '+(d.active?'published':'draft')+'">'+(d.active?'Ativa':'Inativa')+'</span></td><td><button class="btn secondary" data-edit="'+esc(d.id)+'">Editar</button> <button class="btn '+(d.active?'danger':'primary')+'" data-toggle="'+esc(d.id)+'" data-active="'+String(!!d.active)+'">'+(d.active?'Desativar':'Ativar')+'</button></td></tr>').join('');$('#empty').hidden=rows.length>0;$('#rows').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit));$('#rows').querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggle(b.dataset.toggle,b.dataset.active==='true'));}
 async function edit(id){const d=all.find(x=>String(x.id)===String(id));if(d)setForm(d);}
 async function toggle(id,active){const{error}=await db.from('developers').update({active:!active,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('Não foi possível alterar o status: '+error.message);return;}await load();}
-$('#q').addEventListener('input',load);$('#newBtn').onclick=resetForm;$('#resetBtn').onclick=resetForm;
-$('#builderForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,btn=$('#saveBtn');btn.disabled=true;msg($('#formMsg'),'Salvando construtora...');const id=val(f,'id');const payload={name:val(f,'name'),legal_name:val(f,'legal_name')||null,document:val(f,'document')||null,phone:val(f,'phone')||null,website:val(f,'website')||null,description:val(f,'description')||null,logo_url:val(f,'logo_url')||null,active:f.elements.active.checked,updated_at:new Date().toISOString()};try{let r=id?await db.from('developers').update(payload).eq('id',id):await db.from('developers').insert({...payload,created_by:sessionUser.id}).select('id').single();if(r.error)throw r.error;f.elements.id.value=r.data?.id||id||'';msg($('#formMsg'),id?'Construtora atualizada.':'Construtora cadastrada.');await load();}catch(err){console.error(err);msg($('#formMsg'),'Erro ao salvar: '+(err.message||err),true);}finally{btn.disabled=false;}});
+$('#q').addEventListener('input',load);$('#newBtn').onclick=()=>{resetForm();openFormModal('Nova construtora');};$('#resetBtn').onclick=resetForm;$('#closeModalBtn').onclick=closeFormModal;$('#builderModal').addEventListener('click',e=>{if(e.target.id==='builderModal')closeFormModal();});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#builderModal').hidden)closeFormModal();});
+$('#builderForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,btn=$('#saveBtn');btn.disabled=true;msg($('#formMsg'),'Salvando construtora...');const id=val(f,'id');const payload={name:val(f,'name'),legal_name:val(f,'legal_name')||null,document:val(f,'document')||null,phone:val(f,'phone')||null,website:val(f,'website')||null,description:val(f,'description')||null,logo_url:val(f,'logo_url')||null,active:f.elements.active.checked,updated_at:new Date().toISOString()};try{let r=id?await db.from('developers').update(payload).eq('id',id):await db.from('developers').insert({...payload,created_by:sessionUser.id}).select('id').single();if(r.error)throw r.error;f.elements.id.value=r.data?.id||id||'';msg($('#formMsg'),id?'Construtora atualizada.':'Construtora cadastrada.');await load();closeFormModal();}catch(err){console.error(err);msg($('#formMsg'),'Erro ao salvar: '+(err.message||err),true);}finally{btn.disabled=false;}});
 $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const{data,error}=await db.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});if(error){msg($('#loginMsg'),error.message,true);return;}await verifyAdmin(data.session);});
 async function verifyAdmin(session){sessionUser=session?.user;if(!sessionUser){showLogin();return;}const{data,error}=await db.from('profiles').select('*').eq('id',sessionUser.id).maybeSingle();if(error||data?.role!=='admin'){await db.auth.signOut();showLogin();msg($('#loginMsg'),'Acesso restrito a administradores.',true);return;}const meta=sessionUser.user_metadata||{};const nm=(data?.full_name||data?.nome_completo||data?.name||meta.full_name||meta.name||sessionUser.email||'Usuário').trim();$('#userLabel').textContent=nm.split(/\s+/)[0];const pic=data?.avatar_url||data?.photo_url||data?.foto_url||data?.foto||data?.avatar||meta.avatar_url||meta.picture||meta.photo_url||'';const avatar=$('#userAvatar');if(pic){avatar.innerHTML='<img src="'+esc(pic)+'" alt="Foto do perfil" onerror="this.remove();document.getElementById(\'userInitial\').style.display=\'grid\';">';}else{avatar.innerHTML='<span id="userInitial">'+esc((nm[0]||'U').toUpperCase())+'</span>';}showApp();await load();}
 $('#logout').onclick=async()=>{await db.auth.signOut();sessionUser=null;showLogin();};
