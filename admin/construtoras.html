@@ -40,6 +40,11 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 .updates-bell{width:46px;height:46px;border:1px solid #365163;border-radius:50%;display:grid;place-items:center;text-decoration:none;font-size:20px}
 .header-logout{border:1px solid #365163!important;background:transparent!important;color:#fff!important;border-radius:10px!important;padding:11px 16px!important;font:inherit!important;cursor:pointer}
 @media(max-width:760px){.admin-top{height:86px!important;padding:0 12px!important;gap:8px!important}.admin-brand{flex-basis:72px!important}.admin-brand span{font-size:32px!important}.admin-brand small{font-size:6px!important;letter-spacing:3px!important}.admin-header-actions{gap:6px!important}.profile-btn{padding:5px 9px 5px 5px!important;gap:6px!important;font-size:12px!important}.profile-avatar{width:30px;height:30px}.updates-bell{width:36px;height:36px}.header-logout{padding:9px 10px!important;font-size:12px!important}}
+
+/* Foto do usuário limitada ao círculo do avatar no cabeçalho */
+#userAvatar{width:38px!important;height:38px!important;min-width:38px!important;min-height:38px!important;max-width:38px!important;max-height:38px!important;flex:0 0 38px!important;overflow:hidden!important;border-radius:50%!important;position:relative!important;padding:0!important}
+#userAvatar img{display:block!important;width:100%!important;height:100%!important;max-width:100%!important;max-height:100%!important;min-width:0!important;min-height:0!important;object-fit:cover!important;border-radius:50%!important}
+@media(max-width:760px){#userAvatar{width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;max-width:30px!important;max-height:30px!important;flex-basis:30px!important}}
 </style>
 </head>
 <body>
