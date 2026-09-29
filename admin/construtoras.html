@@ -44,11 +44,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 </head>
 <body>
 <div class="admin-main">
-<header class="admin-top">
-<button id="vsnSidebarToggle" class="vsn-sidebar-toggle" type="button">☰</button>
-<a class="admin-brand" href="painel-login.html"><span>VSN</span><small>IMÓVEIS</small></a>
-<div class="admin-header-actions"><button class="profile-btn" type="button"><span class="profile-avatar" id="userInitial">U</span><span id="userLabel">Usuário</span></button><a class="updates-bell" href="solicitacoes-proprietario.html">🔔</a><button class="header-logout" id="logout">Sair</button></div>
-</header>
+<header class="admin-top"><button type="button" class="vsn-sidebar-toggle" id="vsnSidebarToggle" aria-label="Recolher menu lateral" aria-expanded="true" title="Recolher/expandir menu">☰</button><a class="admin-brand" href="painel-login.html" aria-label="VSN Imóveis"><span>VSN</span><small>IMÓVEIS</small></a><div class="admin-header-actions"><button class="profile-btn" type="button" aria-label="Usuário conectado"><span class="profile-avatar" id="userInitial">U</span><span class="header-user" id="userLabel">Usuário</span></button><a class="updates-bell" href="solicitacoes-proprietario.html" title="Solicitações" aria-label="Solicitações">🔔</a><button class="header-logout" id="logout" hidden>Sair</button></div></header>
 <aside class="admin-sidebar"><nav class="sidebar-menu" aria-label="Menu administrativo">
 <a class="sidebar-link" href="painel-login.html"><span class="sidebar-ico">⌂</span><span>Painel de Imóveis</span></a>
 <div class="sidebar-sub"><a href="painel-cadastro.html">Cadastrar imóvel</a></div>
