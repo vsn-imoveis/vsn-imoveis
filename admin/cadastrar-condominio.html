@@ -137,7 +137,7 @@ function closeQuickBuilder(){const m=$('#quickBuilderModal');m.hidden=true;docum
 function openQuickBuilder(){const f=$('#quickBuilderForm');f.reset();$('#quickBuilderMsg').textContent='';$('#quickBuilderModal').hidden=false;document.body.style.overflow='hidden';setTimeout(()=>$('#quickBuilderName').focus(),50);}
 $('#openBuilderModal').addEventListener('click',openQuickBuilder);$('#closeQuickBuilder').addEventListener('click',closeQuickBuilder);$('#cancelQuickBuilder').addEventListener('click',closeQuickBuilder);$('#quickBuilderModal').addEventListener('click',e=>{if(e.target.id==='quickBuilderModal')closeQuickBuilder()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#quickBuilderModal').hidden)closeQuickBuilder()});
 $('#quickBuilderForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,btn=$('#saveQuickBuilder');const name=f.elements.name.value.trim();if(!name)return;btn.disabled=true;$('#quickBuilderMsg').style.color='#52616b';$('#quickBuilderMsg').textContent='Salvando construtora...';const payload={name,legal_name:f.elements.legal_name.value.trim()||null,document:f.elements.document.value.trim()||null,phone:f.elements.phone.value.trim()||null,website:f.elements.website.value.trim()||null,partnership_manager_name:f.elements.partnership_manager_name.value.trim()||null,partnership_manager_phone:f.elements.partnership_manager_phone.value.trim()||null,active:true,created_by:sessionUser?.id||null,updated_at:new Date().toISOString()};try{const{data,error}=await db.from('developers').insert(payload).select('id,name').single();if(error)throw error;await loadDevelopers(data.name);chooseBuilder(data.name);closeQuickBuilder();$('#formMsg').style.color='#168044';$('#formMsg').textContent='Construtora cadastrada e selecionada.';}catch(err){$('#quickBuilderMsg').style.color='#b42318';$('#quickBuilderMsg').textContent='Erro ao salvar: '+(err.message||err);}finally{btn.disabled=false;}});
-let developerNames=[];
+let developers=[];
 function chooseBuilder(name){
  const sel=$('#builderSelect');
  let opt=[...sel.options].find(o=>o.value.toLocaleLowerCase('pt-BR')===String(name||'').toLocaleLowerCase('pt-BR'));
@@ -148,18 +148,24 @@ function chooseBuilder(name){
 function filterBuilderOptions(){
  const sel=$('#builderSelect');const chosen=sel.value;
  const q=$('#builderSearch').value.trim().toLocaleLowerCase('pt-BR');
- const filtered=developerNames.filter(name=>name.toLocaleLowerCase('pt-BR').includes(q));
+ const filtered=developers.filter(d=>!q||[d.name,d.legal_name,d.document].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q)));
  sel.innerHTML='<option value="">'+(q?'Selecione uma opção encontrada':'Selecione a construtora')+'</option>';
- filtered.forEach(name=>sel.add(new Option(name,name)));
- if(chosen&&filtered.includes(chosen))sel.value=chosen;
+ const added=new Set();
+ filtered.forEach(d=>{
+  const name=String(d.name||'').trim();
+  if(!name||added.has(name.toLocaleLowerCase('pt-BR')))return;
+  added.add(name.toLocaleLowerCase('pt-BR'));
+  sel.add(new Option(name,name));
+ });
+ if(chosen&&[...sel.options].some(o=>o.value===chosen))sel.value=chosen;
 }
 $('#builderSearch').addEventListener('input',filterBuilderOptions);
 async function loadDevelopers(selected=''){
  const sel=$('#builderSelect');
- const{data,error}=await db.from('developers').select('name,active').eq('active',true).order('name');
+ const{data,error}=await db.from('developers').select('id,name,legal_name,document,active').order('name');
  if(error){msg($('#formMsg'),'Não foi possível carregar construtoras: '+error.message,true);return;}
- developerNames=[...new Set((data||[]).map(row=>String(row.name||'').trim()).filter(Boolean))];
- if(selected&&!developerNames.some(n=>n.toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))developerNames.push(selected);
+ developers=data||[];
+ if(selected&&!developers.some(d=>String(d.name||'').toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))developers.push({name:selected});
  $('#builderSearch').value='';
  filterBuilderOptions();
  if(selected)sel.value=selected;
