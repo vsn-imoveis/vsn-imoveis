@@ -137,33 +137,37 @@ function closeQuickBuilder(){const m=$('#quickBuilderModal');m.hidden=true;docum
 function openQuickBuilder(){const f=$('#quickBuilderForm');f.reset();$('#quickBuilderMsg').textContent='';$('#quickBuilderModal').hidden=false;document.body.style.overflow='hidden';setTimeout(()=>$('#quickBuilderName').focus(),50);}
 $('#openBuilderModal').addEventListener('click',openQuickBuilder);$('#closeQuickBuilder').addEventListener('click',closeQuickBuilder);$('#cancelQuickBuilder').addEventListener('click',closeQuickBuilder);$('#quickBuilderModal').addEventListener('click',e=>{if(e.target.id==='quickBuilderModal')closeQuickBuilder()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#quickBuilderModal').hidden)closeQuickBuilder()});
 $('#quickBuilderForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,btn=$('#saveQuickBuilder');const name=f.elements.name.value.trim();if(!name)return;btn.disabled=true;$('#quickBuilderMsg').style.color='#52616b';$('#quickBuilderMsg').textContent='Salvando construtora...';const payload={name,legal_name:f.elements.legal_name.value.trim()||null,document:f.elements.document.value.trim()||null,phone:f.elements.phone.value.trim()||null,website:f.elements.website.value.trim()||null,partnership_manager_name:f.elements.partnership_manager_name.value.trim()||null,partnership_manager_phone:f.elements.partnership_manager_phone.value.trim()||null,active:true,created_by:sessionUser?.id||null,updated_at:new Date().toISOString()};try{const{data,error}=await db.from('developers').insert(payload).select('id,name').single();if(error)throw error;await loadDevelopers(data.name);chooseBuilder(data.name);closeQuickBuilder();$('#formMsg').style.color='#168044';$('#formMsg').textContent='Construtora cadastrada e selecionada.';}catch(err){$('#quickBuilderMsg').style.color='#b42318';$('#quickBuilderMsg').textContent='Erro ao salvar: '+(err.message||err);}finally{btn.disabled=false;}});
-let developerNames=[];
-function renderBuilderResults(){
- const query=$('#builderSearch').value.trim().toLocaleLowerCase('pt-BR');
+let developerNames=[];let builderSearchTimer=null;let builderSearchRequest=0;
+function renderBuilderResults(names,query){
  const box=$('#builderResults');
- if(!query){box.innerHTML='';box.hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');return;}
- const matches=developerNames.filter(name=>name.toLocaleLowerCase('pt-BR').includes(query)).slice(0,60);
- box.innerHTML=matches.length?matches.map(name=>'<button type="button" class="builder-result" role="option" data-builder-name="'+esc(name)+'">'+esc(name)+'</button>').join(''):'<div class="builder-results-empty">Nenhuma construtora encontrada.</div>';
+ box.innerHTML=names.length?names.map(name=>'<button type="button" class="builder-result" role="option" data-builder-name="'+esc(name)+'">'+esc(name)+'</button>').join(''):'<div class="builder-results-empty">'+(query?'Nenhuma construtora encontrada com esse nome.':'Digite o nome da construtora para buscar.')+'</div>';
  box.hidden=false;$('#builderSearch').setAttribute('aria-expanded','true');
 }
 function chooseBuilder(name){
- const sel=$('#builderSelect');
- sel.innerHTML='<option value="">Selecione a construtora</option>';
+ const sel=$('#builderSelect');sel.innerHTML='<option value="">Selecione a construtora</option>';
  if(name){if(!developerNames.some(n=>n.toLocaleLowerCase('pt-BR')===String(name).toLocaleLowerCase('pt-BR')))developerNames.push(name);sel.insertAdjacentHTML('beforeend','<option value="'+esc(name)+'">'+esc(name)+'</option>');sel.value=name;}
- $('#builderSearch').value=name||'';
- $('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');
+ $('#builderSearch').value=name||'';$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');
 }
-$('#builderSearch').addEventListener('input',()=>{const typed=$('#builderSearch').value.trim();const exact=developerNames.find(n=>n.toLocaleLowerCase('pt-BR')===typed.toLocaleLowerCase('pt-BR'));$('#builderSelect').value='';if(exact)chooseBuilder(exact);else renderBuilderResults();});
-$('#builderSearch').addEventListener('focus',()=>{if($('#builderSearch').value.trim()!==$('#builderSelect').value)renderBuilderResults();});
+async function searchDevelopersByName(){
+ const query=$('#builderSearch').value.trim();const req=++builderSearchRequest;
+ $('#builderSelect').value='';
+ if(!query){$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');return;}
+ const{data,error}=await db.from('developers').select('name').eq('active',true).ilike('name','%'+query+'%').order('name').limit(50);
+ if(req!==builderSearchRequest)return;
+ if(error){renderBuilderResults([],query);$('#builderResults').innerHTML='<div class="builder-results-empty">Erro ao buscar: '+esc(error.message)+'</div>';return;}
+ const matches=[...new Set((data||[]).map(row=>String(row.name||'').trim()).filter(Boolean))];
+ developerNames=matches;
+ renderBuilderResults(matches,query);
+}
+$('#builderSearch').addEventListener('input',()=>{clearTimeout(builderSearchTimer);builderSearchTimer=setTimeout(searchDevelopersByName,220);});
+$('#builderSearch').addEventListener('focus',()=>{if($('#builderSearch').value.trim()&&$('#builderSearch').value!==$('#builderSelect').value)searchDevelopersByName();});
 $('#builderResults').addEventListener('mousedown',e=>{const option=e.target.closest('[data-builder-name]');if(option){e.preventDefault();chooseBuilder(option.dataset.builderName);}});
 $('#builderSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');}if(e.key==='ArrowDown'){const first=$('#builderResults').querySelector('[data-builder-name]');if(first){e.preventDefault();first.focus();}}});
 document.addEventListener('click',e=>{if(!e.target.closest('.builder-picker')){$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');}});
 async function loadDevelopers(selected=''){
- const sel=$('#builderSelect');const{data,error}=await db.from('developers').select('name,active').eq('active',true).order('name');
- if(error){msg($('#formMsg'),'Falha ao carregar construtoras: '+error.message,true);return;}
- developerNames=[...new Set((data||[]).map(row=>String(row.name||'').trim()).filter(Boolean))];
- if(selected&&!developerNames.some(n=>n.toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))developerNames.unshift(String(selected));
- if(selected)chooseBuilder(selected);else{sel.innerHTML='<option value="">Selecione a construtora</option>';$('#builderSearch').value='';}
+ if(selected){chooseBuilder(selected);return;}
+ $('#builderSelect').innerHTML='<option value="">Selecione a construtora</option>';
+ $('#builderSearch').value='';
 }
 async function onReady(){await loadDevelopers();if(!recordId)return;$('#formMsg').textContent='Carregando condomínio...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).maybeSingle();if(error||!data){msg($('#formMsg'),'Não foi possível carregar o condomínio: '+(error?.message||'registro não encontrado'),true);return}fill(data);$('#formMsg').textContent=''}
 form.elements.name.addEventListener('input',syncNormalized);renderFeatures();$('#clearBtn').onclick=()=>resetForm();
