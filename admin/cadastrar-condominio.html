@@ -83,7 +83,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <div class="field"><label>Nome do condomínio *</label><input name="name" required placeholder="Nome do condomínio"></div>
 
 <div class="field third"><label>CNPJ</label><input name="cnpj"></div><div class="field third"><label>Razão social</label><input name="legal_name"></div><div class="field third"><label>Nome fantasia</label><input name="trade_name"></div>
-<div class="field third"><label>Telefone</label><input name="phone" type="tel"></div><div class="field third"><label>E-mail</label><input name="email" type="email"></div><div class="field third"><label>Construtora / incorporadora</label><input name="builder"></div>
+<div class="field third"><label>Telefone</label><input name="phone" type="tel"></div><div class="field third"><label>E-mail</label><input name="email" type="email"></div><div class="field third"><label>Construtora / incorporadora</label><select name="builder" id="builderSelect"><option value="">Selecione a construtora</option></select></div>
 </div>
 <h3 class="section-title">Endereço</h3><div class="form-grid">
 <div class="field"><label>Logradouro</label><input name="address" placeholder="Rua, avenida..."></div><div class="field quarter"><label>Número</label><input name="number"></div><div class="field quarter"><label>Complemento</label><input name="complement"></div><div class="field quarter"><label>CEP</label><input name="cep" inputmode="numeric" placeholder="00000-000"></div>
@@ -130,8 +130,16 @@ function normalized(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u
 function value(k){return String(form.elements[k]?.value||'').trim()}
 function syncNormalized(){form.elements.normalized_name.value=normalized(value('name'))}
 function resetForm(){form.reset();setFeatures([]);$('#featureSearch').value='';form.elements.id.value='';form.elements.city.value='São Paulo';form.elements.state.value='SP';$('#pageTitle').textContent='Cadastrar condomínio';$('#saveBtn').textContent='Salvar condomínio';$('#formMsg').textContent=''}
-function fill(d){form.reset();for(const k of [...textFields,...numberFields])if(form.elements[k])form.elements[k].value=d[k]??'';setFeatures(Array.isArray(d.features)?d.features:[]);$('#featureSearch').value='';form.elements.fonte_unica.checked=!!d.fonte_unica;form.elements.id.value=d.id;$('#pageTitle').textContent='Editar condomínio';$('#saveBtn').textContent='Salvar alterações'}
-async function onReady(){if(!recordId)return;$('#formMsg').textContent='Carregando condomínio...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).maybeSingle();if(error||!data){msg($('#formMsg'),'Não foi possível carregar o condomínio: '+(error?.message||'registro não encontrado'),true);return}fill(data);$('#formMsg').textContent=''}
+function fill(d){form.reset();for(const k of [...textFields,...numberFields])if(form.elements[k])form.elements[k].value=d[k]??'';setFeatures(Array.isArray(d.features)?d.features:[]);$('#featureSearch').value='';form.elements.fonte_unica.checked=!!d.fonte_unica;form.elements.id.value=d.id;$('#builderSelect').value=d.builder||'';$('#pageTitle').textContent='Editar condomínio';$('#saveBtn').textContent='Salvar alterações'}
+async function loadDevelopers(selected=''){
+ const sel=$('#builderSelect');const{data,error}=await db.from('developers').select('name,active').eq('active',true).order('name');
+ if(error){msg($('#formMsg'),'Não foi possível carregar a lista de construtoras: '+error.message,true);return}
+ const names=[...new Set((data||[]).map(d=>String(d.name||'').trim()).filter(Boolean))];
+ if(selected&&!names.some(n=>n.toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))names.unshift(String(selected));
+ sel.innerHTML='<option value="">Selecione a construtora</option>'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('');
+ if(selected)sel.value=selected;
+}
+async function onReady(){await loadDevelopers();if(!recordId)return;$('#formMsg').textContent='Carregando condomínio...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).maybeSingle();if(error||!data){msg($('#formMsg'),'Não foi possível carregar o condomínio: '+(error?.message||'registro não encontrado'),true);return}fill(data);$('#formMsg').textContent=''}
 form.elements.name.addEventListener('input',syncNormalized);renderFeatures();$('#clearBtn').onclick=()=>resetForm();
 form.onsubmit=async e=>{e.preventDefault();const payload={normalized_name:normalized(value('name')),name:value('name'),features:selectedFeatures,fonte_unica:form.elements.fonte_unica.checked,updated_at:new Date().toISOString()};for(const k of textFields)payload[k]=value(k)||null;for(const k of numberFields)payload[k]=form.elements[k].value===''?null:Number(form.elements[k].value);if(!payload.name||!payload.normalized_name){msg($('#formMsg'),'Informe o nome do condomínio.',true);return}$('#saveBtn').disabled=true;msg($('#formMsg'),'Salvando...');let result;if(recordId){result=await db.from('condominiums').update(payload).eq('id',recordId).select('id').maybeSingle()}else{result=await db.from('condominiums').insert(payload).select('id').single()}$('#saveBtn').disabled=false;if(result.error){msg($('#formMsg'),'Erro ao salvar: '+result.error.message,true);return}msg($('#formMsg'),'Condomínio salvo com sucesso!');if(!recordId&&result.data?.id){setTimeout(()=>location.href='cadastrar-condominio.html?id='+encodeURIComponent(result.data.id),700)}};
 </script></body></html>
