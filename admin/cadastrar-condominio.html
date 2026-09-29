@@ -70,7 +70,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 .feature-picker{position:relative}.feature-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px;max-height:190px;overflow:auto;padding:2px}.feature-option{display:inline-flex;align-items:center;gap:7px;border:1px solid #d7dee4;background:#f6f8fa;border-radius:20px;padding:8px 11px;font-size:13px;cursor:pointer;user-select:none}.feature-option input{width:16px;height:16px;margin:0;accent-color:#0b2940}.feature-option:has(input:checked){background:#e8f2ec;border-color:#6aa784;color:#145b35}.feature-selected{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.feature-chip{display:inline-flex;align-items:center;gap:8px;border-radius:18px;padding:7px 10px;background:#0b2940;color:white;font-size:12px}.feature-chip button{border:0;background:transparent;color:white;font-size:17px;line-height:1;cursor:pointer;padding:0}.feature-empty{font-size:12px;color:#697782;padding:7px}.feature-add-hint{font-size:12px;color:#697782;margin-top:7px}
 </style><style id="builder-quick-modal-style">
 .builder-inline{display:flex;gap:8px;align-items:stretch}.builder-inline select{flex:1;min-width:0}.builder-add-btn{white-space:nowrap;padding:9px 12px;font-size:12px}.quick-modal-overlay{position:fixed;inset:0;background:rgba(3,20,32,.62);z-index:5000;display:flex;align-items:center;justify-content:center;padding:18px}.quick-modal-overlay[hidden]{display:none!important}.quick-modal{width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:15px;padding:22px;box-shadow:0 20px 65px rgba(0,0,0,.28)}.quick-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.quick-modal-head h2{margin:0;font-size:21px}.quick-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.quick-modal-grid .full{grid-column:1/-1}.quick-modal label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}.quick-modal input{width:100%;height:42px;border:1px solid #cbd3da;border-radius:9px;padding:10px 12px;font:inherit}.quick-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.quick-modal-msg{font-size:12px;min-height:18px;margin-top:10px;color:#b42318}@media(max-width:640px){.builder-inline{flex-wrap:wrap}.builder-add-btn{width:100%}.quick-modal-grid{grid-template-columns:1fr}.quick-modal-grid .full{grid-column:auto}}
-</style><style id="builder-search-style">.builder-picker{position:relative;width:100%;margin-bottom:9px}.builder-search{width:100%}.builder-results{position:absolute;left:0;right:0;top:calc(100% + 3px);max-height:260px;overflow-y:auto;background:#fff;border:1px solid #cbd5df;border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.16);z-index:9999}.builder-results[hidden]{display:none!important}.builder-result{display:block;width:100%;padding:11px 13px;border:0;border-bottom:1px solid #edf0f2;background:#fff;color:#102b40;text-align:left;font:inherit;cursor:pointer}.builder-result:hover,.builder-result:focus{background:#eef4f8;outline:none}.builder-results-empty{padding:12px;color:#64748b;font-size:14px}.builder-add-btn{white-space:nowrap;width:100%}</style></head><body><div class="admin-main">
+</style></head><body><div class="admin-main">
 <header class="admin-top"><button type="button" class="vsn-sidebar-toggle" id="vsnSidebarToggle" aria-label="Recolher menu lateral" aria-expanded="true" title="Recolher/expandir menu">☰</button><a class="admin-brand" href="painel-login.html" aria-label="VSN Imóveis"><span>VSN</span><small>IMÓVEIS</small></a><div class="admin-header-actions"><button class="profile-btn" type="button" aria-label="Usuário conectado"><span class="profile-avatar" id="userAvatar"><span id="userInitial">U</span></span><span class="header-user" id="userLabel">Usuário</span></button><a class="updates-bell" href="solicitacoes-proprietario.html" title="Solicitações" aria-label="Solicitações">🔔</a><button class="header-logout" id="logout" hidden>Sair</button></div></header>
 <aside class="admin-sidebar"><nav class="sidebar-menu" aria-label="Menu administrativo">
 <a class="sidebar-link" href="painel-login.html"><span class="sidebar-ico">⌂</span><span>Painel de Imóveis</span></a><div class="sidebar-sub"><a href="painel-cadastro.html">Cadastrar imóvel</a></div>
@@ -85,7 +85,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <div class="field"><label>Nome do condomínio *</label><input name="name" required placeholder="Nome do condomínio"></div>
 
 <div class="field third"><label>CNPJ</label><input name="cnpj"></div><div class="field third"><label>Razão social</label><input name="legal_name"></div><div class="field third"><label>Nome fantasia</label><input name="trade_name"></div>
-<div class="field third"><label>Telefone</label><input name="phone" type="tel"></div><div class="field third"><label>E-mail</label><input name="email" type="email"></div><div class="field third"><label>Construtora / incorporadora</label><div class="builder-picker"><input type="text" id="builderSearch" class="builder-search" placeholder="Digite para buscar uma construtora..." autocomplete="off" aria-autocomplete="list" aria-controls="builderResults" aria-expanded="false"><div id="builderResults" class="builder-results" role="listbox" hidden></div><select name="builder" id="builderSelect" hidden><option value="">Selecione a construtora</option></select></div><button type="button" class="btn secondary builder-add-btn" id="openBuilderModal">+ Cadastrar construtora</button></div>
+<div class="field third"><label>Telefone</label><input name="phone" type="tel"></div><div class="field third"><label>E-mail</label><input name="email" type="email"></div><div class="field third"><label>Construtora / incorporadora</label><select name="builder" id="builderSelect"><option value="">Selecione a construtora</option></select><button type="button" class="btn secondary builder-add-btn" id="openBuilderModal">+ Cadastrar construtora</button></div>
 </div>
 <h3 class="section-title">Endereço</h3><div class="form-grid">
 <div class="field"><label>Logradouro</label><input name="address" placeholder="Rua, avenida..."></div><div class="field quarter"><label>Número</label><input name="number"></div><div class="field quarter"><label>Complemento</label><input name="complement"></div><div class="field quarter"><label>CEP</label><input name="cep" inputmode="numeric" placeholder="00000-000"></div>
@@ -137,51 +137,22 @@ function closeQuickBuilder(){const m=$('#quickBuilderModal');m.hidden=true;docum
 function openQuickBuilder(){const f=$('#quickBuilderForm');f.reset();$('#quickBuilderMsg').textContent='';$('#quickBuilderModal').hidden=false;document.body.style.overflow='hidden';setTimeout(()=>$('#quickBuilderName').focus(),50);}
 $('#openBuilderModal').addEventListener('click',openQuickBuilder);$('#closeQuickBuilder').addEventListener('click',closeQuickBuilder);$('#cancelQuickBuilder').addEventListener('click',closeQuickBuilder);$('#quickBuilderModal').addEventListener('click',e=>{if(e.target.id==='quickBuilderModal')closeQuickBuilder()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#quickBuilderModal').hidden)closeQuickBuilder()});
 $('#quickBuilderForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,btn=$('#saveQuickBuilder');const name=f.elements.name.value.trim();if(!name)return;btn.disabled=true;$('#quickBuilderMsg').style.color='#52616b';$('#quickBuilderMsg').textContent='Salvando construtora...';const payload={name,legal_name:f.elements.legal_name.value.trim()||null,document:f.elements.document.value.trim()||null,phone:f.elements.phone.value.trim()||null,website:f.elements.website.value.trim()||null,partnership_manager_name:f.elements.partnership_manager_name.value.trim()||null,partnership_manager_phone:f.elements.partnership_manager_phone.value.trim()||null,active:true,created_by:sessionUser?.id||null,updated_at:new Date().toISOString()};try{const{data,error}=await db.from('developers').insert(payload).select('id,name').single();if(error)throw error;await loadDevelopers(data.name);chooseBuilder(data.name);closeQuickBuilder();$('#formMsg').style.color='#168044';$('#formMsg').textContent='Construtora cadastrada e selecionada.';}catch(err){$('#quickBuilderMsg').style.color='#b42318';$('#quickBuilderMsg').textContent='Erro ao salvar: '+(err.message||err);}finally{btn.disabled=false;}});
-let developerNames=[];let builderSearchTimer=null;let builderSearchSeq=0;
-function showBuilderResults(names,query,status=''){
- const box=$('#builderResults');
- if(status){box.innerHTML='<div class="builder-results-empty">'+esc(status)+'</div>';box.hidden=false;$('#builderSearch').setAttribute('aria-expanded','true');return;}
- box.innerHTML=names.length?names.map(name=>'<button type="button" class="builder-result" role="option" data-builder-name="'+esc(name)+'">'+esc(name)+'</button>').join(''):'<div class="builder-results-empty">'+(query?'Nenhuma construtora encontrada com esse nome.':'Digite o nome da construtora para buscar.')+'</div>';
- box.hidden=false;$('#builderSearch').setAttribute('aria-expanded','true');
-}
+let developerNames=[];
 function chooseBuilder(name){
- const sel=$('#builderSelect');sel.innerHTML='<option value="">Selecione a construtora</option>';
- if(name){if(!developerNames.some(n=>n.toLocaleLowerCase('pt-BR')===String(name).toLocaleLowerCase('pt-BR')))developerNames.push(name);sel.insertAdjacentHTML('beforeend','<option value="'+esc(name)+'">'+esc(name)+'</option>');sel.value=name;}
- $('#builderSearch').value=name||'';$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');
+ const sel=$('#builderSelect');
+ let opt=[...sel.options].find(o=>o.value.toLocaleLowerCase('pt-BR')===String(name||'').toLocaleLowerCase('pt-BR'));
+ if(name&&!opt){opt=new Option(name,name);sel.add(opt);}
+ sel.value=name||'';
 }
-async function searchDevelopersByName(){
- const query=$('#builderSearch').value.trim();const seq=++builderSearchSeq;
- $('#builderSelect').value='';
- if(!query){$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');return;}
- const local=developerNames.filter(n=>n.toLocaleLowerCase('pt-BR').includes(query.toLocaleLowerCase('pt-BR')));
- showBuilderResults(local,query,'Buscando construtoras...');
- try{
-  const{data,error}=await db.from('developers').select('name').eq('active',true).ilike('name','%'+query+'%').order('name').limit(50);
-  if(seq!==builderSearchSeq)return;
-  if(error){if(local.length)showBuilderResults(local,query);else showBuilderResults([],query,'Não foi possível consultar a base. Verifique seu acesso e tente novamente.');return;}
-  const matches=[...new Set((data||[]).map(row=>String(row.name||'').trim()).filter(Boolean))];
-  developerNames=[...new Set([...developerNames,...matches])];
-  showBuilderResults(matches,query);
- }catch(err){
-  if(seq!==builderSearchSeq)return;
-  if(local.length)showBuilderResults(local,query);else showBuilderResults([],query,'Erro na busca. Tente novamente.');
- }
-}
-$('#builderSearch').addEventListener('input',()=>{clearTimeout(builderSearchTimer);builderSearchTimer=setTimeout(searchDevelopersByName,180);});
-$('#builderSearch').addEventListener('focus',()=>{if($('#builderSearch').value.trim()&&$('#builderSearch').value!==$('#builderSelect').value)searchDevelopersByName();});
-$('#builderResults').addEventListener('mousedown',e=>{const option=e.target.closest('[data-builder-name]');if(option){e.preventDefault();chooseBuilder(option.dataset.builderName);}});
-$('#builderSearch').addEventListener('keydown',e=>{if(e.key==='Escape'){$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');}if(e.key==='ArrowDown'){const first=$('#builderResults').querySelector('[data-builder-name]');if(first){e.preventDefault();first.focus();}}});
-document.addEventListener('click',e=>{if(!e.target.closest('.builder-picker')){$('#builderResults').hidden=true;$('#builderSearch').setAttribute('aria-expanded','false');}});
 async function loadDevelopers(selected=''){
  const sel=$('#builderSelect');
- try{
-  const{data,error}=await db.from('developers').select('name,active').eq('active',true).order('name');
-  if(error)throw error;
-  developerNames=[...new Set((data||[]).map(row=>String(row.name||'').trim()).filter(Boolean))];
- }catch(error){developerNames=[];msg($('#formMsg'),'Não foi possível carregar a lista de construtoras: '+(error.message||error),true);}
- if(selected&&!developerNames.some(n=>n.toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))developerNames.unshift(String(selected));
- if(selected)chooseBuilder(selected);
- else{sel.innerHTML='<option value="">Selecione a construtora</option>';$('#builderSearch').value='';}
+ const{data,error}=await db.from('developers').select('name,active').eq('active',true).order('name');
+ if(error){msg($('#formMsg'),'Não foi possível carregar construtoras: '+error.message,true);return;}
+ developerNames=[...new Set((data||[]).map(row=>String(row.name||'').trim()).filter(Boolean))];
+ sel.innerHTML='<option value="">Selecione a construtora</option>';
+ developerNames.forEach(name=>sel.add(new Option(name,name)));
+ if(selected&&!developerNames.some(n=>n.toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))sel.add(new Option(selected,selected));
+ sel.value=selected||'';
 }
 async function onReady(){await loadDevelopers();if(!recordId)return;$('#formMsg').textContent='Carregando condomínio...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).maybeSingle();if(error||!data){msg($('#formMsg'),'Não foi possível carregar o condomínio: '+(error?.message||'registro não encontrado'),true);return}fill(data);$('#formMsg').textContent=''}
 form.elements.name.addEventListener('input',syncNormalized);renderFeatures();$('#clearBtn').onclick=()=>resetForm();
