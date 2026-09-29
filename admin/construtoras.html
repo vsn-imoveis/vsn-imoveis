@@ -58,6 +58,11 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 .pagination-actions{display:flex;gap:8px}
 .pagination .btn:disabled{opacity:.45;cursor:not-allowed}
 </style>
+<style id="vsn-sidebar-toggle-standard-position">
+/* Botão do menu lateral alinhado à borda da sidebar, como no padrão administrativo */
+#vsnSidebarToggle{position:fixed!important;left:221px!important;top:70vh!important;transform:translateY(-50%)!important;z-index:1200!important;margin:0!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;box-shadow:0 2px 8px rgba(0,0,0,.16)!important}
+@media(max-width:760px){#vsnSidebarToggle{left:calc(240px - 19px)!important;top:70vh!important}}
+</style>
 </head>
 <body>
 <div class="admin-main">
