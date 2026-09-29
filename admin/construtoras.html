@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VSN Imóveis | Cadastro de construtoras</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--dark:#061d2d;--gold:#d3aa62;--text:#0b2940;--muted:#6c7881;--line:#e1e6e9;--bg:#f6f8fa;--green:#168044;--red:#b42318}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px Arial,sans-serif}
+.admin-main{min-width:0}.admin-top{height:100px;background:var(--dark);color:#fff;display:flex;align-items:center;justify-content:flex-start;padding:0 4.7%;gap:18px}
+.vsn-sidebar-toggle{width:38px;height:38px;border:1px solid #b8c4ce;border-radius:9px;background:#fff;color:#09263a;font-size:23px;cursor:pointer}
+.admin-brand{display:flex;flex-direction:column;align-items:center;justify-content:center;text-decoration:none;color:var(--gold);line-height:1;flex:0 0 112px}
+.admin-brand span{font:40px Georgia,serif;color:var(--gold)}.admin-brand small{font:7px Arial,sans-serif;letter-spacing:4px;color:#fff;margin-top:8px}
+.admin-header-actions{margin-left:auto;display:flex;align-items:center;gap:14px}.profile-btn{display:flex;align-items:center;gap:10px;border:0;border-radius:28px;background:#fff;color:#102b40;padding:8px 16px 8px 8px;font-weight:600}
+.profile-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#e8eaf0;color:#102b40;font-weight:800}.updates-bell{width:46px;height:46px;border:1px solid #365163;border-radius:50%;display:grid;place-items:center;text-decoration:none;font-size:20px}.header-logout{border:1px solid #365163;background:transparent;color:#fff;border-radius:10px;padding:11px 16px;cursor:pointer}
+.admin-sidebar{position:absolute;top:100px;left:0;width:240px;min-height:calc(100vh - 100px);background:#061d2d;color:#e8eef2;z-index:900;display:flex;flex-direction:column;box-shadow:4px 0 18px #061d2d12}
+.sidebar-menu{padding:14px 8px}.sidebar-link,.sidebar-sub a{display:flex;align-items:center;gap:10px;min-height:36px;padding:9px 11px;border-radius:7px;color:#d4dde4;text-decoration:none;font-size:12px;font-weight:600}.sidebar-link:hover,.sidebar-sub a:hover{background:#142f43;color:#fff}.sidebar-link.active,.sidebar-sub a.active{background:var(--gold);color:#061d2d}.sidebar-ico{width:20px;text-align:center}.sidebar-sub{padding:3px 0 5px 28px}.sidebar-sub a{min-height:29px;font-size:11px;padding:7px 9px}.sidebar-divider{height:1px;background:#23394a;margin:10px 8px}
+.wrap{margin-left:240px;max-width:none;padding:26px 24px 110px}.head{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;margin-bottom:20px}.head h1{margin:0 0 6px;font-size:28px}.muted{color:var(--muted)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 7px 25px #061d2d08;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}.field{grid-column:span 6;min-width:0}.field.third{grid-column:span 4}.field.full{grid-column:1/-1}
+label{display:block;font-size:12px;font-weight:700;margin-bottom:7px;color:#344451}
+input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padding:11px 12px;font:inherit;color:var(--text);background:#fff}input,select{height:43px}textarea{min-height:110px;resize:vertical}
+.actions{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;flex-wrap:wrap}.btn{border:0;border-radius:9px;padding:11px 15px;font-weight:700;cursor:pointer}.primary{background:var(--gold);color:var(--dark)}.secondary{background:#edf1f4;color:var(--text)}.danger{background:#fff0f0;color:var(--red)}
+.status{font-size:12px;min-height:18px;margin-top:10px}.login{max-width:420px;margin:70px auto}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{padding:12px 10px;border-bottom:1px solid #edf0f2;text-align:left;white-space:nowrap}th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}td{font-size:13px}.subtext{display:block;color:var(--muted);font-size:11px;margin-top:4px}.badge{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:800}.published{background:#eaf7ef;color:#176b3c}.draft{background:#f1f3f5;color:#66717a}
+.search{margin-bottom:14px}
+@media(max-width:760px){.admin-top{height:72px;padding:0 12px;gap:8px}.admin-brand{flex-basis:72px}.admin-brand span{font-size:32px}.admin-brand small{font-size:6px;letter-spacing:3px}.profile-avatar{width:30px;height:30px}.updates-bell{width:36px;height:36px}.header-logout{padding:9px 10px;font-size:12px}.admin-sidebar{width:58px;top:72px}.sidebar-link{justify-content:center;padding:10px 4px}.sidebar-link span:not(.sidebar-ico){display:none}.sidebar-sub{display:none}.wrap{margin-left:58px;padding:18px 10px 100px}.field,.field.third{grid-column:1/-1}.head{align-items:flex-start;flex-direction:column}.head h1{font-size:23px}.panel{padding:14px}.profile-btn{padding:5px 9px 5px 5px;gap:6px;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="admin-main">
+<header class="admin-top">
+<button id="vsnSidebarToggle" class="vsn-sidebar-toggle" type="button">☰</button>
+<a class="admin-brand" href="painel-login.html"><span>VSN</span><small>IMÓVEIS</small></a>
+<div class="admin-header-actions"><button class="profile-btn" type="button"><span class="profile-avatar" id="userInitial">U</span><span id="userLabel">Usuário</span></button><a class="updates-bell" href="solicitacoes-proprietario.html">🔔</a><button class="header-logout" id="logout">Sair</button></div>
+</header>
+<aside class="admin-sidebar"><nav class="sidebar-menu" aria-label="Menu administrativo">
+<a class="sidebar-link" href="painel-login.html"><span class="sidebar-ico">⌂</span><span>Painel de Imóveis</span></a>
+<div class="sidebar-sub"><a href="painel-cadastro.html">Cadastrar imóvel</a></div>
+<div class="sidebar-group"><a class="sidebar-link active" href="listar-lancamentos.html"><span class="sidebar-ico">▦</span><span>Lançamentos</span></a><div class="sidebar-sub"><a href="lancamentos.html">Cadastrar Lançamento</a><a class="active" href="construtoras.html">Cadastrar Construtora</a></div></div>
+<div class="sidebar-group"><a class="sidebar-link" href="condominios.html"><span class="sidebar-ico">▥</span><span>Condomínio</span></a><div class="sidebar-sub"><a href="cadastrar-condominio.html">Cadastrar Condomínio</a></div></div>
+<div class="sidebar-divider"></div>
+<a class="sidebar-link" href="painel-login.html#clientes"><span class="sidebar-ico">♙</span><span>Clientes</span></a>
+<a class="sidebar-link" href="proprietario.html"><span class="sidebar-ico">♙</span><span>Usuários</span></a>
+<a class="sidebar-link" href="solicitacoes-proprietario.html"><span class="sidebar-ico">▤</span><span>Solicitações</span></a>
+<a class="sidebar-link" href="painel-login.html#configuracoes"><span class="sidebar-ico">⚙</span><span>Configurações</span></a>
+</nav></aside>
+<div class="wrap">
+<section id="loginPanel" class="panel login" hidden><h2>Acesso administrativo</h2><p class="muted">Entre com sua conta de administrador para gerenciar construtoras.</p><form id="loginForm"><label>E-mail</label><input id="email" type="email" autocomplete="username" required><label>Senha</label><input id="password" type="password" autocomplete="current-password" required><div class="actions"><button class="btn primary">Entrar</button></div><div id="loginMsg" class="status"></div></form></section>
+<section id="app" hidden>
+<div class="head"><div><h1>Cadastro de construtoras</h1><div class="muted">Cadastre e mantenha a base de construtoras e incorporadoras utilizada nos lançamentos.</div></div><button class="btn primary" id="newBtn">+ Nova construtora</button></div>
+<div class="panel">
+<form id="builderForm">
+<input type="hidden" name="id">
+<div class="grid">
+<div class="field"><label>Nome da construtora *</label><input name="name" required placeholder="Ex.: Cyrela"></div>
+<div class="field"><label>Razão social</label><input name="legal_name" placeholder="Razão social"></div>
+<div class="field third"><label>CNPJ</label><input name="document" placeholder="00.000.000/0000-00"></div>
+<div class="field third"><label>Telefone</label><input name="phone" placeholder="(11) 00000-0000"></div>
+<div class="field third"><label>Site</label><input name="website" type="url" placeholder="https://..."></div>
+<div class="field full"><label>Descrição</label><textarea name="description" placeholder="Informações, histórico e posicionamento da construtora..."></textarea></div>
+<div class="field full"><label>Logo (URL)</label><input name="logo_url" type="url" placeholder="https://..."></div>
+<div class="field full"><label>Ativa</label><label style="display:flex;gap:8px;align-items:center;font-weight:600"><input name="active" type="checkbox" checked style="width:18px;height:18px"> Construtora ativa</label></div>
+</div>
+<div class="actions"><button type="button" class="btn secondary" id="resetBtn">Limpar formulário</button><button type="submit" class="btn primary" id="saveBtn">Salvar construtora</button></div>
+<div id="formMsg" class="status"></div>
+</form>
+</div>
+<div class="panel">
+<div class="search"><label for="q">Buscar construtora</label><input id="q" placeholder="Nome, razão social ou CNPJ"></div>
+<div class="table-wrap"><table><thead><tr><th>Construtora</th><th>Contato</th><th>Site</th><th>Status</th><th>Ações</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div id="empty" class="muted" style="padding:15px 0" hidden>Nenhuma construtora cadastrada.</div><div id="listMsg" class="status"></div>
+</div>
+</section>
+</div></div>
+<script>
+const SUPA_URL='https://jpdfynaioepcmgqlqlht.supabase.co',SUPA_KEY='sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03';
+const db=supabase.createClient(SUPA_URL,SUPA_KEY);const $=(s,r=document)=>r.querySelector(s);let sessionUser=null,all=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function msg(el,t,err=false){el.textContent=t;el.style.color=err?'#b42318':'#168044';}
+function showLogin(){ $('#loginPanel').hidden=false;$('#app').hidden=true; } function showApp(){ $('#loginPanel').hidden=true;$('#app').hidden=false; }
+function resetForm(){const f=$('#builderForm');f.reset();f.elements.id.value='';f.elements.active.checked=true;$('#formMsg').textContent='';}
+function setForm(d){const f=$('#builderForm');resetForm();for(const k of ['name','legal_name','document','phone','website','description','logo_url']){if(f.elements[k])f.elements[k].value=d[k]||''}f.elements.id.value=d.id||'';f.elements.active.checked=d.active!==false;window.scrollTo({top:0,behavior:'smooth'});}
+function val(f,k){return String(f.elements[k]?.value||'').trim();}
+async function load(){const q=$('#q').value.trim().toLowerCase();const{data,error}=await db.from('developers').select('id,name,legal_name,document,phone,website,description,logo_url,active,updated_at').order('name');if(error){msg($('#listMsg'),'Erro ao carregar: '+error.message,true);return;}all=data||[];const rows=all.filter(d=>!q||[d.name,d.legal_name,d.document].some(v=>String(v||'').toLowerCase().includes(q)));$('#rows').innerHTML=rows.map(d=>'<tr><td><strong>'+esc(d.name)+'</strong><span class="subtext">'+esc(d.legal_name||d.document||'')+'</span></td><td>'+esc(d.phone||'—')+'</td><td>'+(d.website?'<a href="'+esc(d.website)+'" target="_blank" rel="noopener">Abrir site</a>':'—')+'</td><td><span class="badge '+(d.active?'published':'draft')+'">'+(d.active?'Ativa':'Inativa')+'</span></td><td><button class="btn secondary" data-edit="'+esc(d.id)+'">Editar</button> <button class="btn '+(d.active?'danger':'primary')+'" data-toggle="'+esc(d.id)+'" data-active="'+String(!!d.active)+'">'+(d.active?'Desativar':'Ativar')+'</button></td></tr>').join('');$('#empty').hidden=rows.length>0;$('#rows').querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit));$('#rows').querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>toggle(b.dataset.toggle,b.dataset.active==='true'));}
+async function edit(id){const d=all.find(x=>String(x.id)===String(id));if(d)setForm(d);}
+async function toggle(id,active){const{error}=await db.from('developers').update({active:!active,updated_at:new Date().toISOString()}).eq('id',id);if(error){alert('Não foi possível alterar o status: '+error.message);return;}await load();}
+$('#q').addEventListener('input',load);$('#newBtn').onclick=resetForm;$('#resetBtn').onclick=resetForm;
+$('#builderForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,btn=$('#saveBtn');btn.disabled=true;msg($('#formMsg'),'Salvando construtora...');const id=val(f,'id');const payload={name:val(f,'name'),legal_name:val(f,'legal_name')||null,document:val(f,'document')||null,phone:val(f,'phone')||null,website:val(f,'website')||null,description:val(f,'description')||null,logo_url:val(f,'logo_url')||null,active:f.elements.active.checked,updated_at:new Date().toISOString()};try{let r=id?await db.from('developers').update(payload).eq('id',id):await db.from('developers').insert({...payload,created_by:sessionUser.id}).select('id').single();if(r.error)throw r.error;f.elements.id.value=r.data?.id||id||'';msg($('#formMsg'),id?'Construtora atualizada.':'Construtora cadastrada.');await load();}catch(err){console.error(err);msg($('#formMsg'),'Erro ao salvar: '+(err.message||err),true);}finally{btn.disabled=false;}});
+$('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const{data,error}=await db.auth.signInWithPassword({email:$('#email').value.trim(),password:$('#password').value});if(error){msg($('#loginMsg'),error.message,true);return;}await verifyAdmin(data.session);});
+async function verifyAdmin(session){sessionUser=session?.user;if(!sessionUser){showLogin();return;}const{data,error}=await db.from('profiles').select('role,full_name').eq('id',sessionUser.id).maybeSingle();if(error||data?.role!=='admin'){await db.auth.signOut();showLogin();msg($('#loginMsg'),'Acesso restrito a administradores.',true);return;}const nm=(data?.full_name||sessionUser.user_metadata?.full_name||sessionUser.email||'Usuário').trim();$('#userLabel').textContent=nm.split(/\s+/)[0];$('#userInitial').textContent=(nm[0]||'U').toUpperCase();showApp();await load();}
+$('#logout').onclick=async()=>{await db.auth.signOut();sessionUser=null;showLogin();};
+$('#vsnSidebarToggle').onclick=()=>document.body.classList.toggle('sidebar-collapsed');
+(function(){const{data:{session}}=db.auth.getSession().then(async x=>x);})();
+(async()=>{const{data:{session}}=await db.auth.getSession();if(session)await verifyAdmin(session);else showLogin();db.auth.onAuthStateChange((_e,s)=>{if(s&&!sessionUser)verifyAdmin(s);});})();
+</script>
+</body>
+</html>
