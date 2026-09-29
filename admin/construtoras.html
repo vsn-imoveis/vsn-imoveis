@@ -66,6 +66,11 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <section id="app" hidden>
 <div class="head"><div><h1>Cadastro de construtoras</h1><div class="muted">Cadastre e mantenha a base de construtoras e incorporadoras utilizada nos lançamentos.</div></div><button class="btn primary" id="newBtn">+ Nova construtora</button></div>
 <div class="panel">
+<div class="search"><label for="q">Buscar construtora</label><input id="q" placeholder="Nome, razão social ou CNPJ"></div>
+<div class="table-wrap"><table><thead><tr><th>Construtora</th><th>Contato</th><th>Site</th><th>Status</th><th>Ações</th></tr></thead><tbody id="rows"></tbody></table></div>
+<div id="empty" class="muted" style="padding:15px 0" hidden>Nenhuma construtora cadastrada.</div><div id="listMsg" class="status"></div>
+</div>
+<div class="panel">
 <form id="builderForm">
 <input type="hidden" name="id">
 <div class="grid">
@@ -81,11 +86,6 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <div class="actions"><button type="button" class="btn secondary" id="resetBtn">Limpar formulário</button><button type="submit" class="btn primary" id="saveBtn">Salvar construtora</button></div>
 <div id="formMsg" class="status"></div>
 </form>
-</div>
-<div class="panel">
-<div class="search"><label for="q">Buscar construtora</label><input id="q" placeholder="Nome, razão social ou CNPJ"></div>
-<div class="table-wrap"><table><thead><tr><th>Construtora</th><th>Contato</th><th>Site</th><th>Status</th><th>Ações</th></tr></thead><tbody id="rows"></tbody></table></div>
-<div id="empty" class="muted" style="padding:15px 0" hidden>Nenhuma construtora cadastrada.</div><div id="listMsg" class="status"></div>
 </div>
 </section>
 </div></div>
