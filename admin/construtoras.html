@@ -92,7 +92,7 @@ $('#loginForm').addEventListener('submit',async e=>{e.preventDefault();const{dat
 async function verifyAdmin(session){sessionUser=session?.user;if(!sessionUser){showLogin();return;}const{data,error}=await db.from('profiles').select('role,full_name').eq('id',sessionUser.id).maybeSingle();if(error||data?.role!=='admin'){await db.auth.signOut();showLogin();msg($('#loginMsg'),'Acesso restrito a administradores.',true);return;}const nm=(data?.full_name||sessionUser.user_metadata?.full_name||sessionUser.email||'Usuário').trim();$('#userLabel').textContent=nm.split(/\s+/)[0];$('#userInitial').textContent=(nm[0]||'U').toUpperCase();showApp();await load();}
 $('#logout').onclick=async()=>{await db.auth.signOut();sessionUser=null;showLogin();};
 $('#vsnSidebarToggle').onclick=()=>document.body.classList.toggle('sidebar-collapsed');
-(function(){const{data:{session}}=db.auth.getSession().then(async x=>x);})();
+/* Corrigido: removida chamada síncrona inválida de getSession que interrompia o JavaScript e deixava a tela em branco. */
 (async()=>{const{data:{session}}=await db.auth.getSession();if(session)await verifyAdmin(session);else showLogin();db.auth.onAuthStateChange((_e,s)=>{if(s&&!sessionUser)verifyAdmin(s);});})();
 </script>
 </body>
