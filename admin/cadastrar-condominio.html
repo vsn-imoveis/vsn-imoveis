@@ -144,7 +144,7 @@ function chooseBuilder(name){
  if(name&&!opt){opt=new Option(name,name);sel.add(opt);}
  sel.value=name||'';
 }
-let developerNames=[];
+
 function filterBuilderOptions(){
  const sel=$('#builderSelect');const chosen=sel.value;
  const q=$('#builderSearch').value.trim().toLocaleLowerCase('pt-BR');
