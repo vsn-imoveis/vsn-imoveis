@@ -6,16 +6,17 @@ function slugPart(v){
 }
 function propertyUrl(p){
   const condo=slugPart(p.condominium_name||'');
-  const bairro=slugPart(p.neighborhood||p.city||'sao-paulo');
-  const base=[condo,bairro].filter(Boolean).join('-')||slugPart(p.title)||'imovel';
-  return 'https://vsn-imoveis.vercel.app/imovel/'+base+'-'+p.id;
+  const rua=slugPart(p.address||'');
+  const dorms=Number(p.bedrooms||0);
+  const type=(p.for_rent&&!p.for_sale)?'locacao':(p.for_sale&&!p.for_rent)?'venda':(p.transaction_type==='rent'?'locacao':p.transaction_type==='sale'?'venda':'imovel');
+  return 'https://vsn-imoveis.vercel.app/imovel/'+[condo,rua,dorms?dorms+'-dorm':null,type].filter(Boolean).join('-');
 }
 function xmlEscape(v){
   return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
 }
 export default async function handler(req,res){
   try{
-    const url=SUPABASE_URL+'/rest/v1/public_properties?select=id,title,condominium_name,neighborhood,city,created_at&published=eq.true&order=updated_at.desc';
+    const url=SUPABASE_URL+'/rest/v1/public_properties?select=id,title,condominium_name,address,bedrooms,neighborhood,city,for_sale,for_rent,transaction_type,created_at&published=eq.true&order=updated_at.desc';
     const r=await fetch(url,{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,Accept:'application/json'}});
     if(!r.ok)throw new Error('Supabase HTTP '+r.status);
     const rows=await r.json();
