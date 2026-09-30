@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="index,follow">
-<title>Imóvel | VSN Imóveis</title>
+<title>Imóvel | VSN Imóveis</title><meta id="seoDescription" name="description" content="Imóvel disponível na VSN Imóveis.">
+<link id="seoCanonical" rel="canonical" href="https://vsn-imoveis.vercel.app/imovel.html">
+<meta id="seoOgTitle" property="og:title" content="Imóvel | VSN Imóveis">
+<meta id="seoOgDescription" property="og:description" content="Imóvel disponível na VSN Imóveis.">
+<meta id="seoOgUrl" property="og:url" content="https://vsn-imoveis.vercel.app/imovel.html">
+<meta id="seoOgImage" property="og:image" content="https://vsn-imoveis.vercel.app/hero-v12.jpg">
+<meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -56,7 +62,28 @@ body{margin:0;color:#0b2940;background:#fff;font-family:Manrope,Arial,sans-serif
 <script>function doHeaderSearch(){const v=document.getElementById('headerSearch').value.trim();if(v)window.location.href='/?busca='+encodeURIComponent(v);}</script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const db=window.supabase.createClient('https://jpdfynaioepcmgqlqlht.supabase.co','sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03');
-const id=new URLSearchParams(location.search).get('id'),app=document.getElementById('app');
+function seoSlugPart(v){
+  return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+    .replace(/&/g,' e ').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').replace(/-+/g,'-').slice(0,70).replace(/-+$/,'');
+}
+function propertySlug(p){
+  const condo=seoSlugPart(p.condominium_name||'');
+  const bairro=seoSlugPart(p.neighborhood||p.city||'sao-paulo');
+  const base=[condo,bairro].filter(Boolean).join('-')||seoSlugPart(p.title)||'imovel';
+  return base+'-'+p.id;
+}
+function propertyUrl(p){return '/imovel/'+propertySlug(p);}
+function extractPropertyId(){
+  const q=new URLSearchParams(location.search);
+  const legacy=q.get('id');
+  if(legacy)return legacy;
+  const fromQuery=q.get('slug')||'';
+  const pathMatch=location.pathname.match(/^\/imovel\/([^/]+)\/?$/);
+  const slug=fromQuery||pathMatch?.[1]||'';
+  const m=slug.match(/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
+  return m?m[1]:null;
+}
+const id=extractPropertyId(),app=document.getElementById('app');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
 let photos=[],current=0;
@@ -206,7 +233,7 @@ function condoCarousel(items,currentId){
     const img=ph[0]||'';
     const facts=[x.area?Number(x.area).toLocaleString('pt-BR')+' m²':'',x.bedrooms?x.bedrooms+' qto.':'',x.bathrooms?x.bathrooms+' ban.':'',x.parking?x.parking+' vaga(s)':''].filter(Boolean).join(' · ');
     const price=x.for_rent&&!x.for_sale&&x.rent_price?brl(x.rent_price)+'/mês':x.price?brl(x.price):'Consulte';
-    return '<a class="condo-card" href="/imovel.html?id='+encodeURIComponent(x.id)+'">'+(img?'<img src="'+esc(img)+'" alt="">':'<div class="condo-card-img"></div>')+'<div class="condo-card-body"><strong>'+esc(price)+'</strong><div>'+esc(facts)+'</div><small>'+esc(x.title||'Imóvel disponível')+'</small></div></a>';
+    return '<a class="condo-card" href="'+propertyUrl(x)+'">'+(img?'<img src="'+esc(img)+'" alt="">':'<div class="condo-card-img"></div>')+'<div class="condo-card-body"><strong>'+esc(price)+'</strong><div>'+esc(facts)+'</div><small>'+esc(x.title||'Imóvel disponível')+'</small></div></a>';
   }).join('');
   return '<div class="block condo-carousel"><div class="condo-carousel-head"><h2>Outros imóveis neste condomínio</h2><div><button onclick="scrollCondo(-1)" aria-label="Anterior">‹</button><button onclick="scrollCondo(1)" aria-label="Próximo">›</button></div></div><div class="condo-track" id="condoTrack">'+cards+'</div></div>';
 }
@@ -276,7 +303,32 @@ async function load(){
   const suites=Number(p.suites||0),beds=Number(p.bedrooms||0),parking=Number(p.parking||0);
   const bathrooms=Number(p.bathrooms||0);const facts=[p.area?[Number(p.area).toLocaleString('pt-BR')+' m²','Área útil']:null,beds?[beds+' '+(beds===1?'quarto':'quartos'),'Dormitórios']:null,suites?[suites+' '+(suites===1?'suíte':'suítes'),'Suítes']:null,bathrooms?[bathrooms+' '+(bathrooms===1?'banheiro':'banheiros'),'Banheiros']:null,parking?[parking+' '+(parking===1?'vaga':'vagas'),'Garagem']:null].filter(Boolean);
   const wa='https://wa.me/5511974116234?text='+encodeURIComponent('Olá! Tenho interesse no imóvel '+(p.title||'')+(p.code?', código '+p.code:'')+'.');
-  document.title=(p.title||'Imóvel')+' | VSN Imóveis';
+  const canonicalUrl=location.origin+propertyUrl(p);
+  const seoTitle=((p.title||type+' em '+(neigh||city))+' | VSN Imóveis').slice(0,65);
+  const seoDescription=[p.title||type,neigh?'no bairro '+neigh:'',city?'em '+city:'',p.condominium_name?'Condomínio '+p.condominium_name:'',p.area?Number(p.area).toLocaleString('pt-BR')+' m²':'',beds?beds+' '+(beds===1?'quarto':'quartos'):''].filter(Boolean).join(' · ').slice(0,155);
+  document.title=seoTitle;
+  const setMeta=(id,attr,value)=>{const el=document.getElementById(id);if(el)el.setAttribute(attr,value)};
+  setMeta('seoDescription','content',seoDescription);
+  setMeta('seoCanonical','href',canonicalUrl);
+  setMeta('seoOgTitle','content',seoTitle);
+  setMeta('seoOgDescription','content',seoDescription);
+  setMeta('seoOgUrl','content',canonicalUrl);
+  if(photos[0])setMeta('seoOgImage','content',photos[0]);
+  let schema=document.getElementById('seoSchema');
+  if(!schema){schema=document.createElement('script');schema.id='seoSchema';schema.type='application/ld+json';document.head.appendChild(schema);}
+  schema.textContent=JSON.stringify({
+    '@context':'https://schema.org',
+    '@type':'Residence',
+    name:p.title||type+' em '+(neigh||city),
+    description:seoDescription,
+    url:canonicalUrl,
+    image:photos.slice(0,8),
+    address:{'@type':'PostalAddress',streetAddress:loc||undefined,addressLocality:city,addressRegion:state,addressCountry:'BR'},
+    numberOfRooms:beds||undefined,
+    floorSize:p.area?{'@type':'QuantitativeValue',value:Number(p.area),unitCode:'MTK'}:undefined,
+    offers:(sale||rent)?{'@type':'Offer',url:canonicalUrl,priceCurrency:'BRL',price:Number(sale&&p.price?p.price:(rent&&p.rent_price?p.rent_price:0))||undefined,itemCondition:'https://schema.org/NewCondition',availability:'https://schema.org/InStock'}:undefined
+  });
+
    document.getElementById('floatWa').href=wa;
   const features=Array.isArray(p.features)?p.features:[];
   window.__propertyForFinance={title:p.title||type,salePrice:Number(p.price||0)};
