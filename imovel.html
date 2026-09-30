@@ -68,22 +68,27 @@ function seoSlugPart(v){
 }
 function propertySlug(p){
   const condo=seoSlugPart(p.condominium_name||'');
-  const bairro=seoSlugPart(p.neighborhood||p.city||'sao-paulo');
-  const base=[condo,bairro].filter(Boolean).join('-')||seoSlugPart(p.title)||'imovel';
-  return base+'-'+p.id;
+  const rua=seoSlugPart(p.address||'');
+  const dorms=Number(p.bedrooms||0);
+  const type=(p.for_rent&&!p.for_sale)?'locacao':(p.for_sale&&!p.for_rent)?'venda':(p.transaction_type==='rent'?'locacao':p.transaction_type==='sale'?'venda':'imovel');
+  return [condo,rua,dorms?dorms+'-dorm':null,type].filter(Boolean).join('-');
 }
 function propertyUrl(p){return '/imovel/'+propertySlug(p);}
-function extractPropertyId(){
+async function resolvePropertyId(){
   const q=new URLSearchParams(location.search);
   const legacy=q.get('id');
   if(legacy)return legacy;
-  const fromQuery=q.get('slug')||'';
-  const pathMatch=location.pathname.match(/^\/imovel\/([^/]+)\/?$/);
-  const slug=fromQuery||pathMatch?.[1]||'';
-  const m=slug.match(/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i);
-  return m?m[1]:null;
+  const slug=q.get('slug')||location.pathname.match(/^\/imovel\/([^/]+)\/?$/)?.[1]||'';
+  if(!slug)return null;
+  try{
+    const r=await fetch('https://jpdfynaioepcmgqlqlht.supabase.co/rest/v1/properties?select=id,condominium_name,address,bedrooms,for_sale,for_rent,transaction_type&published=eq.true',{headers:{apikey:'sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03',Accept:'application/json'}});
+    if(!r.ok)return null;
+    const rows=await r.json();
+    const match=(Array.isArray(rows)?rows:[]).find(p=>propertySlug(p)===slug);
+    return match?.id||null;
+  }catch(_){return null;}
 }
-const id=extractPropertyId(),app=document.getElementById('app');
+const id=await resolvePropertyId(),app=document.getElementById('app');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
 let photos=[],current=0;
