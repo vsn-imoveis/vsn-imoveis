@@ -3,8 +3,9 @@ function propertySlug(p){
   const condo=seoSlugPart(p.condominium_name||'');
   const rua=seoSlugPart(p.address||'');
   const dorms=Number(p.bedrooms||0);
+  const area=Number(p.area||0);
   const type=(p.for_rent&&!p.for_sale)?'locacao':(p.for_sale&&!p.for_rent)?'venda':(p.transaction_type==='rent'?'locacao':p.transaction_type==='sale'?'venda':'imovel');
-  return [condo,rua,dorms?dorms+'-dorm':null,type].filter(Boolean).join('-');
+  return [condo,rua,dorms?dorms+'-dorm':null,area?String(Math.round(area))+'m2':null,type].filter(Boolean).join('-');
 }
 function propertyUrl(p){return '/imovel/'+propertySlug(p);}
 function openProperty(id){const p=allProperties.find(x=>x.id===decodeURIComponent(id));if(p)window.open(propertyUrl(p),'_blank','noopener');}
