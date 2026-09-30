@@ -15,7 +15,7 @@ function xmlEscape(v){
 }
 export default async function handler(req,res){
   try{
-    const url=SUPABASE_URL+'/rest/v1/properties?select=id,title,condominium_name,neighborhood,city,updated_at,created_at&published=eq.true&order=updated_at.desc';
+    const url=SUPABASE_URL+'/rest/v1/public_properties?select=id,title,condominium_name,neighborhood,city,created_at&published=eq.true&order=updated_at.desc';
     const r=await fetch(url,{headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY,Accept:'application/json'}});
     if(!r.ok)throw new Error('Supabase HTTP '+r.status);
     const rows=await r.json();
