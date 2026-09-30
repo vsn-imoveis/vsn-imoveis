@@ -88,7 +88,7 @@ async function resolvePropertyId(){
     return match?.id||null;
   }catch(_){return null;}
 }
-const id=await resolvePropertyId(),app=document.getElementById('app');
+let id=null,app=document.getElementById('app');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
 let photos=[],current=0;
@@ -295,6 +295,7 @@ async function loadCondoAndProximity(p,city,state){
   };
 }
 async function load(){
+ id=await resolvePropertyId();
  if(!id){app.innerHTML='<div style="padding:50px 0">Imóvel não informado.</div>';return}
  try{
   const {data:p,error}=await db.from('properties').select('id,code,title,description,photos,published,property_type,transaction_type,for_sale,for_rent,price,rent_price,area,bedrooms,suites,bathrooms,parking,address,number,neighborhood,city,state,condominium_name,condo_features,features,condo_fee,iptu,created_at').eq('id',id).eq('published',true).single();if(error)throw error;
