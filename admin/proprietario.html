@@ -105,6 +105,29 @@ body.vsn-sidebar-collapsed .sidebar-sub a:before{content:none!important}
 @media(max-width:760px){
   .owner-properties{overflow-x:auto}
 }
+</style><style id="owner-profile-v1">
+.owner-profile-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;grid-template-columns:150px minmax(0,1fr);gap:24px}
+.owner-profile-photo{display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:4px}
+.owner-avatar-preview{width:112px;height:112px;border-radius:50%;background:#f1e4cc;color:#896b35;display:grid;place-items:center;font:800 30px Montserrat;overflow:hidden;background-position:center;background-size:cover}
+.owner-avatar-preview.has-photo{color:transparent}
+.photo-upload-btn{background:#f5ead7;color:#8b6a34;border:1px solid #ead9b9;border-radius:20px;padding:8px 13px;font-size:10px;font-weight:800;cursor:pointer}
+.owner-profile-photo small{font-size:9px;color:var(--muted)}
+.profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.profile-field label{display:block;font-size:9px;color:var(--muted);font-weight:800;margin-bottom:5px;text-transform:uppercase}
+.profile-field input{width:100%;height:40px;border:1px solid #d6dde1;border-radius:8px;padding:0 11px;color:var(--text);outline:none}
+.profile-field input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(211,170,98,.14)}
+.profile-field input[readonly]{background:#f6f7f8;color:#566773}
+.profile-field small{display:block;margin-top:5px;font-size:9px;color:var(--muted)}
+.contacts-section{margin-top:18px;border-top:1px solid var(--line);padding-top:17px}
+.contacts-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+.contacts-head b{display:block;font-size:12px}
+.contacts-head span{display:block;font-size:9px;color:var(--muted);margin-top:3px}
+.contact-row{display:grid;grid-template-columns:130px minmax(0,1fr) 36px;gap:8px;margin-bottom:8px}
+.contact-row select,.contact-row input{height:38px;border:1px solid #d6dde1;border-radius:8px;padding:0 10px;background:#fff;color:var(--text);outline:none}
+.contact-remove{width:36px;height:38px;border:1px solid #f0d1ce;background:#fff3f1;color:#b21e28;border-radius:8px;font-weight:800;cursor:pointer}
+.profile-actions{display:flex;align-items:center;gap:12px;margin-top:17px;padding-top:15px;border-top:1px solid var(--line)}
+#ownerProfileStatus{font-size:10px;color:var(--muted)}
+@media(max-width:700px){.owner-profile-card{grid-template-columns:1fr}.profile-grid{grid-template-columns:1fr}.contacts-head{align-items:flex-start}.contact-row{grid-template-columns:105px minmax(0,1fr) 36px}}
 </style></head>
 <body>
 <header class="top"><div class="brand">VSN<small>IMÓVEIS</small></div><div class="user"><div class="avatar">VS</div><span>Portal do proprietário</span></div></header>
@@ -113,7 +136,26 @@ body.vsn-sidebar-collapsed .sidebar-sub a:before{content:none!important}
 <div class="owner-stats" id="ownerStats"></div>
 <div class="owner-filters"><div class="owner-search"><label>Buscar</label><input id="ownerSearch" type="search" placeholder="Código, endereço, bairro ou condomínio"></div><div><label>Status</label><select id="ownerStatus"><option value="">Todos</option><option value="published">Publicados</option><option value="draft">Rascunhos</option></select></div><div><label>Finalidade</label><select id="ownerPurpose"><option value="">Todas</option><option value="sale">Venda</option><option value="rent">Locação</option></select></div></div>
 <div class="section"><div class="section-title-row"><h2>Seus imóveis</h2><span id="ownerCount" class="muted"></span></div><div class="owner-properties-header"><div>AÇÕES</div><div>FOTO</div><div>IMÓVEL</div><div>FINALIDADE</div><div>VALOR VENDA</div><div>VALOR LOCAÇÃO</div></div><div id="ownerProperties" class="owner-properties"><div class="loading-owner">Carregando seus imóveis...</div></div></div>
-<section class="section"><h2>Seus dados</h2><div class="profile" id="ownerProfile"><div class="item"><label>NOME</label><strong>Carregando...</strong></div><div class="item"><label>CELULAR</label><strong>—</strong></div><div class="item"><label>E-MAIL</label><strong>—</strong></div></div></section>
+<section class="section"><div class="section-title-row"><h2>Meu perfil</h2></div><div class="owner-profile-card">
+<div class="owner-profile-photo">
+  <div class="owner-avatar-preview" id="ownerAvatarPreview">VS</div>
+  <label class="photo-upload-btn" for="ownerPhotoInput">Adicionar foto</label>
+  <input id="ownerPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+  <small>JPG, PNG ou WEBP</small>
+</div>
+<div class="owner-profile-form">
+  <div class="profile-grid">
+    <div class="profile-field"><label>Nome</label><input id="ownerName" type="text" readonly></div>
+    <div class="profile-field"><label>E-mail principal</label><input id="ownerPrimaryEmail" type="email" readonly><small>O e-mail principal não pode ser alterado.</small></div>
+    <div class="profile-field"><label>Telefone principal</label><input id="ownerPrimaryPhone" type="tel" placeholder="(11) 99999-9999"></div>
+  </div>
+  <div class="contacts-section">
+    <div class="contacts-head"><div><b>Outros telefones e e-mails</b><span>Você pode cadastrar quantos precisar.</span></div><button type="button" class="btn ghost" onclick="addOwnerContact()">+ Adicionar</button></div>
+    <div id="ownerContacts"></div>
+  </div>
+  <div class="profile-actions"><button type="button" class="btn gold" id="saveOwnerProfile" onclick="saveOwnerProfile()">Salvar perfil</button><span id="ownerProfileStatus"></span></div>
+</div>
+</div></section>
 </main>
 
 <aside class="drawer" id="editDrawer">
@@ -196,7 +238,67 @@ async function toggleOwnerProperty(id,publish){
   }
   alert('Solicitação enviada. O administrador/corretor será notificado para análise.');
 }
-async function loadOwnerProperties(){const {data:sessionData}=await S.auth.getSession();if(!sessionData?.session)return;ownerSession=sessionData.session;const [{data:rows,error},{data:profile}]=await Promise.all([S.from('properties').select('id,code,title,property_type,for_sale,for_rent,published,price,rent_price,area,bedrooms,suites,parking,condominium_name,address,neighborhood,city,state,photos').eq('owner_id',ownerSession.user.id).order('created_at',{ascending:false}),S.from('profiles').select('full_name,email,phone').eq('id',ownerSession.user.id).maybeSingle()]);if(error){document.getElementById('ownerProperties').innerHTML='<div class="empty-owner">Não foi possível carregar seus imóveis.</div>';console.error(error);return}ownerProperties=rows||[];renderOwnerStats(ownerProperties);renderOwnerProperties();if(profile)document.getElementById('ownerProfile').innerHTML='<div class="item"><label>NOME</label><strong>'+((profile.full_name||'—'))+'</strong></div><div class="item"><label>CELULAR</label><strong>'+((profile.phone||'—'))+'</strong></div><div class="item"><label>E-MAIL</label><strong>'+((profile.email||ownerSession.user.email||'—'))+'</strong></div>'}
+async function loadOwnerProperties(){const {data:sessionData}=await S.auth.getSession();if(!sessionData?.session)return;ownerSession=sessionData.session;const [{data:rows,error},{data:profile},{data:contacts,error:contactsError}]=await Promise.all([S.from('properties').select('id,code,title,property_type,for_sale,for_rent,published,price,rent_price,area,bedrooms,suites,parking,condominium_name,address,neighborhood,city,state,photos').eq('owner_id',ownerSession.user.id).order('created_at',{ascending:false}),S.from('profiles').select('full_name,email,phone,avatar_url').eq('id',ownerSession.user.id).maybeSingle(),S.from('owner_contacts').select('id,contact_type,contact_value').eq('owner_id',ownerSession.user.id).order('created_at',{ascending:true})]);if(error){document.getElementById('ownerProperties').innerHTML='<div class="empty-owner">Não foi possível carregar seus imóveis.</div>';console.error(error);return}ownerProperties=rows||[];renderOwnerStats(ownerProperties);renderOwnerProperties();renderOwnerProfile(profile,contactsError?[]:(contacts||[]))}
+let ownerContactRows=[];
+function renderOwnerProfile(profile,contacts){
+  const p=profile||{};
+  document.getElementById('ownerName').value=p.full_name||'';
+  document.getElementById('ownerPrimaryEmail').value=p.email||ownerSession?.user?.email||'';
+  document.getElementById('ownerPrimaryPhone').value=p.phone||'';
+  const avatar=document.getElementById('ownerAvatarPreview');
+  const initials=(p.full_name||ownerSession?.user?.email||'VS').trim().split(/\\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'VS';
+  avatar.textContent=initials;
+  if(p.avatar_url){avatar.style.backgroundImage='url("'+String(p.avatar_url).replace(/"/g,'&quot;')+'")';avatar.classList.add('has-photo')}
+  ownerContactRows=contacts.map(x=>({id:x.id,type:x.contact_type,value:x.contact_value}));
+  renderOwnerContacts();
+}
+function renderOwnerContacts(){
+  const el=document.getElementById('ownerContacts');if(!el)return;
+  el.innerHTML=ownerContactRows.map((x,i)=>'<div class="contact-row" data-index="'+i+'"><select onchange="ownerContactRows['+i+'].type=this.value"><option value="phone" '+(x.type==='phone'?'selected':'')+'>Telefone</option><option value="email" '+(x.type==='email'?'selected':'')+'>E-mail</option></select><input value="'+String(x.value||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')+'" placeholder="'+(x.type==='phone'?'(11) 99999-9999':'email@exemplo.com')+'" oninput="ownerContactRows['+i+'].value=this.value"><button type="button" class="contact-remove" onclick="removeOwnerContact('+i+')">×</button></div>').join('');
+}
+function addOwnerContact(){ownerContactRows.push({id:null,type:'phone',value:''});renderOwnerContacts()}
+function removeOwnerContact(i){ownerContactRows.splice(i,1);renderOwnerContacts()}
+async function saveOwnerProfile(){
+  if(!ownerSession)return;
+  const btn=document.getElementById('saveOwnerProfile'),status=document.getElementById('ownerProfileStatus');
+  btn.disabled=true;status.textContent='Salvando...';
+  try{
+    const phone=document.getElementById('ownerPrimaryPhone').value.trim();
+    const up=await S.from('profiles').update({phone,updated_at:new Date().toISOString()}).eq('id',ownerSession.user.id);
+    if(up.error)throw up.error;
+    const {data:existing,error:existingError}=await S.from('owner_contacts').select('id').eq('owner_id',ownerSession.user.id);
+    if(existingError)throw existingError;
+    const currentIds=new Set(ownerContactRows.filter(x=>x.id).map(x=>x.id));
+    const removeIds=(existing||[]).map(x=>x.id).filter(id=>!currentIds.has(id));
+    if(removeIds.length){const d=await S.from('owner_contacts').delete().in('id',removeIds).eq('owner_id',ownerSession.user.id);if(d.error)throw d.error}
+    for(const x of ownerContactRows){
+      const value=String(x.value||'').trim();if(!value)continue;
+      if(x.id){const u=await S.from('owner_contacts').update({contact_type:x.type,contact_value:value,updated_at:new Date().toISOString()}).eq('id',x.id).eq('owner_id',ownerSession.user.id);if(u.error)throw u.error}
+      else{const ins=await S.from('owner_contacts').insert({owner_id:ownerSession.user.id,contact_type:x.type,contact_value:value});if(ins.error)throw ins.error}
+    }
+    status.textContent='Perfil salvo com sucesso.';
+    setTimeout(()=>{status.textContent=''},2500);
+    await loadOwnerProperties();
+  }catch(e){console.error(e);status.textContent='Não foi possível salvar: '+(e.message||e)}
+  finally{btn.disabled=false}
+}
+document.getElementById('ownerPhotoInput').addEventListener('change',async e=>{
+  const file=e.target.files?.[0];if(!file||!ownerSession)return;
+  const status=document.getElementById('ownerProfileStatus');status.textContent='Enviando foto...';
+  try{
+    const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+    const path=ownerSession.user.id+'/'+crypto.randomUUID()+'.'+ext;
+    const up=await S.storage.from('profile-photos').upload(path,file,{upsert:false,contentType:file.type||'image/jpeg'});
+    if(up.error)throw up.error;
+    const pub=S.storage.from('profile-photos').getPublicUrl(path);
+    const url=pub.data.publicUrl;
+    const db=await S.from('profiles').update({avatar_url:url,updated_at:new Date().toISOString()}).eq('id',ownerSession.user.id);
+    if(db.error)throw db.error;
+    const avatar=document.getElementById('ownerAvatarPreview');avatar.style.backgroundImage='url("'+url.replace(/"/g,'&quot;')+'")';avatar.classList.add('has-photo');status.textContent='Foto atualizada.';
+    setTimeout(()=>{status.textContent=''},2500);
+  }catch(err){console.error(err);status.textContent='Não foi possível enviar a foto: '+(err.message||err)}
+  e.target.value='';
+});
 let active=true;
 function openEdit(){document.getElementById('editDrawer').classList.add('open');renderPhotos()}
 function closeEdit(){document.getElementById('editDrawer').classList.remove('open')}
