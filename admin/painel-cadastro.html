@@ -150,9 +150,21 @@ function ensureLocationHiddenFields(x={}){
  [n,c,st].forEach(el=>{if(el&&!el.dataset.locationAutoBound){el.addEventListener('change',resolvePropertyLocation);el.addEventListener('blur',resolvePropertyLocation);el.dataset.locationAutoBound='1';}});
  resolvePropertyLocation();
 }
+function restoreTowerSelection(x={}){
+ const select=document.getElementById('tower');
+ if(!select)return;
+ const saved=String(x.tower||'').trim();
+ if(!saved){select.value='';return;}
+ const option=[...select.options].find(o=>String(o.value||'').trim()===saved);
+ if(option){select.value=option.value;return;}
+ const normalized=s=>String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const fallback=[...select.options].find(o=>normalized(o.value)===normalized(saved));
+ select.value=fallback?fallback.value:'';
+}
 function newProp(x={}){
   const pageY=window.scrollY;
   newPropOriginal(x);
+  restoreTowerSelection(x);
   ensureLocationHiddenFields(x);
   forceAreaTextField();
   setTimeout(()=>{
