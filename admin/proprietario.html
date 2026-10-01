@@ -128,9 +128,9 @@ body.vsn-sidebar-collapsed .sidebar-sub a:before{content:none!important}
 .profile-actions{display:flex;align-items:center;gap:12px;margin-top:17px;padding-top:15px;border-top:1px solid var(--line)}
 #ownerProfileStatus{font-size:10px;color:var(--muted)}
 @media(max-width:700px){.owner-profile-card{grid-template-columns:1fr}.profile-grid{grid-template-columns:1fr}.contacts-head{align-items:flex-start}.contact-row{grid-template-columns:105px minmax(0,1fr) 36px}}
-</style></head>
+</style><style id="owner-header-profile-v1">#ownerHeaderAvatar{background-size:cover;background-position:center;overflow:hidden}#ownerHeaderName{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style></head>
 <body>
-<header class="top"><div class="brand">VSN<small>IMÓVEIS</small></div><div class="user"><div class="avatar">VS</div><span>Portal do proprietário</span></div></header>
+<header class="top"><div class="brand">VSN<small>IMÓVEIS</small></div><div class="user"><div class="avatar" id="ownerHeaderAvatar">VS</div><span id="ownerHeaderName">Portal do proprietário</span></div></header>
 <main class="content">
 <div class="welcome"><div><h1>Meus imóveis</h1><p>Consulte e acompanhe todos os imóveis vinculados à sua conta.</p></div><div class="badge-owner">PORTAL DO PROPRIETÁRIO</div></div>
 <div class="owner-stats" id="ownerStats"></div>
@@ -240,8 +240,22 @@ async function toggleOwnerProperty(id,publish){
 }
 async function loadOwnerProperties(){const {data:sessionData}=await S.auth.getSession();if(!sessionData?.session)return;ownerSession=sessionData.session;const [{data:rows,error},{data:profile},{data:contacts,error:contactsError}]=await Promise.all([S.from('properties').select('id,code,title,property_type,for_sale,for_rent,published,price,rent_price,area,bedrooms,suites,parking,condominium_name,address,neighborhood,city,state,photos').eq('owner_id',ownerSession.user.id).order('created_at',{ascending:false}),S.from('profiles').select('full_name,email,phone,avatar_url').eq('id',ownerSession.user.id).maybeSingle(),S.from('owner_contacts').select('id,contact_type,contact_value').eq('owner_id',ownerSession.user.id).order('created_at',{ascending:true})]);if(error){document.getElementById('ownerProperties').innerHTML='<div class="empty-owner">Não foi possível carregar seus imóveis.</div>';console.error(error);return}ownerProperties=rows||[];renderOwnerStats(ownerProperties);renderOwnerProperties();renderOwnerProfile(profile,contactsError?[]:(contacts||[]))}
 let ownerContactRows=[];
+function updateOwnerHeader(profile){
+  const avatar=document.getElementById('ownerHeaderAvatar'),name=document.getElementById('ownerHeaderName');
+  if(!avatar)return;
+  const fullName=(profile?.full_name||'').trim();
+  if(name)name.textContent=fullName||'Portal do proprietário';
+  if(profile?.avatar_url){
+    avatar.textContent='';
+    avatar.style.backgroundImage='url("'+String(profile.avatar_url).replace(/"/g,'&quot;')+'")';
+  }else{
+    const initials=(fullName||ownerSession?.user?.email||'VS').split(/\s+/).slice(0,2).map(x=>x[0]).join('').toUpperCase()||'VS';
+    avatar.textContent=initials;
+    avatar.style.backgroundImage='';
+  }
+}
 function renderOwnerProfile(profile,contacts){
-  const p=profile||{};
+  const p=profile||{}; updateOwnerHeader(p);
   document.getElementById('ownerName').value=p.full_name||'';
   document.getElementById('ownerPrimaryEmail').value=p.email||ownerSession?.user?.email||'';
   document.getElementById('ownerPrimaryPhone').value=p.phone||'';
