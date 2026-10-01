@@ -282,8 +282,10 @@ async function saveOwnerProfile(){
   const btn=document.getElementById('saveOwnerProfile'),status=document.getElementById('ownerProfileStatus');
   btn.disabled=true;status.textContent='Salvando...';
   try{
+    const name=document.getElementById('ownerName').value.trim();
     const phone=document.getElementById('ownerPrimaryPhone').value.trim();
-    const up=await S.from('profiles').update({phone,updated_at:new Date().toISOString()}).eq('id',ownerSession.user.id);
+    if(!name){status.textContent='Informe seu nome.';return}
+    const up=await S.from('profiles').update({full_name:name,phone,updated_at:new Date().toISOString()}).eq('id',ownerSession.user.id);
     if(up.error)throw up.error;
     const {data:existing,error:existingError}=await S.from('owner_contacts').select('id').eq('owner_id',ownerSession.user.id);
     if(existingError)throw existingError;
@@ -351,7 +353,7 @@ window.addEventListener('load',()=>{bindOwnerPhotoInput();checkOwnerTerm();loadO
         </div>
         <div class="owner-profile-form">
           <div class="profile-grid">
-            <div class="profile-field"><label>Nome</label><input id="ownerName" type="text" readonly></div>
+            <div class="profile-field"><label>Nome</label><input id="ownerName" type="text" placeholder="Seu nome completo"></div>
             <div class="profile-field"><label>E-mail principal</label><input id="ownerPrimaryEmail" type="email" readonly><small>O e-mail principal não pode ser alterado.</small></div>
             <div class="profile-field"><label>Telefone principal</label><input id="ownerPrimaryPhone" type="tel" placeholder="(11) 99999-9999"></div>
           </div>
