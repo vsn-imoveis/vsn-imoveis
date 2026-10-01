@@ -301,7 +301,11 @@ async function saveOwnerProfile(){
   }catch(e){console.error(e);status.textContent='Não foi possível salvar: '+(e.message||e)}
   finally{btn.disabled=false}
 }
-document.getElementById('ownerPhotoInput').addEventListener('change',async e=>{
+function bindOwnerPhotoInput(){
+  const ownerPhotoInput=document.getElementById('ownerPhotoInput');
+  if(!ownerPhotoInput||ownerPhotoInput.dataset.bound==='1')return;
+  ownerPhotoInput.dataset.bound='1';
+  ownerPhotoInput.addEventListener('change',async e=>{
   const file=e.target.files?.[0];if(!file||!ownerSession)return;
   const status=document.getElementById('ownerProfileStatus');status.textContent='Enviando foto...';
   try{
@@ -317,7 +321,8 @@ document.getElementById('ownerPhotoInput').addEventListener('change',async e=>{
     setTimeout(()=>{status.textContent=''},2500);
   }catch(err){console.error(err);status.textContent='Não foi possível enviar a foto: '+(err.message||err)}
   e.target.value='';
-});
+  });
+}
 let active=true;
 function openEdit(){document.getElementById('editDrawer').classList.add('open');renderPhotos()}
 function closeEdit(){document.getElementById('editDrawer').classList.remove('open')}
@@ -327,7 +332,7 @@ function toggleAd(){active=!active;document.querySelector('.status')?.classList.
 document.getElementById('accept').addEventListener('change',e=>document.getElementById('finish').disabled=!e.target.checked)
 function closeTerm(){document.getElementById('termModal').classList.remove('open')}
 function openTerm(){document.getElementById('termModal').classList.add('open')}
-window.addEventListener('load',()=>{checkOwnerTerm();loadOwnerProperties();});
+window.addEventListener('load',()=>{bindOwnerPhotoInput();checkOwnerTerm();loadOwnerProperties();});
 </script>
 <div id="ownerProfileModal" class="owner-profile-modal" aria-hidden="true">
   <div class="owner-profile-modal-backdrop" onclick="closeOwnerProfile()"></div>
