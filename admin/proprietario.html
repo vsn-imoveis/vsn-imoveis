@@ -128,34 +128,27 @@ body.vsn-sidebar-collapsed .sidebar-sub a:before{content:none!important}
 .profile-actions{display:flex;align-items:center;gap:12px;margin-top:17px;padding-top:15px;border-top:1px solid var(--line)}
 #ownerProfileStatus{font-size:10px;color:var(--muted)}
 @media(max-width:700px){.owner-profile-card{grid-template-columns:1fr}.profile-grid{grid-template-columns:1fr}.contacts-head{align-items:flex-start}.contact-row{grid-template-columns:105px minmax(0,1fr) 36px}}
-</style><style id="owner-header-profile-v1">#ownerHeaderAvatar{background-size:cover;background-position:center;overflow:hidden}#ownerHeaderName{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style></head>
+</style><style id="owner-header-profile-v1">#ownerHeaderAvatar{background-size:cover;background-position:center;overflow:hidden}#ownerHeaderName{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}</style><style id="owner-profile-modal-v2">
+.owner-header-profile-btn{border:0;background:transparent;color:inherit;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 8px;border-radius:24px;font:inherit}
+.owner-header-profile-btn:hover{background:rgba(255,255,255,.07)}
+.owner-profile-modal{display:none;position:fixed;inset:0;z-index:3000;align-items:center;justify-content:center;padding:24px}
+.owner-profile-modal.open{display:flex}
+.owner-profile-modal-backdrop{position:absolute;inset:0;background:rgba(4,24,37,.62)}
+.owner-profile-modal-card{position:relative;z-index:1;width:min(860px,100%);max-height:calc(100vh - 48px);overflow:auto;background:#f6f7f8;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,.28)}
+.owner-profile-modal-head{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 24px;background:#fff;border-bottom:1px solid var(--line)}
+.owner-profile-modal-head h2{margin:0;font-size:22px}.owner-profile-modal-head p{margin:4px 0 0;color:var(--muted);font-size:11px}
+.owner-profile-close{border:0;background:#f1f3f5;width:34px;height:34px;border-radius:50%;font-size:24px;line-height:1;cursor:pointer;color:#334}
+.owner-profile-modal-body{padding:20px}
+.owner-profile-modal .owner-profile-card{margin:0}
+</style></head>
 <body>
-<header class="top"><div class="brand">VSN<small>IMÓVEIS</small></div><div class="user"><div class="avatar" id="ownerHeaderAvatar">VS</div><span id="ownerHeaderName">Portal do proprietário</span></div></header>
+<header class="top"><div class="brand">VSN<small>IMÓVEIS</small></div><button type="button" class="user owner-header-profile-btn" onclick="openOwnerProfile()" aria-label="Abrir meu perfil"><div class="avatar" id="ownerHeaderAvatar">VS</div><span id="ownerHeaderName">Portal do proprietário</span></button></header>
 <main class="content">
 <div class="welcome"><div><h1>Meus imóveis</h1><p>Consulte e acompanhe todos os imóveis vinculados à sua conta.</p></div><div class="badge-owner">PORTAL DO PROPRIETÁRIO</div></div>
 <div class="owner-stats" id="ownerStats"></div>
 <div class="owner-filters"><div class="owner-search"><label>Buscar</label><input id="ownerSearch" type="search" placeholder="Código, endereço, bairro ou condomínio"></div><div><label>Status</label><select id="ownerStatus"><option value="">Todos</option><option value="published">Publicados</option><option value="draft">Rascunhos</option></select></div><div><label>Finalidade</label><select id="ownerPurpose"><option value="">Todas</option><option value="sale">Venda</option><option value="rent">Locação</option></select></div></div>
 <div class="section"><div class="section-title-row"><h2>Seus imóveis</h2><span id="ownerCount" class="muted"></span></div><div class="owner-properties-header"><div>AÇÕES</div><div>FOTO</div><div>IMÓVEL</div><div>FINALIDADE</div><div>VALOR VENDA</div><div>VALOR LOCAÇÃO</div></div><div id="ownerProperties" class="owner-properties"><div class="loading-owner">Carregando seus imóveis...</div></div></div>
-<section class="section"><div class="section-title-row"><h2>Meu perfil</h2></div><div class="owner-profile-card">
-<div class="owner-profile-photo">
-  <div class="owner-avatar-preview" id="ownerAvatarPreview">VS</div>
-  <label class="photo-upload-btn" for="ownerPhotoInput">Adicionar foto</label>
-  <input id="ownerPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
-  <small>JPG, PNG ou WEBP</small>
-</div>
-<div class="owner-profile-form">
-  <div class="profile-grid">
-    <div class="profile-field"><label>Nome</label><input id="ownerName" type="text" readonly></div>
-    <div class="profile-field"><label>E-mail principal</label><input id="ownerPrimaryEmail" type="email" readonly><small>O e-mail principal não pode ser alterado.</small></div>
-    <div class="profile-field"><label>Telefone principal</label><input id="ownerPrimaryPhone" type="tel" placeholder="(11) 99999-9999"></div>
-  </div>
-  <div class="contacts-section">
-    <div class="contacts-head"><div><b>Outros telefones e e-mails</b><span>Você pode cadastrar quantos precisar.</span></div><button type="button" class="btn ghost" onclick="addOwnerContact()">+ Adicionar</button></div>
-    <div id="ownerContacts"></div>
-  </div>
-  <div class="profile-actions"><button type="button" class="btn gold" id="saveOwnerProfile" onclick="saveOwnerProfile()">Salvar perfil</button><span id="ownerProfileStatus"></span></div>
-</div>
-</div></section>
+
 </main>
 
 <aside class="drawer" id="editDrawer">
@@ -254,6 +247,18 @@ function updateOwnerHeader(profile){
     avatar.style.backgroundImage='';
   }
 }
+function openOwnerProfile(){
+  const modal=document.getElementById('ownerProfileModal');
+  if(!modal)return;
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden','false');
+}
+function closeOwnerProfile(){
+  const modal=document.getElementById('ownerProfileModal');
+  if(!modal)return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden','true');
+}
 function renderOwnerProfile(profile,contacts){
   const p=profile||{}; updateOwnerHeader(p);
   document.getElementById('ownerName').value=p.full_name||'';
@@ -324,5 +329,35 @@ function closeTerm(){document.getElementById('termModal').classList.remove('open
 function openTerm(){document.getElementById('termModal').classList.add('open')}
 window.addEventListener('load',()=>{checkOwnerTerm();loadOwnerProperties();});
 </script>
-</body>
+<div id="ownerProfileModal" class="owner-profile-modal" aria-hidden="true">
+  <div class="owner-profile-modal-backdrop" onclick="closeOwnerProfile()"></div>
+  <div class="owner-profile-modal-card" role="dialog" aria-modal="true" aria-labelledby="ownerProfileModalTitle">
+    <div class="owner-profile-modal-head">
+      <div><h2 id="ownerProfileModalTitle">Meu perfil</h2><p>Atualize seus contatos e sua foto.</p></div>
+      <button type="button" class="owner-profile-close" onclick="closeOwnerProfile()" aria-label="Fechar">×</button>
+    </div>
+    <div class="owner-profile-modal-body">
+      <div class="owner-profile-card">
+        <div class="owner-profile-photo">
+          <div class="owner-avatar-preview" id="ownerAvatarPreview">VS</div>
+          <label class="photo-upload-btn" for="ownerPhotoInput">Adicionar foto</label>
+          <input id="ownerPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+          <small>JPG, PNG ou WEBP</small>
+        </div>
+        <div class="owner-profile-form">
+          <div class="profile-grid">
+            <div class="profile-field"><label>Nome</label><input id="ownerName" type="text" readonly></div>
+            <div class="profile-field"><label>E-mail principal</label><input id="ownerPrimaryEmail" type="email" readonly><small>O e-mail principal não pode ser alterado.</small></div>
+            <div class="profile-field"><label>Telefone principal</label><input id="ownerPrimaryPhone" type="tel" placeholder="(11) 99999-9999"></div>
+          </div>
+          <div class="contacts-section">
+            <div class="contacts-head"><div><b>Outros telefones e e-mails</b><span>Você pode cadastrar quantos precisar.</span></div><button type="button" class="btn ghost" onclick="addOwnerContact()">+ Adicionar</button></div>
+            <div id="ownerContacts"></div>
+          </div>
+          <div class="profile-actions"><button type="button" class="btn gold" id="saveOwnerProfile" onclick="saveOwnerProfile()">Salvar perfil</button><span id="ownerProfileStatus"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></body>
 </html>
