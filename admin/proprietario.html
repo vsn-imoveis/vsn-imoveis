@@ -90,7 +90,22 @@ body.vsn-sidebar-collapsed .sidebar-sub a:before{content:none!important}
 .owner-card-rent-value small{display:block;font:8px Manrope;color:var(--muted);font-weight:600;margin-top:2px}
 @media(max-width:900px){.owner-properties-header{grid-template-columns:290px 92px minmax(240px,1fr) 90px 115px 115px}.owner-card{grid-template-columns:290px 92px minmax(240px,1fr) 90px 115px 115px}}
 @media(max-width:760px){.owner-properties-header{min-width:900px}.owner-properties{overflow-x:auto}}
-</style><style id="owner-no-admin-sidebar-v1">body{padding-left:0!important}.content{margin-left:0!important;width:min(1120px,calc(100% - 40px));margin-right:auto!important}.content{margin-left:auto!important}@media(max-width:760px){.content{width:calc(100% - 24px);margin-left:auto!important;margin-right:auto!important}}</style></head>
+</style><style id="owner-no-admin-sidebar-v1">body{padding-left:0!important}.content{margin-left:0!important;width:min(1120px,calc(100% - 40px));margin-right:auto!important}.content{margin-left:auto!important}@media(max-width:760px){.content{width:calc(100% - 24px);margin-left:auto!important;margin-right:auto!important}}</style><style id="owner-table-fit-v1">
+.owner-properties{width:100%;overflow-x:hidden}
+.owner-properties-header,.owner-card{grid-template-columns:250px 92px minmax(280px,1fr) 105px 120px 120px!important}
+.owner-card-actions{padding-left:8px;padding-right:6px}
+.owner-card-actions>div{gap:5px!important}
+.owner-card-actions .btn{padding-left:11px!important;padding-right:11px!important;font-size:9px!important}
+.owner-card-body{min-width:0}
+.owner-card-title,.owner-card-loc{max-width:100%}
+@media(max-width:1050px){
+  .owner-properties{overflow-x:auto}
+  .owner-properties-header,.owner-card{min-width:820px}
+}
+@media(max-width:760px){
+  .owner-properties{overflow-x:auto}
+}
+</style></head>
 <body>
 <header class="top"><div class="brand">VSN<small>IMÓVEIS</small></div><div class="user"><div class="avatar">VS</div><span>Portal do proprietário</span></div></header>
 <main class="content">
