@@ -555,15 +555,39 @@ async function save(form){if(!form.reportValidity())return;if(!form.querySelecto
       b.disabled=false;b.textContent='Salvar imóvel';
       return;
     }
-    const {error:reqError}=await S.from('property_owner_edit_requests').insert({
-      property_id:editId,
-      owner_id:ownerId,
-      changes,
-      status:'pending',
-      owner_message:'Alteração solicitada pelo proprietário.'
-    });
+    const {data:pendingRequest,error:findRequestError}=await S.from('property_owner_edit_requests')
+      .select('id')
+      .eq('property_id',editId)
+      .eq('owner_id',ownerId)
+      .eq('status','pending')
+      .maybeSingle();
+    if(findRequestError)throw findRequestError;
+
+    let reqError=null;
+    if(pendingRequest?.id){
+      const result=await S.from('property_owner_edit_requests')
+        .update({
+          changes,
+          owner_message:'Alteração atualizada pelo proprietário.',
+          updated_at:new Date().toISOString()
+        })
+        .eq('id',pendingRequest.id)
+        .eq('status','pending');
+      reqError=result.error;
+    }else{
+      const result=await S.from('property_owner_edit_requests').insert({
+        property_id:editId,
+        owner_id:ownerId,
+        changes,
+        status:'pending',
+        owner_message:'Alteração solicitada pelo proprietário.'
+      });
+      reqError=result.error;
+    }
     if(reqError)throw reqError;
-    toast('Alteração enviada para análise. O administrador/corretor será notificado.','ok');
+    toast(pendingRequest?.id
+      ? 'Solicitação pendente atualizada. O administrador/corretor será notificado.'
+      : 'Alteração enviada para análise. O administrador/corretor será notificado.','ok');
     setTimeout(()=>{window.location.href='proprietario.html'},1100);
   }catch(e){
     console.error('[VSN] solicitação do proprietário',e);
