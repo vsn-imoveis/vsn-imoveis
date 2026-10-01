@@ -93,7 +93,38 @@ body.vsn-sidebar-collapsed .sidebar-sub a:before{content:none!important}
 <div class="modal-actions"><button class="btn ghost" onclick="closeTerm()">Cancelar</button><button class="btn gold" id="finish" disabled onclick="finish()">Aceitar e finalizar cadastro</button></div>
 </div></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+const U='https://jpdfynaioepcmgqlqlht.supabase.co',K='sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03',S=supabase.createClient(U,K);
+const OWNER_TERM_VERSION='2026-10-v2';
+let ownerSession=null;
+async function checkOwnerTerm(){
+  try{
+    const {data,error}=await S.auth.getSession();
+    if(error||!data?.session){window.location.href='painel-login.html';return;}
+    ownerSession=data.session;
+    const {data:accepted,error:acceptError}=await S.from('owner_term_acceptances').select('id').eq('user_id',ownerSession.user.id).eq('term_version',OWNER_TERM_VERSION).maybeSingle();
+    if(acceptError){console.error('Erro ao verificar aceite do termo:',acceptError);return;}
+    if(!accepted) openTerm();
+  }catch(e){console.error('Erro ao verificar termo:',e);}
+}
+async function finish(){
+  const checkbox=document.getElementById('accept');
+  if(!checkbox?.checked||!ownerSession)return;
+  const btn=document.getElementById('finish');
+  if(btn){btn.disabled=true;btn.textContent='Registrando...';}
+  const {error}=await S.from('owner_term_acceptances').insert({user_id:ownerSession.user.id,term_version:OWNER_TERM_VERSION});
+  if(error){
+    if(error.code==='23505'){closeTerm();return;}
+    if(btn){btn.disabled=false;btn.textContent='Aceitar e finalizar cadastro';}
+    alert('Não foi possível registrar o aceite. Tente novamente.');
+    console.error(error);
+    return;
+  }
+  closeTerm();
+  alert('Termo aceito e registrado com sucesso.');
+}
+
 let active=true;
 function openEdit(){document.getElementById('editDrawer').classList.add('open');renderPhotos()}
 function closeEdit(){document.getElementById('editDrawer').classList.remove('open')}
@@ -102,7 +133,8 @@ function saveEdit(){const v=Number(document.getElementById('newPrice').value.rep
 function toggleAd(){active=!active;document.querySelector('.status')?.classList.toggle('off',!active);document.querySelector('.status')?.replaceChildren(document.createTextNode(active?'ANÚNCIO ATIVO':'ANÚNCIO DESATIVADO'));document.getElementById('pubInfo').innerHTML=active?'Anúncio ativo no site.<br><b>Você pode desativá-lo quando quiser.</b>':'Anúncio desativado.<br><b>O cadastro foi preservado pela VSN.</b>';document.querySelector('.actions .gold').textContent=active?'Desativar anúncio':'Publicar anúncio'}
 document.getElementById('accept').addEventListener('change',e=>document.getElementById('finish').disabled=!e.target.checked)
 function closeTerm(){document.getElementById('termModal').classList.remove('open')}
-function openTerm(){document.getElementById('termModal').classList.add('open')} function finish(){closeTerm();alert('Cadastro concluído e anúncio autorizado para publicação.');} window.addEventListener('load',()=>openTerm());
+function openTerm(){document.getElementById('termModal').classList.add('open')}
+window.addEventListener('load',checkOwnerTerm);
 </script>
 <script id="vsn-sidebar-controller">(function(){const b=document.getElementById('vsnSidebarToggle');if(!b)return;const key='vsnAdminSidebarCollapsed';function set(v){document.body.classList.toggle('vsn-sidebar-collapsed',v);b.setAttribute('aria-expanded',String(!v));b.setAttribute('aria-label',v?'Expandir menu lateral':'Recolher menu lateral');b.title=v?'Expandir menu':'Recolher menu';}let saved=false;try{saved=localStorage.getItem(key)==='1'}catch(e){}set(saved);b.addEventListener('click',()=>{const v=!document.body.classList.contains('vsn-sidebar-collapsed');set(v);try{localStorage.setItem(key,v?'1':'0')}catch(e){}});})();</script><script id="vsn-sidebar-page-height-fix">(function(){const side=document.querySelector('.admin-sidebar');if(!side)return;let raf=0;function fit(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const root=document.documentElement;const body=document.body;const top=parseFloat(getComputedStyle(root).getPropertyValue('--vsn-sidebar-top'))||98;const main=document.querySelector('main.wrap, main, #app, .wrap');const mainBottom=main?main.getBoundingClientRect().bottom+window.scrollY:0;const docBottom=Math.max(root.scrollHeight,body.scrollHeight,mainBottom,window.innerHeight);const h=Math.max(window.innerHeight-top,docBottom-top);root.style.setProperty('--vsn-sidebar-document-height',Math.ceil(h)+'px');side.style.height=Math.ceil(h)+'px';side.style.minHeight=Math.ceil(h)+'px';});}fit();window.addEventListener('resize',fit,{passive:true});window.addEventListener('load',fit,{once:true});window.addEventListener('orientationchange',fit,{passive:true});if(window.ResizeObserver){const main=document.querySelector('main.wrap, main, #app, .wrap');if(main)new ResizeObserver(fit).observe(main);}if(window.MutationObserver)new MutationObserver(fit).observe(document.body,{childList:true,subtree:true});})();</script></body>
 </html>
