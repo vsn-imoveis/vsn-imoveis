@@ -1,9 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node scripts/generate-property-pages.js",
-  "outputDirectory": ".",
   "rewrites": [
-    { "source": "/imovel/:slug", "destination": "/imovel/:slug.html" },
+    { "source": "/imovel/:slug", "destination": "/imovel.html?slug=:slug" },
     { "source": "/sitemap-properties.xml", "destination": "/api/sitemap-properties" }
   ]
 }
