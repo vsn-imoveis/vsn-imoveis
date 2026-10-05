@@ -29,7 +29,7 @@ footer{background:var(--navy);color:#fff;padding:35px 0;font-size:12px}.footer-i
 <div class="wrap">
 <div class="crumb"><a href="/">Início</a><b>›</b>Condomínios<b>›</b>Space Residence I</div>
 <section class="location-hero">
-  <div class="media-box"><img src="https://jpdfynaioepcmgqlqlht.supabase.co/storage/v1/object/public/property-photos/properties/16547271-3b24-4978-b257-7012d3a05114/362f5bec-22a8-4462-9408-f8cd61a3f963-WhatsApp_Image_2026-09-06_at_14.59.40.jpeg" alt="Condomínio Space Residence I"></div>
+  <div class="media-box"><img id="condoCover" src="" alt="Condomínio Space Residence I"></div>
   <div class="media-box map-box"><iframe title="Mapa do Condomínio Space Residence I" src="https://www.google.com/maps?q=Estrada+do+Campo+Limpo+5930+S%C3%A3o+Paulo+SP&output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe><a class="map-open" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Estrada+do+Campo+Limpo+5930+S%C3%A3o+Paulo+SP">Abrir no Google Maps ↗</a></div>
 </section>
 <section class="hero-title"><div class="eyebrow">CONDOMÍNIO</div><h1 id="name">Space Residence I</h1><p id="heroAddress">Estrada do Campo Limpo, 5930 · Vila Pirajussara · São Paulo - SP</p></section>
@@ -75,9 +75,11 @@ function renderProperties(rows){
 }
 async function load(){
  try{
-  const cq=await db.from('condominiums').select('id,name,address,number,neighborhood,city,state,construction_year,delivery_year,units,towers,floors,features').eq('id',condoId).single();
+  const cq=await db.from('condominiums').select('id,name,address,number,neighborhood,city,state,construction_year,delivery_year,units,towers,floors,features,cover_image_url').eq('id',condoId).single();
   if(cq.data){
    const c=cq.data;
+   const cover=document.getElementById('condoCover');
+   if(c.cover_image_url){cover.src=c.cover_image_url}else{cover.removeAttribute('src');cover.style.display='none';cover.parentElement.style.background='linear-gradient(135deg,#dfe5e9,#f5f7f8)';cover.parentElement.innerHTML='<div style="height:100%;display:grid;place-items:center;color:#6c7881;font-size:13px;font-weight:700">Foto do condomínio não cadastrada</div>'}
    document.getElementById('name').textContent=c.name||condoName;
    document.getElementById('heroAddress').textContent=[c.address,c.number].filter(Boolean).join(', ')+' · '+[c.neighborhood,c.city+' - '+c.state].filter(Boolean).join(' · ');
    renderFacts(c);
