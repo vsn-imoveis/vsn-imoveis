@@ -102,7 +102,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 
 const SUPA_URL='https://jpdfynaioepcmgqlqlht.supabase.co',SUPA_KEY='sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03';
 const db=supabase.createClient(SUPA_URL,SUPA_KEY);const $=(s,r=document)=>r.querySelector(s);let sessionUser=null;
-const form=$('#condoForm');const params=new URLSearchParams(location.search);const recordId=params.get('id')||params.get('edit_id')||'';
+const form=$('#condoForm');const params=new URLSearchParams(location.search);const recordId=params.get('id')||params.get('edit_id')||'';let developers=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function msg(el,t,err=false){el.textContent=t;el.style.color=err?'#b42318':'#168044'}
 function showLogin(){$('#loginPanel').hidden=false;$('#app').hidden=true}
@@ -140,7 +140,6 @@ function closeQuickBuilder(){const m=$('#quickBuilderModal');m.hidden=true;docum
 function openQuickBuilder(){const f=$('#quickBuilderForm');f.reset();$('#quickBuilderMsg').textContent='';$('#quickBuilderModal').hidden=false;document.body.style.overflow='hidden';setTimeout(()=>$('#quickBuilderName').focus(),50);}
 $('#openBuilderModal').addEventListener('click',openQuickBuilder);$('#closeQuickBuilder').addEventListener('click',closeQuickBuilder);$('#cancelQuickBuilder').addEventListener('click',closeQuickBuilder);const quickBuilderModal=$('#quickBuilderModal');if(quickBuilderModal){quickBuilderModal.addEventListener('click',e=>{if(e.target.id==='quickBuilderModal')closeQuickBuilder()})}document.addEventListener('keydown',e=>{if(e.key==='Escape'&&quickBuilderModal&&!quickBuilderModal.hidden)closeQuickBuilder()});
 $('#quickBuilderForm').addEventListener('submit',async e=>{e.preventDefault();const f=e.currentTarget,btn=$('#saveQuickBuilder');const name=f.elements.name.value.trim();if(!name)return;btn.disabled=true;$('#quickBuilderMsg').style.color='#52616b';$('#quickBuilderMsg').textContent='Salvando construtora...';const payload={name,legal_name:f.elements.legal_name.value.trim()||null,document:f.elements.document.value.trim()||null,phone:f.elements.phone.value.trim()||null,website:f.elements.website.value.trim()||null,partnership_manager_name:f.elements.partnership_manager_name.value.trim()||null,partnership_manager_phone:f.elements.partnership_manager_phone.value.trim()||null,active:true,created_by:sessionUser?.id||null,updated_at:new Date().toISOString()};try{const{data,error}=await db.from('developers').insert(payload).select('id,name').single();if(error)throw error;await loadDevelopers(data.name);chooseBuilder(data.name);closeQuickBuilder();$('#formMsg').style.color='#168044';$('#formMsg').textContent='Construtora cadastrada e selecionada.';}catch(err){$('#quickBuilderMsg').style.color='#b42318';$('#quickBuilderMsg').textContent='Erro ao salvar: '+(err.message||err);}finally{btn.disabled=false;}});
-let developers=[];
 function chooseBuilder(name){
  const sel=$('#builderSelect');
  let opt=[...sel.options].find(o=>o.value.toLocaleLowerCase('pt-BR')===String(name||'').toLocaleLowerCase('pt-BR'));
