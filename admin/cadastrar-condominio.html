@@ -110,7 +110,6 @@ $('#loginForm').onsubmit=async e=>{e.preventDefault();msg($('#loginMsg'),'Entran
 $('#vsnSidebarToggle').onclick=()=>{const collapsed=document.body.classList.toggle('vsn-sidebar-collapsed');$('#vsnSidebarToggle').setAttribute('aria-expanded',String(!collapsed))};
 (async()=>{const{data:{session}}=await db.auth.getSession();if(session)await verifyAdmin(session);else showLogin();db.auth.onAuthStateChange((_e,s)=>{if(s&&!sessionUser)verifyAdmin(s)})})();
 
-const form=$('#condoForm');const params=new URLSearchParams(location.search);const recordId=params.get('id');
 const textFields=['name','cnpj','legal_name','trade_name','address','number','complement','neighborhood','city','state','cep','builder','phone','email','evidence'];
 const FEATURE_PRESETS=['Portaria 24 horas','Elevador','Academia','Piscina','Quadra esportiva','Salão de festas','Churrasqueira','Playground','Salão de jogos','Brinquedoteca','Área verde','Espaço gourmet','Coworking','Sauna','Spa','Bicicletário','Lavanderia','Pet place','Quadra de tênis','Quadra de beach tennis','Piscina aquecida','Piscina infantil','Espaço kids','Mercado/mini market','Gerador','Vagas para visitantes','Jardim','Solarium','Sala de ginástica','Pista de caminhada','Espaço delivery','Lounge','Rooftop','Cinema','Espaço beleza','Academia ao ar livre','Acessibilidade','Portaria presencial','Portaria virtual','Câmeras de segurança'];
 let selectedFeatures=[];
@@ -171,7 +170,7 @@ async function loadDevelopers(selected=''){
  filterBuilderOptions();
  if(selected)sel.value=selected;
 }
-async function onReady(){await loadDevelopers();if(!recordId)return;$('#formMsg').textContent='Carregando condomínio...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).maybeSingle();if(error||!data){msg($('#formMsg'),'Não foi possível carregar o condomínio: '+(error?.message||'registro não encontrado'),true);return}fill(data);$('#formMsg').textContent=''}
+async function onReady(){try{if(!recordId){resetForm();return}$('#formMsg').textContent='Carregando condomínio...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).maybeSingle();if(error)throw error;if(!data)throw new Error('registro não encontrado');await loadDevelopers(data.builder||'');fill(data);$('#formMsg').textContent=''}catch(e){console.error('[VSN] carregar condomínio',e);msg($('#formMsg'),'Não foi possível carregar o condomínio: '+(e.message||'erro desconhecido'),true)}}
 form.elements.name.addEventListener('input',syncNormalized);renderFeatures();$('#clearBtn').onclick=()=>resetForm();
 async function uploadCondoCover(id,file){if(!file)return null;const ext=(file.name.split('.').pop()||'jpg').toLowerCase();const path='condominiums/'+id+'/cover-'+Date.now()+'.'+ext;const r=await db.storage.from('site-assets').upload(path,file,{contentType:file.type||'image/jpeg',upsert:true});if(r.error)throw r.error;return db.storage.from('site-assets').getPublicUrl(path).data.publicUrl}
 $('#coverImage')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(f)$('#coverPreview').innerHTML='<div class="muted" style="font-size:12px">Foto selecionada: '+esc(f.name)+'</div>'});
