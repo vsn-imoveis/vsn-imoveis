@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8"><link rel="icon" type="image/png" href="/logo-vsn.png"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="index,follow">
 <title>Imóvel | VSN Imóveis</title><meta id="seoDescription" name="description" content="Imóvel disponível na VSN Imóveis.">
 <link id="seoCanonical" rel="canonical" href="https://vsn-imoveis.vercel.app/imovel.html">
 <meta id="seoOgTitle" property="og:title" content="Imóvel | VSN Imóveis">
 <meta id="seoOgDescription" property="og:description" content="Imóvel disponível na VSN Imóveis.">
 <meta id="seoOgUrl" property="og:url" content="https://vsn-imoveis.vercel.app/imovel.html">
-<meta id="seoOgImage" property="og:image" content="https://vsn-imoveis.vercel.app/hero-v12.jpg">
+<meta id="seoOgImage" property="og:image" content="https://vsn-imoveis.vercel.app/logo-vsn.png">
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
@@ -320,7 +320,7 @@ async function load(){
   setMeta('seoOgTitle','content',seoTitle);
   setMeta('seoOgDescription','content',seoDescription);
   setMeta('seoOgUrl','content',canonicalUrl);
-  if(photos[0])setMeta('seoOgImage','content',photos[0]);
+  setMeta('seoOgImage','content','https://vsn-imoveis.vercel.app/logo-vsn.png');
   let schema=document.getElementById('seoSchema');
   if(!schema){schema=document.createElement('script');schema.id='seoSchema';schema.type='application/ld+json';document.head.appendChild(schema);}
   schema.textContent=JSON.stringify({
