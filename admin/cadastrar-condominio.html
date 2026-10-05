@@ -80,7 +80,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 </nav></aside><div class="wrap">
 <section id="loginPanel" class="panel login" hidden><h2>Acesso administrativo</h2><p class="muted">Entre com sua conta de administrador para cadastrar condomínios.</p><form id="loginForm"><label>E-mail</label><input id="email" type="email" autocomplete="username" required><label>Senha</label><input id="password" type="password" autocomplete="current-password" required><div class="actions"><button class="btn primary">Entrar</button></div><div id="loginMsg" class="status"></div></form></section>
 <section id="app" hidden><div class="head"><div><h1 id="pageTitle">Cadastrar condomínio</h1><div class="muted">Cadastre e atualize os dados do condomínio na base da VSN Imóveis.</div></div><a class="btn secondary" href="condominios.html">← Consultar condomínios</a></div>
-<div class="panel"><form id="condoForm"><input type="hidden" name="id">
+<div class="panel"><form id="condoForm"><input type="hidden" name="id"><input type="hidden" name="normalized_name"><input type="hidden" name="features">
 <h3 class="section-title">Identificação</h3><div class="form-grid">
 <div class="field"><label>Nome do condomínio *</label><input name="name" required placeholder="Nome do condomínio"></div><div class="field"><label>Foto de capa do condomínio</label><input id="coverImage" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">Esta foto será usada exclusivamente na página do condomínio.</small><div id="coverPreview" style="margin-top:8px"></div></div>
 
