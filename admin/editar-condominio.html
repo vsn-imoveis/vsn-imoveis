@@ -70,7 +70,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 .feature-picker{position:relative}.feature-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px;max-height:190px;overflow:auto;padding:2px}.feature-option{display:inline-flex;align-items:center;gap:7px;border:1px solid #d7dee4;background:#f6f8fa;border-radius:20px;padding:8px 11px;font-size:13px;cursor:pointer;user-select:none}.feature-option input{width:16px;height:16px;margin:0;accent-color:#0b2940}.feature-option:has(input:checked){background:#e8f2ec;border-color:#6aa784;color:#145b35}.feature-selected{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.feature-chip{display:inline-flex;align-items:center;gap:8px;border-radius:18px;padding:7px 10px;background:#0b2940;color:white;font-size:12px}.feature-chip button{border:0;background:transparent;color:white;font-size:17px;line-height:1;cursor:pointer;padding:0}.feature-empty{font-size:12px;color:#697782;padding:7px}.feature-add-hint{font-size:12px;color:#697782;margin-top:7px}
 </style><style id="builder-quick-modal-style">
 .builder-inline{display:flex;gap:8px;align-items:stretch}.builder-inline input{flex:1;min-width:0}.builder-add-btn{white-space:nowrap;padding:9px 12px;font-size:12px}.quick-modal-overlay{position:fixed;inset:0;background:rgba(3,20,32,.62);z-index:5000;display:flex;align-items:center;justify-content:center;padding:18px}.quick-modal-overlay[hidden]{display:none!important}.quick-modal{width:min(560px,100%);max-height:90vh;overflow:auto;background:#fff;border-radius:15px;padding:22px;box-shadow:0 20px 65px rgba(0,0,0,.28)}.quick-modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}.quick-modal-head h2{margin:0;font-size:21px}.quick-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.quick-modal-grid .full{grid-column:1/-1}.quick-modal label{display:block;font-size:12px;font-weight:700;margin-bottom:7px}.quick-modal input{width:100%;height:42px;border:1px solid #cbd3da;border-radius:9px;padding:10px 12px;font:inherit}.quick-modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}.quick-modal-msg{font-size:12px;min-height:18px;margin-top:10px;color:#b42318}@media(max-width:640px){.builder-inline{flex-wrap:wrap}.builder-add-btn{width:100%}.quick-modal-grid{grid-template-columns:1fr}.quick-modal-grid .full{grid-column:auto}}
-</style><style id="builder-search-style">.builder-search{width:100%;margin-bottom:8px}</style></head><body><div class="admin-main">
+</style><style id="builder-search-style">.builder-search{width:100%;margin-bottom:8px}.builder-dropdown{position:absolute;left:0;right:0;top:calc(100% + 3px);z-index:3500;background:#fff;border:1px solid #cbd3da;border-radius:9px;box-shadow:0 10px 24px rgba(6,29,45,.15);max-height:240px;overflow:auto}.builder-option{display:block;width:100%;border:0;background:#fff;text-align:left;padding:10px 12px;cursor:pointer;color:#0b2940;font:13px Arial,sans-serif}.builder-option:hover,.builder-option:focus{background:#edf3f6}.builder-option small{display:block;color:#6c7881;font-size:11px;margin-top:3px}</style></head><body><div class="admin-main">
 <header class="admin-top"><button type="button" class="vsn-sidebar-toggle" id="vsnSidebarToggle" aria-label="Recolher menu lateral" aria-expanded="true" title="Recolher/expandir menu">☰</button><a class="admin-brand" href="painel-login.html" aria-label="VSN Imóveis"><span>VSN</span><small>IMÓVEIS</small></a><div class="admin-header-actions"><button class="profile-btn" type="button" aria-label="Usuário conectado"><span class="profile-avatar" id="userAvatar"><span id="userInitial">U</span></span><span class="header-user" id="userLabel">Usuário</span></button><a class="updates-bell" href="solicitacoes-proprietario.html" title="Solicitações" aria-label="Solicitações">🔔</a><button class="header-logout" id="logout" hidden>Sair</button></div></header>
 <aside class="admin-sidebar"><nav class="sidebar-menu" aria-label="Menu administrativo">
 <a class="sidebar-link" href="painel-login.html"><span class="sidebar-ico">⌂</span><span>Painel de Imóveis</span></a><div class="sidebar-sub"><a href="painel-cadastro.html">Cadastrar imóvel</a></div>
@@ -85,7 +85,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <div class="field"><label>Nome do condomínio *</label><input name="name" required placeholder="Nome do condomínio"></div><div class="field"><label>Foto de capa do condomínio</label><input id="coverImage" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">Esta foto será usada exclusivamente na página do condomínio.</small><div id="coverPreview" style="margin-top:8px"></div></div>
 
 <div class="field third"><label>CNPJ</label><input name="cnpj"></div><div class="field third"><label>Razão social</label><input name="legal_name"></div><div class="field third"><label>Nome fantasia</label><input name="trade_name"></div>
-<div class="field third"><label>Telefone</label><input name="phone" type="tel"></div><div class="field third"><label>E-mail</label><input name="email" type="email"></div><div class="field third"><label>Construtora / incorporadora</label><div class="builder-inline"><input type="text" name="builder" id="builderInput" list="builderOptions" placeholder="Digite ou selecione a construtora" autocomplete="off"><datalist id="builderOptions"></datalist><button type="button" class="btn secondary builder-add-btn" id="openBuilderModal">+ Cadastrar construtora</button></div></div>
+<div class="field third"><label>Telefone</label><input name="phone" type="tel"></div><div class="field third"><label>E-mail</label><input name="email" type="email"></div><div class="field third"><label>Construtora / incorporadora</label><div class="builder-inline"><div style="position:relative;flex:1;min-width:0"><input type="text" name="builder" id="builderInput" placeholder="Digite ou selecione a construtora" autocomplete="off"><div id="builderDropdown" class="builder-dropdown" hidden></div></div><button type="button" class="btn secondary builder-add-btn" id="openBuilderModal">+ Cadastrar construtora</button></div></div>
 </div>
 <h3 class="section-title">Endereço</h3><div class="form-grid">
 <div class="field quarter"><label>CEP</label><input id="condoCep" name="cep" inputmode="numeric" maxlength="9" placeholder="00000-000"><small id="condoCepHint" class="muted">Digite o CEP para preencher o endereço automaticamente.</small></div>
@@ -144,22 +144,36 @@ $('#quickBuilderForm').addEventListener('submit',async e=>{e.preventDefault();co
 function chooseBuilder(name){
  const input=$('#builderInput');
  if(input)input.value=name||'';
+ hideBuilderDropdown();
 }
+function hideBuilderDropdown(){const box=$('#builderDropdown');if(box)box.hidden=true}
 function filterBuilderOptions(){
- const q=$('#builderInput').value.trim().toLocaleLowerCase('pt-BR');
- const list=$('#builderOptions');
- if(!list)return;
+ const input=$('#builderInput'),box=$('#builderDropdown');
+ if(!input||!box)return;
+ const q=input.value.trim().toLocaleLowerCase('pt-BR');
  const filtered=developers.filter(d=>!q||[d.name,d.legal_name,d.document].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q)));
- list.innerHTML='';
+ box.innerHTML='';
  const added=new Set();
- filtered.forEach(d=>{
+ filtered.slice(0,30).forEach(d=>{
   const name=String(d.name||'').trim();
   if(!name||added.has(name.toLocaleLowerCase('pt-BR')))return;
   added.add(name.toLocaleLowerCase('pt-BR'));
-  const opt=document.createElement('option');opt.value=name;list.appendChild(opt);
+  const b=document.createElement('button');
+  b.type='button';b.className='builder-option';b.dataset.name=name;
+  const details=[d.legal_name,d.document].filter(Boolean).join(' • ');
+  b.innerHTML='<strong>'+esc(name)+'</strong>'+(details?'<small>'+esc(details)+'</small>':'');
+  box.appendChild(b);
  });
+ box.hidden=filtered.length===0;
 }
 $('#builderInput').addEventListener('input',filterBuilderOptions);
+$('#builderInput').addEventListener('focus',filterBuilderOptions);
+$('#builderDropdown').addEventListener('mousedown',e=>{
+ const b=e.target.closest('.builder-option');if(!b)return;
+ e.preventDefault();
+ chooseBuilder(b.dataset.name);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.builder-inline'))hideBuilderDropdown()});
 async function loadDevelopers(selected=''){
  const {data,error}=await db.from('developers').select('id,name,legal_name,document,active').order('name');
  if(error){msg($('#formMsg'),'Não foi possível carregar construtoras: '+error.message,true);return;}
