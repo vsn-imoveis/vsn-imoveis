@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/imovel/:slug", "destination": "/imovel/:slug.html" },
-    { "source": "/condominio/:slug", "destination": "/condominio/:slug.html" },
+    { "source": "/condominio/:slug", "destination": "/condominio.html?slug=:slug" },
     { "source": "/sitemap-properties.xml", "destination": "/api/sitemap-properties" }
   ]
 }
