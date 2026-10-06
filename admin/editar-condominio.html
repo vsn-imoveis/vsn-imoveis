@@ -82,7 +82,7 @@ input,select,textarea{width:100%;border:1px solid #cbd3da;border-radius:9px;padd
 <section id="app" hidden><div class="head"><div><h1 id="pageTitle">Editar condomínio</h1><div class="muted">Altere os dados do condomínio e mantenha as tabelas relacionadas sincronizadas.</div></div><a class="btn secondary" href="condominios.html">← Voltar para condomínios</a></div>
 <div class="panel"><form id="condoForm"><input type="hidden" name="id"><input type="hidden" name="normalized_name">
 <h3 class="section-title">Identificação</h3><div class="form-grid">
-<div class="field"><label>Nome do condomínio *</label><input name="name" required placeholder="Nome do condomínio"></div><div class="field"><label>Foto de capa do condomínio</label><input id="coverImage" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">Esta foto será usada exclusivamente na página do condomínio.</small><div id="coverPreview" style="margin-top:8px"></div></div>
+<div class="field"><label>Nome do condomínio *</label><div style="position:relative"><input type="text" name="name" id="condoNameInput" required placeholder="Digite ou selecione o condomínio" autocomplete="off"><div id="condoNameDropdown" class="builder-dropdown" hidden></div></div></div><div class="field"><label>Foto de capa do condomínio</label><input id="coverImage" type="file" accept="image/jpeg,image/png,image/webp"><small class="muted">Esta foto será usada exclusivamente na página do condomínio.</small><div id="coverPreview" style="margin-top:8px"></div></div>
 
 <div class="field third"><label>CNPJ</label><input name="cnpj"></div><div class="field third"><label>Razão social</label><input name="legal_name"></div><div class="field third"><label>Nome fantasia</label><input name="trade_name"></div>
 <div class="field third"><label>Telefone</label><input name="phone" type="tel"></div><div class="field third"><label>E-mail</label><input name="email" type="email"></div><div class="field third"><label>Construtora / incorporadora</label><div class="builder-inline"><div style="position:relative;flex:1;min-width:0"><input type="text" name="builder" id="builderInput" placeholder="Digite ou selecione a construtora" autocomplete="off"><div id="builderDropdown" class="builder-dropdown" hidden></div></div><button type="button" class="btn secondary builder-add-btn" id="openBuilderModal">+ Cadastrar construtora</button></div></div>
@@ -133,6 +133,49 @@ $('#featureSelected').addEventListener('click',e=>{const b=e.target.closest('[da
 const numberFields=['construction_year','delivery_year','units','towers','floors','unit_area_min','unit_area_max','unit_bedrooms_min','unit_bedrooms_max','unit_bathrooms_min','unit_bathrooms_max','unit_parking_min','unit_parking_max'];
 function normalized(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ')}
 function value(k){return String(form.elements[k]?.value||'').trim()}
+function chooseCondoName(name){
+ const input=$('#condoNameInput');
+ if(input)input.value=name||'';
+ hideCondoNameDropdown();
+ syncNormalized();
+}
+function hideCondoNameDropdown(){const box=$('#condoNameDropdown');if(box)box.hidden=true}
+function filterCondoNameOptions(){
+ const input=$('#condoNameInput'),box=$('#condoNameDropdown');
+ if(!input||!box)return;
+ const q=input.value.trim().toLocaleLowerCase('pt-BR');
+ const filtered=condominiumsForName.filter(d=>!q||[d.name,d.address,d.number,d.neighborhood,d.city].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q)));
+ box.innerHTML='';
+ const added=new Set();
+ filtered.slice(0,30).forEach(d=>{
+  const name=String(d.name||'').trim();
+  if(!name||added.has(name.toLocaleLowerCase('pt-BR')))return;
+  added.add(name.toLocaleLowerCase('pt-BR'));
+  const b=document.createElement('button');
+  b.type='button';b.className='builder-option';b.dataset.name=name;
+  const details=[d.address&&((d.address||'')+(d.number?' nº '+d.number:'')),d.neighborhood,d.city].filter(Boolean).join(' • ');
+  b.innerHTML='<strong>'+esc(name)+'</strong>'+(details?'<small>'+esc(details)+'</small>':'');
+  box.appendChild(b);
+ });
+ box.hidden=filtered.length===0;
+}
+const condominiumsForName=[];
+async function loadCondominiumsForName(selected=''){
+ const {data,error}=await db.from('condominiums').select('id,name,address,number,neighborhood,city').order('name').limit(5000);
+ if(error){msg($('#formMsg'),'Não foi possível carregar condomínios: '+error.message,true);return}
+ condominiumsForName.splice(0,condominiumsForName.length,...(data||[]));
+ if(selected&&!condominiumsForName.some(d=>String(d.name||'').toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))condominiumsForName.unshift({name:selected});
+ filterCondoNameOptions();
+ if(selected)chooseCondoName(selected);
+}
+$('#condoNameInput').addEventListener('input',e=>{syncNormalized();filterCondoNameOptions()});
+$('#condoNameInput').addEventListener('focus',filterCondoNameOptions);
+$('#condoNameDropdown').addEventListener('mousedown',e=>{
+ const b=e.target.closest('.builder-option');if(!b)return;
+ e.preventDefault();
+ chooseCondoName(b.dataset.name);
+});
+document.addEventListener('click',e=>{if(!e.target.closest('#condoNameInput')&&!e.target.closest('#condoNameDropdown'))hideCondoNameDropdown()});
 function syncNormalized(){form.elements.normalized_name.value=normalized(value('name'))}
 function resetForm(){form.reset();setFeatures([]);$('#featureSearch').value='';$('#coverPreview').innerHTML='';$('#builderSelect').innerHTML='<option value="">Selecione a construtora</option>';$('#builderInput').value='';form.elements.id.value='';form.elements.city.value='São Paulo';form.elements.state.value='SP';$('#pageTitle').textContent='Cadastrar condomínio';$('#saveBtn').textContent='Salvar condomínio';$('#formMsg').textContent=''}
 function renderCover(url){const p=$('#coverPreview');if(!p)return;p.innerHTML=url?'<img src="'+esc(url)+'" alt="Capa do condomínio" style="width:180px;height:100px;object-fit:cover;border-radius:10px;border:1px solid #e1e6e9">':''}
@@ -182,7 +225,7 @@ async function loadDevelopers(selected=''){
  filterBuilderOptions();
  if(selected)chooseBuilder(selected);
 }
-async function onReady(){try{debugLog('onReady',{recordId,url:location.href});if(!recordId){debugLog('Sem ID; redirecionando');location.href='condominios.html';return}$('#pageTitle').textContent='Editar condomínio';$('#formMsg').textContent='Buscando dados na base de condomínios...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).limit(1).maybeSingle();if(error)throw error;if(!data)throw new Error('Condomínio não encontrado na tabela condominiums. ID: '+recordId);debugLog('Condomínio carregado',data);fill(data);debugLog('Form preenchido');await loadDevelopers(data.builder||'');debugLog('Construtoras carregadas');$('#formMsg').textContent='Dados carregados da base de condomínios.'}catch(e){console.error('[VSN] carregar condomínio',e);msg($('#formMsg'),'Não foi possível carregar: '+(e.message||'erro desconhecido'),true)}}
+async function onReady(){try{debugLog('onReady',{recordId,url:location.href});if(!recordId){debugLog('Sem ID; redirecionando');location.href='condominios.html';return}$('#pageTitle').textContent='Editar condomínio';$('#formMsg').textContent='Buscando dados na base de condomínios...';const{data,error}=await db.from('condominiums').select('*').eq('id',recordId).limit(1).maybeSingle();if(error)throw error;if(!data)throw new Error('Condomínio não encontrado na tabela condominiums. ID: '+recordId);debugLog('Condomínio carregado',data);fill(data);debugLog('Form preenchido');await loadDevelopers(data.builder||'');debugLog('Construtoras carregadas');await loadCondominiumsForName(data.name||'');debugLog('Condomínios carregados para seleção');$('#formMsg').textContent='Dados carregados da base de condomínios.'}catch(e){console.error('[VSN] carregar condomínio',e);msg($('#formMsg'),'Não foi possível carregar: '+(e.message||'erro desconhecido'),true)}}
 form.elements.name.addEventListener('input',syncNormalized);renderFeatures();$('#cancelBtn').onclick=()=>location.href='condominios.html';async function lookupCondoCep(){const raw=String(form.elements.cep?.value||'');const cep=raw.replace(/[^0-9]/g,'').slice(0,8);const hint=document.getElementById('condoCepHint');if(!hint||cep.length!==8)return;hint.textContent='Consultando CEP...';try{const r=await fetch('https://viacep.com.br/ws/'+cep+'/json/');if(!r.ok)throw new Error('Falha na consulta do CEP');const a=await r.json();if(a.erro)throw new Error('CEP não encontrado');if(form.elements.address)form.elements.address.value=a.logradouro||'';if(form.elements.neighborhood)form.elements.neighborhood.value=a.bairro||'';if(form.elements.city)form.elements.city.value=a.localidade||'';if(form.elements.state)form.elements.state.value=a.uf||'';hint.textContent='✓ Endereço preenchido pelo CEP';}catch(e){console.error('[VSN] CEP',e);hint.textContent=e.message||'Não foi possível consultar o CEP.'}}
 function formatCondoCep(value){const digits=String(value||'').replace(/[^0-9]/g,'').slice(0,8);return digits.length>5?digits.slice(0,5)+'-'+digits.slice(5):digits}
 const condoCepEl=document.getElementById('condoCep');
