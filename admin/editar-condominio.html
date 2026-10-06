@@ -171,26 +171,38 @@ async function filterCondoNameOptions(){
  const input=$('#condoNameInput'),box=$('#condoNameDropdown');
  if(!input||!box)return;
  const raw=input.value.trim();
- const q=raw.replace(/[,%_]/g,' ').trim();
- if(!q){renderCondoNameOptions(condominiumsForName);return}
+ if(!raw){renderCondoNameOptions(condominiumsForName);return}
  clearTimeout(condoNameSearchTimer);
  condoNameSearchTimer=setTimeout(async()=>{
+  const q=raw.replace(/[%_]/g,' ').trim();
+  if(!q){renderCondoNameOptions(condominiumsForName);return}
+  const words=normalizeSearchText(q).split(/\s+/).filter(Boolean);
+  // Busca cada palavra como parte do nome; assim "space", "residence" ou
+  // qualquer outro trecho já encontra o condomínio. Máximo de 10 resultados.
+  const orParts=words.map(w=>'name.ilike.%'+w+'%').join(',');
   const {data,error}=await db.from('condominiums')
    .select('id,name,address,number,neighborhood,city')
-   .ilike('name','%'+q+'%')
+   .or(orParts)
    .order('name')
-   .limit(30);
-  if(error){console.error('[VSN] busca de condomínio',error);renderCondoNameOptions(condominiumsForName);return}
-  renderCondoNameOptions(data||[]);
+   .limit(10);
+  if(error){console.error('[VSN] busca de condomínio',error);renderCondoNameOptions([]);return}
+  // Prioriza resultados que contenham todas as palavras digitadas.
+  const qWords=words;
+  const ranked=(data||[]).sort((a,b)=>{
+   const score=x=>qWords.reduce((n,w)=>n+(normalizeSearchText(x.name).includes(w)?1:0),0);
+   return score(b)-score(a);
+  });
+  renderCondoNameOptions(ranked);
  },120);
 }
 const condominiumsForName=[];
 async function loadCondominiumsForName(selected=''){
- const {data,error}=await db.from('condominiums').select('id,name,address,number,neighborhood,city').order('name').limit(5000);
- if(error){msg($('#formMsg'),'Não foi possível carregar condomínios: '+error.message,true);return}
- condominiumsForName.splice(0,condominiumsForName.length,...(data||[]));
- if(selected&&!condominiumsForName.some(d=>String(d.name||'').toLocaleLowerCase('pt-BR')===String(selected).toLocaleLowerCase('pt-BR')))condominiumsForName.unshift({name:selected});
- filterCondoNameOptions();
+ condominiumsForName.length=0;
+ if(selected){
+  const {data,error}=await db.from('condominiums').select('id,name,address,number,neighborhood,city').eq('id',recordId).maybeSingle();
+  if(error)console.error('[VSN] condomínio selecionado',error);
+  if(data)condominiumsForName.push(data);
+ }
  if(selected)chooseCondoName(selected);
 }
 $('#condoNameInput').addEventListener('input',e=>{syncNormalized();filterCondoNameOptions()});
