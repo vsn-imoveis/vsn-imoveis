@@ -176,23 +176,18 @@ async function filterCondoNameOptions(){
  condoNameSearchTimer=setTimeout(async()=>{
   const q=raw.replace(/[%_]/g,' ').trim();
   if(!q){renderCondoNameOptions(condominiumsForName);return}
-  const words=normalizeSearchText(q).split(/\s+/).filter(Boolean);
-  // Busca cada palavra como parte do nome; assim "space", "residence" ou
-  // qualquer outro trecho já encontra o condomínio. Máximo de 10 resultados.
-  const orParts=words.map(w=>'name.ilike.%'+w+'%').join(',');
+  // Para várias palavras, procura a expressão completa no nome.
+  // Ex.: "Space Residence" encontra "Condomínio Space Residence I"
+  // e "Condomínio Parque das Orquideas - Space Residence".
+  // Para uma palavra, qualquer trecho do nome é aceito.
+  const searchText=q.replace(/[%_]/g,' ').replace(/\s+/g,' ').trim();
   const {data,error}=await db.from('condominiums')
    .select('id,name,address,number,neighborhood,city')
-   .or(orParts)
+   .ilike('name','%'+searchText+'%')
    .order('name')
    .limit(10);
   if(error){console.error('[VSN] busca de condomínio',error);renderCondoNameOptions([]);return}
-  // Prioriza resultados que contenham todas as palavras digitadas.
-  const qWords=words;
-  const ranked=(data||[]).sort((a,b)=>{
-   const score=x=>qWords.reduce((n,w)=>n+(normalizeSearchText(x.name).includes(w)?1:0),0);
-   return score(b)-score(a);
-  });
-  renderCondoNameOptions(ranked);
+  renderCondoNameOptions(data||[]);
  },120);
 }
 const condominiumsForName=[];
