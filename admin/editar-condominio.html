@@ -140,17 +140,24 @@ function chooseCondoName(name){
  syncNormalized();
 }
 function hideCondoNameDropdown(){const box=$('#condoNameDropdown');if(box)box.hidden=true}
-function filterCondoNameOptions(){
+function normalizeSearchText(v){
+ return String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g,' ').trim();
+}
+function renderCondoNameOptions(items){
  const input=$('#condoNameInput'),box=$('#condoNameDropdown');
  if(!input||!box)return;
- const q=input.value.trim().toLocaleLowerCase('pt-BR');
- const filtered=condominiumsForName.filter(d=>!q||[d.name,d.address,d.number,d.neighborhood,d.city].some(v=>String(v||'').toLocaleLowerCase('pt-BR').includes(q)));
+ const q=normalizeSearchText(input.value);
+ const words=q.split(/\\s+/).filter(Boolean);
+ const filtered=(items||[]).filter(d=>{
+  const hay=normalizeSearchText([d.name,d.address,d.number,d.neighborhood,d.city].filter(Boolean).join(' '));
+  return !words.length||words.every(w=>hay.includes(w));
+ });
  box.innerHTML='';
  const added=new Set();
  filtered.slice(0,30).forEach(d=>{
   const name=String(d.name||'').trim();
-  if(!name||added.has(name.toLocaleLowerCase('pt-BR')))return;
-  added.add(name.toLocaleLowerCase('pt-BR'));
+  if(!name||added.has(normalizeSearchText(name)))return;
+  added.add(normalizeSearchText(name));
   const b=document.createElement('button');
   b.type='button';b.className='builder-option';b.dataset.name=name;
   const details=[d.address&&((d.address||'')+(d.number?' nº '+d.number:'')),d.neighborhood,d.city].filter(Boolean).join(' • ');
@@ -158,6 +165,24 @@ function filterCondoNameOptions(){
   box.appendChild(b);
  });
  box.hidden=filtered.length===0;
+}
+let condoNameSearchTimer=null;
+async function filterCondoNameOptions(){
+ const input=$('#condoNameInput'),box=$('#condoNameDropdown');
+ if(!input||!box)return;
+ const raw=input.value.trim();
+ const q=raw.replace(/[,%_]/g,' ').trim();
+ if(!q){renderCondoNameOptions(condominiumsForName);return}
+ clearTimeout(condoNameSearchTimer);
+ condoNameSearchTimer=setTimeout(async()=>{
+  const {data,error}=await db.from('condominiums')
+   .select('id,name,address,number,neighborhood,city')
+   .ilike('name','%'+q+'%')
+   .order('name')
+   .limit(30);
+  if(error){console.error('[VSN] busca de condomínio',error);renderCondoNameOptions(condominiumsForName);return}
+  renderCondoNameOptions(data||[]);
+ },120);
 }
 const condominiumsForName=[];
 async function loadCondominiumsForName(selected=''){
