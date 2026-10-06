@@ -1,5 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    {
+      "source": "/condominio/ondomi-nio-iber-ark-ampo-impo",
+      "destination": "/condominio/liber-park-campo-limpo",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/imovel/:slug", "destination": "/imovel/:slug.html" },
     { "source": "/condominio/:slug", "destination": "/condominio.html?slug=:slug" },
