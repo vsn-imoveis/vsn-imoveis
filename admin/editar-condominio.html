@@ -174,20 +174,35 @@ async function filterCondoNameOptions(){
  if(!raw){renderCondoNameOptions(condominiumsForName);return}
  clearTimeout(condoNameSearchTimer);
  condoNameSearchTimer=setTimeout(async()=>{
-  const q=raw.replace(/[%_]/g,' ').trim();
+  const q=raw.replace(/[%_]/g,' ').replace(/\s+/g,' ').trim();
   if(!q){renderCondoNameOptions(condominiumsForName);return}
-  // Para várias palavras, procura a expressão completa no nome.
-  // Ex.: "Space Residence" encontra "Condomínio Space Residence I"
-  // e "Condomínio Parque das Orquideas - Space Residence".
-  // Para uma palavra, qualquer trecho do nome é aceito.
-  const searchText=q.replace(/[%_]/g,' ').replace(/\s+/g,' ').trim();
-  const {data,error}=await db.from('condominiums')
-   .select('id,name,address,number,neighborhood,city')
-   .ilike('name','%'+searchText+'%')
-   .order('name')
-   .limit(10);
-  if(error){console.error('[VSN] busca de condomínio',error);renderCondoNameOptions([]);return}
-  renderCondoNameOptions(data||[]);
+  const words=normalizeSearchText(q).split(/\s+/).filter(Boolean);
+  // Busca sem diferenciar maiúsculas/minúsculas e depois filtra no navegador
+  // também sem diferenciar acentos. Assim "space residence", "SPACE RESIDENCE"
+  // e "Space Residence" retornam exatamente as mesmas opções.
+  const queries=words.map(w=>db.from('condominiums')
+    .select('id,name,address,number,neighborhood,city')
+    .ilike('name','%'+w+'%')
+    .order('name')
+    .limit(50));
+  const results=await Promise.all(queries);
+  const firstError=results.find(r=>r.error)?.error;
+  if(firstError){
+   console.error('[VSN] busca de condomínio',firstError);
+   renderCondoNameOptions([]);
+   return;
+  }
+  const merged=[];
+  const seen=new Set();
+  results.flatMap(r=>r.data||[]).forEach(d=>{
+   if(!seen.has(d.id)){seen.add(d.id);merged.push(d)}
+  });
+  const qWords=words;
+  const filtered=merged.filter(d=>{
+   const hay=normalizeSearchText([d.name,d.address,d.number,d.neighborhood,d.city].filter(Boolean).join(' '));
+   return qWords.every(w=>hay.includes(w));
+  });
+  renderCondoNameOptions(filtered.slice(0,10));
  },120);
 }
 const condominiumsForName=[];
