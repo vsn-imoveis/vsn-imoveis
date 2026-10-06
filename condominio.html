@@ -38,7 +38,7 @@ footer{background:var(--navy);color:#fff;padding:35px 0;font-size:12px}.footer-i
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const db=window.supabase.createClient('https://jpdfynaioepcmgqlqlht.supabase.co','sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03');
-const slug=decodeURIComponent(location.pathname.split('/').filter(Boolean).pop()||'');
+const pathSlug=location.pathname.split('/').filter(Boolean).pop()||'';const querySlug=new URLSearchParams(location.search).get('slug')||'';const slug=decodeURIComponent(querySlug||pathSlug);
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 const seoSlug=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/&/g,' e ').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').replace(/-+/g,'-').slice(0,70);
