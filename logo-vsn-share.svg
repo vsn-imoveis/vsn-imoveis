@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<defs>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d58a"/><stop offset=".5" stop-color="#d3aa62"/><stop offset="1" stop-color="#b8893e"/></linearGradient>
+</defs>
+<rect width="1200" height="630" fill="#061d2d"/>
+<text x="600" y="350" text-anchor="middle" fill="url(#gold)" font-family="Georgia,Times New Roman,serif" font-size="250" font-weight="700" letter-spacing="-12">VSN</text>
+<text x="600" y="475" text-anchor="middle" fill="#f7f7f7" font-family="Arial,Helvetica,sans-serif" font-size="46" font-weight="400" letter-spacing="22">IMÓVEIS</text>
+</svg>
