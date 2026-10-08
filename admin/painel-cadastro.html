@@ -568,7 +568,8 @@ async function uploadPhotos(id,files,onProgress){
  const worker=async(index)=>{
    const prepared=await VSNPhotoOptimizer.prepare(list[index]);
    const stamp=Date.now()+'_'+index+'_'+Math.random().toString(36).slice(2,8);
-   const mainPath='properties/'+id+'/images/'+stamp+'.webp';
+   const ext=(list[index].name.split('.').pop()||'jpg').toLowerCase();
+   const mainPath='properties/'+id+'/images/'+stamp+'.'+ext;
    const thumbPath='properties/'+id+'/thumbs/'+stamp+'.webp';
    const mainUp=await S.storage.from('property-photos').upload(mainPath,prepared.main,{contentType:prepared.main.type||'image/webp',upsert:false});
    if(mainUp.error)throw mainUp.error;
