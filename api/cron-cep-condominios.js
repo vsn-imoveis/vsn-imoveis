@@ -116,7 +116,7 @@ export default async function handler(req, res) {
       );
 
       for (const condo of condos) {
-        const cep = resolveCep(row.address, condo.number, response);
+        const cep = resolveCep(condo.name, condo.number, response);
         if (cep) {
           await supabase('/rest/v1/condominiums?id=eq.' + encodeURIComponent(condo.id), {
             method: 'PATCH',
