@@ -20,11 +20,5 @@
       "source": "/sitemap-properties.xml",
       "destination": "/api/sitemap-properties"
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron-cep-condominios",
-      "schedule": "*/5 * * * *"
-    }
   ]
 }
