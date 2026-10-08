@@ -8,8 +8,23 @@
     }
   ],
   "rewrites": [
-    { "source": "/imovel/:slug", "destination": "/imovel/:slug.html" },
-    { "source": "/condominio/:slug", "destination": "/condominio.html?slug=:slug" },
-    { "source": "/sitemap-properties.xml", "destination": "/api/sitemap-properties" }
+    {
+      "source": "/imovel/:slug",
+      "destination": "/imovel/:slug.html"
+    },
+    {
+      "source": "/condominio/:slug",
+      "destination": "/condominio.html?slug=:slug"
+    },
+    {
+      "source": "/sitemap-properties.xml",
+      "destination": "/api/sitemap-properties"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-cep-condominios",
+      "schedule": "*/5 * * * *"
+    }
   ]
 }
