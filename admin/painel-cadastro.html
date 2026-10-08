@@ -588,19 +588,15 @@ async function uploadPhotos(id,files,onProgress){
 async function syncCondominiumFeatures(name,features){
   const condoName=String(name||"").trim();
   if(!condoName)return;
-  const cleanNoSpace=v=>String(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
-  const normalized_name=cleanNoSpace(condoName);
+  const normalized_name=String(condoName).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
   if(!normalized_name)return;
-  const updated_at=new Date().toISOString();
-  const saved=await S.from("condominiums").upsert({normalized_name,name:condoName,features:Array.isArray(features)?features:[],updated_at},{onConflict:"normalized_name"}).select("id").single();
+  const saved=await S.from("condominiums").upsert({
+    normalized_name,
+    name:condoName,
+    features:Array.isArray(features)?features:[],
+    updated_at:new Date().toISOString()
+  },{onConflict:"normalized_name"}).select("id").single();
   if(saved.error)throw saved.error;
-  const d=addressData();
-  if(d.address&&d.number){
-    const clean=v=>String(v||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
-    const address_key=clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP");
-    const mapped=await S.from("condominium_address_map").upsert({address_key,address:d.address,number:d.number,neighborhood:d.neighborhood||null,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||null,condominium_name:condoName,condominium_id:saved.data.id,source:"cadastro de imóvel",updated_at},{onConflict:"address_key"});
-    if(mapped.error)throw mapped.error;
-  }
 }
 async function save(form){if(!form.reportValidity())return;if(photoOrder.length>35){toast('O anúncio pode ter no máximo 35 fotos. Remova algumas fotos antes de salvar.','err');return;}if(!form.querySelector('[name=for_sale]:checked')&&!form.querySelector('[name=for_rent]:checked')){toast('Selecione Venda, Locação ou as duas opções.','err');return;}const b=document.getElementById('saveBtn');b.disabled=true;b.textContent='Salvando...';const f=new FormData(form),sale=f.has('for_sale'),rent=f.has('for_rent');syncPurposeAndTitle();let ownerId=editOwnerId||null;const ownerName=String(f.get('owner_name')||'').trim(),ownerEmail=String(f.get('owner_email')||'').trim(),ownerPhone=String(f.get('owner_phone')||'').trim();if(ownerName||ownerEmail||ownerPhone){if(editId){ownerId=editOwnerId||ownerId;}else{if(!ownerName||!ownerEmail||!ownerPhone){toast('Preencha nome, e-mail e celular do proprietário.','err');b.disabled=false;b.textContent='Salvar imóvel';return}if(currentUserRole!=='admin'){toast('Somente um administrador pode enviar os dados de acesso.','err');b.disabled=false;b.textContent='Salvar imóvel';return}try{const {data:{session:ownerSession}}=await S.auth.getSession();if(!ownerSession?.access_token)throw new Error('Sua sessão expirou. Entre novamente.');const ownerResponse=await fetch('/api/proprietario-cadastro',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+ownerSession.access_token},body:JSON.stringify({nome:ownerName,email:ownerEmail,celular:ownerPhone})});const ownerResult=await ownerResponse.json().catch(()=>({}));if(!ownerResponse.ok)throw new Error(ownerResult.error||'Não foi possível cadastrar o proprietário.');ownerId=ownerResult.userId;if(!ownerId)throw new Error('O cadastro do proprietário não retornou o identificador da conta.');}catch(ownerError){toast(ownerError.message,'err');b.disabled=false;b.textContent='Salvar imóvel';return}}}else if(!editId){toast('Informe nome, e-mail e celular do proprietário.','err');b.disabled=false;b.textContent='Salvar imóvel';return}const title=f.get('title');const code=editId?(f.get('code')||null):null;const row={owner_id:ownerId,title,code,transaction_type:(sale&&rent?'both':rent?'rent':'sale'),for_sale:sale,for_rent:rent,property_type:f.get('property_type'),price:sale?parseMoney(f.get('price')):null,rent_price:rent?parseMoney(f.get('rent_price')):null,condo_fee:parseMoney(f.get('condo_fee')),iptu:parseMoney(f.get('iptu')),area:parseArea(f.get('area')),bedrooms:+(f.get('bedrooms')||0),suites:+(f.get('suites')||0),parking:+(f.get('parking')||0),bathrooms:+(f.get('bathrooms')||0),neighborhood:f.get('neighborhood'),region:f.get('region')||null,sub_neighborhood:f.get('sub_neighborhood')||null,city:f.get('city')||'São Paulo',state:f.get('state')||null,cep:f.get('cep')||null,address:f.get('address')||null,condominium_name:f.get('condominium_name')||null,condominium_address:f.get('condominium_address')||null,condominium_number:f.get('condominium_number')||null,condominium_complement:f.get('condominium_complement')||null,condominium_neighborhood:f.get('condominium_neighborhood')||null,condominium_city:f.get('condominium_city')||null,condominium_state:f.get('condominium_state')||null,condominium_cep:f.get('condominium_cep')||null,number:f.get('number')||f.get('condominium_number')||null,tower_id:(String(form.elements.namedItem('tower')?.value||'').trim()||null),tower:(()=>{const s=form.elements.namedItem('tower');const o=s?.selectedOptions?.[0];return o&&o.value?String(o.textContent||'').trim():null})(),unit_number:f.get('unit_number')||null,complement:f.get('complement')||f.get('condominium_complement')||null,description:f.get('description')||null,features:[...form.querySelectorAll('input[name=feat]:checked')].map(e=>e.value),condo_features:[...form.querySelectorAll('input[name=condo_feat]:checked')].map(e=>e.value),photos:editingPhotos,photo_thumbnails:editingPhotoThumbs,video_url:f.get('video_url')||null,featured:f.has('featured'),published:f.has('published')};if(editId&&currentUserRole==='proprietario'){
   try{
@@ -614,7 +610,6 @@ async function save(form){if(!form.reportValidity())return;if(photoOrder.length>
     const newPhotoFiles=photoOrder.filter(item=>item.kind==='new').map(item=>item.value);
     if(newPhotoFiles.length){
       showPhotoUploadProgress(newPhotoFiles.length);const urls=await uploadPhotos(editId,newPhotoFiles,updatePhotoUploadProgress);
-      let n=0;
       const finalPhotos=[];const finalThumbs=[];let n=0;for(const item of photoOrder){if(item.kind==='existing'){finalPhotos.push(item.value);finalThumbs.push(item.thumb||'')}else{const u=urls[n++];if(u){finalPhotos.push(u.url);finalThumbs.push(u.thumb)}}}changes.photos=finalPhotos;changes.photo_thumbnails=finalThumbs;
     }
     if(!Object.keys(changes).length){
