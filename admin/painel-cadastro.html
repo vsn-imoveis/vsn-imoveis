@@ -208,31 +208,6 @@ function newProp(x={}){
   forceAreaTextField();
   setTimeout(()=>{
     forceAreaTextField();
-    const form=document.getElementById('propertyForm');
-    if(!form)return;
-    const propertyPane=document.getElementById('propertyTabContent');
-    if(!propertyPane)return;
-    const cols=[...propertyPane.children];
-    if(cols.length<2)return;
-    const leftCard=cols[0].querySelector('.card');
-    const rightCard=cols[1].querySelector('.card');
-    if(!leftCard||!rightCard)return;
-    const sections=[...form.querySelectorAll('.section')];
-    const byTitle=t=>sections.find(sec=>sec.querySelector('.title')?.textContent.trim()===t);
-    const location=byTitle('Localização');
-    const condo=byTitle('Condomínio');
-    const data=byTitle('Dados do imóvel');
-    const values=byTitle('Valores');
-    const characteristics=byTitle('Características');
-    const description=byTitle('Descrição');
-    const photos=byTitle('Fotos e vídeo');
-    if(location)leftCard.appendChild(location);
-    if(condo)leftCard.appendChild(condo);
-    if(data)rightCard.appendChild(data);
-    if(values)rightCard.appendChild(values);
-    if(characteristics)rightCard.appendChild(characteristics);
-    if(description)rightCard.appendChild(description);
-    if(photos)rightCard.appendChild(photos);
   },0);
   setTimeout(()=>{
     const cep=document.getElementById('cep');
