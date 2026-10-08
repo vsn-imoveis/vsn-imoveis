@@ -59,7 +59,7 @@ window.VSNPhotoOptimizer = (() => {
     const thumbFile = fileFromBlob(thumb.blob, file.name, '-thumb');
 
     return {
-      main: mainFile.size < file.size ? mainFile : file,
+      main: mainFile,
       thumb: thumbFile,
       originalBytes: file.size,
       mainBytes: mainFile.size
