@@ -180,36 +180,44 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
   const set=(name,value)=>{const el=form?.elements.namedItem(name);if(!el||value===null||value===undefined||value==='')return;if(el.type==='checkbox')el.checked=!!value;else el.value=String(value);};
   let imported=0;
   Object.entries(mappings).forEach(([field,key])=>{const value=result[key];if(value!==null&&value!==undefined&&value!==''){set(field,value);imported++;}});
-  // Se o anúncio identificou o condomínio, consulta a base VSN e usa o cadastro oficial para completar a localização.
-  let condoAddressFilled=false;
+  // Match pelo nome-base: normalized_name da base pode incluir endereço/número após o nome.
   const condoName=String(result.condominium_name||'').trim();
   if(condoName&&S){
    try{
     const normalizeName=v=>String(v||'').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
-    const normalized=normalizeName(condoName);
-    let condoQuery=await S.from('condominiums').select('id,name,address,number,cep,neighborhood,city,state').eq('normalized_name',normalized).limit(3);
-    if(condoQuery.error)throw condoQuery.error;
-    let candidates=condoQuery.data||[];
-    if(!candidates.length){
-     const exact=await S.from('condominiums').select('id,name,address,number,cep,neighborhood,city,state').ilike('name',condoName).limit(3);
-     if(exact.error)throw exact.error;
-     candidates=(exact.data||[]).filter(c=>normalizeName(c.name)===normalized);
+    const coreName=v=>normalizeName(v).replace(/^(condominio|edificio|ed|residencial|residencial|conjunto|empreendimento|torre)/,'');
+    const normalized=normalizeName(condoName),core=coreName(condoName);
+    let candidates=[];
+    // Primeiro tenta o nome-base dentro da chave normalizada, que pode conter rua e número.
+    if(core.length>=6){
+     const q=await S.from('condominiums').select('id,name,normalized_name,address,number,cep,neighborhood,city,state').ilike('normalized_name','%'+core+'%').limit(20);
+     if(q.error)throw q.error;
+     candidates=(q.data||[]).filter(c=>{const dbCore=coreName(c.name||String(c.normalized_name||'').split('|')[0]);return dbCore===core||dbCore.includes(core)||core.includes(dbCore);});
     }
+    // Fallback por nome visível, ignorando prefixos como "Edifício" e "Condomínio".
+    if(!candidates.length){
+     const tokens=String(condoName).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().split(/[^a-z0-9]+/).filter(t=>t.length>2&&!['edificio','condominio','residencial','conjunto','empreendimento'].includes(t));
+     if(tokens.length){
+      let query=S.from('condominiums').select('id,name,normalized_name,address,number,cep,neighborhood,city,state').ilike('name','%'+tokens[tokens.length-1]+'%').limit(50);
+      const q=await query;
+      if(q.error)throw q.error;
+      candidates=(q.data||[]).filter(c=>{const dbCore=coreName(c.name);return tokens.every(t=>normalizeName(dbCore).includes(t))&&(dbCore===core||dbCore.includes(core)||core.includes(dbCore));});
+     }
+    }
+    // Remove duplicatas por id e não escolhe endereço arbitrariamente.
+    candidates=[...new Map(candidates.map(c=>[c.id,c])).values()];
     if(candidates.length===1){
      const condo=candidates[0];
      const fillIfBlank=(field,value)=>{const el=form.elements.namedItem(field);if(el&&value!==null&&value!==undefined&&String(value).trim()!==''&&!String(el.value||'').trim()){el.value=String(value);return true;}return false;};
-     // Mantém dados específicos do anúncio e preenche os campos que vieram vazios.
-     condoAddressFilled=fillIfBlank('address',condo.address)||condoAddressFilled;
-     condoAddressFilled=fillIfBlank('number',condo.number)||condoAddressFilled;
-     condoAddressFilled=fillIfBlank('cep',condo.cep)||condoAddressFilled;
-     condoAddressFilled=fillIfBlank('neighborhood',condo.neighborhood)||condoAddressFilled;
-     condoAddressFilled=fillIfBlank('city',condo.city)||condoAddressFilled;
-     condoAddressFilled=fillIfBlank('state',condo.state)||condoAddressFilled;
+     fillIfBlank('address',condo.address);fillIfBlank('number',condo.number);fillIfBlank('cep',condo.cep);fillIfBlank('neighborhood',condo.neighborhood);fillIfBlank('city',condo.city);fillIfBlank('state',condo.state);
      const msg=document.getElementById('condomsg');
-     if(msg)msg.innerHTML='<span class="help" style="color:var(--blue)">Condomínio localizado na base VSN; endereço e localização completados com o cadastro existente.</span>';
+     if(msg)msg.innerHTML='<span class="help" style="color:var(--blue)">Condomínio encontrado na base VSN. Localização completada com o cadastro existente.</span>';
     }else if(candidates.length>1){
      const msg=document.getElementById('condomsg');
-     if(msg)msg.innerHTML='<span class="help">O nome do condomínio corresponde a mais de um cadastro VSN. O endereço não foi preenchido automaticamente para evitar escolher o registro errado.</span>';
+     if(msg)msg.innerHTML='<span class="help">Há mais de um cadastro compatível com esse nome. A localização não foi preenchida para evitar usar o endereço errado.</span>';
+    }else{
+     const msg=document.getElementById('condomsg');
+     if(msg)msg.innerHTML='<span class="help">O condomínio não foi localizado automaticamente na base VSN pelo nome importado.</span>';
     }
    }catch(condoLookupError){console.warn('[VSN] consulta do endereço pelo nome do condomínio:',condoLookupError);}
   }
