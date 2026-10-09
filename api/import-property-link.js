@@ -91,9 +91,9 @@ module.exports=async function(req,res){
   const a=p.address||{};
   const deep=(keys)=>deepValue(nodes,keys);
   const first=(...values)=>values.find(v=>v!==null&&v!==undefined&&v!=="");
-  const title=first(p.name,p.headline,p.title,deep(["listingTitle","propertyTitle","displayTitle","title"]),meta(html,"og:title"),meta(html,"twitter:title"),find(html,/<title[^>]*>([\\s\\S]*?)<\\/title>/i))||"";
+  const title=first(p.name,p.headline,p.title,deep(["listingTitle","propertyTitle","displayTitle","title"]),meta(html,"og:title"),meta(html,"twitter:title"),find(html,/<title[^>]*>([\s\S]*?)<\/title>/i))||"";
   const description=first(p.description,deep(["listingDescription","propertyDescription","descriptionText","description"]),meta(html,"og:description"),meta(html,"description"))||"";
-  const price=num(first(o.price,p.price,p.salePrice,p.rentalPrice,p.rentPrice,deep(["salePrice","sale_price","price","askingPrice","rentPrice","rentalPrice","monthlyRent"]),meta(html,"product:price:amount"),find(plain(html),/(R\\$\\s*[\\d.]+(?:,[\\d]{2})?)/i)));
+  const price=num(first(o.price,p.price,p.salePrice,p.rentalPrice,p.rentPrice,deep(["salePrice","sale_price","price","askingPrice","rentPrice","rentalPrice","monthlyRent"]),meta(html,"product:price:amount"),find(plain(html),/(R\$\s*[\d.]+(?:,[\d]{2})?)/i)));
   // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
