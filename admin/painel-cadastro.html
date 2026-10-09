@@ -133,35 +133,57 @@ async function boot(){try{if(!window.supabase?.createClient)throw new Error('Bib
 async function loadOwnerData(ownerId){
   if(!ownerId)return;
   const form=document.getElementById('propertyForm');
-  btn.disabled=true;btn.textContent='Buscando...';status.textContent='Lendo os dados públicos do anúncio...';
+  if(!form)return;
   try{
-   const response=await fetch('/api/import-property-link.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
-   const rawResponse=await response.text();
-   let result={};try{result=JSON.parse(rawResponse)}catch(_){}
-   if(!response.ok){
-    const detail=result.error||result.message;
-    if(detail)throw new Error(detail);
-    if(response.status>=500)throw new Error('O servidor de importação apresentou erro (HTTP '+response.status+'). Tente novamente em instantes.');
-    throw new Error('O portal não pôde ser lido (HTTP '+response.status+'). Confira o link e tente novamente.');
-   }
-   if(!result||typeof result!=='object'||!Object.values(result).some(v=>v!==null&&v!==undefined&&v!==''&&!(Array.isArray(v)&&!v.length)))throw new Error(result.error||'O portal respondeu, mas não retornou dados reconhecíveis do imóvel.');
-   const mappings={title:'title',description:'description',price:'price',rent_price:'rent_price',area:'area',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
-   const clearNames=Object.keys(mappings);
-   clearNames.forEach(name=>{const el=form?.elements.namedItem(name);if(el)el.value='';});
-   const set=(name,value)=>{const el=form?.elements.namedItem(name);if(!el||value===null||value===undefined||value==='')return;if(el.type==='checkbox')el.checked=!!value;else el.value=String(value);};
-   let imported=0;
-   Object.entries(mappings).forEach(([field,key])=>{const value=result[key];if(value!==null&&value!==undefined&&value!==''){set(field,value);imported++;}});
-   if(result.transaction_type==='rent'){
-    const rent=form?.elements.namedItem('for_rent');if(rent)rent.checked=true;
-   }else if(result.transaction_type==='sale'){
-    const sale=form?.elements.namedItem('for_sale');if(sale)sale.checked=true;
-   }
-   if(Array.isArray(result.photos)&&result.photos.length){
-    const photosEl=form?.elements.namedItem('photos');
-    if(photosEl&&photosEl.tagName==='TEXTAREA')photosEl.value=result.photos.join('\n');
-   }
-   status.textContent='Importei '+imported+' campo(s) encontrado(s) no anúncio'+(result.photos?.length?' e '+result.photos.length+' URL(s) de foto':'')+'. Confira os dados antes de salvar; campos não encontrados ficam em branco.';
-   switchPropertyTab('property');if(typeof syncPurposeAndTitle==='function')syncPurposeAndTitle();if(typeof autoCondo==='function')autoCondo();toast('Dados do anúncio importados para revisão.','ok');
+    const {data,error}=await S.from('profiles')
+      .select('full_name,email,phone')
+      .eq('id',ownerId)
+      .maybeSingle();
+    if(error)throw error;
+    if(!data){
+      toast('O imóvel tem um proprietário vinculado, mas o perfil não foi encontrado.','err');
+      return;
+    }
+    const name=form.elements.namedItem('owner_name');
+    const email=form.elements.namedItem('owner_email');
+    const phone=form.elements.namedItem('owner_phone');
+    if(name)name.value=data.full_name||'';
+    if(email)email.value=data.email||'';
+    if(phone)phone.value=data.phone||'';
+  }catch(error){
+    console.error('[VSN] loadOwnerData',error);
+    toast('Não foi possível carregar os dados do proprietário: '+(error.message||'erro desconhecido'),'err');
+  }
+}
+async function load(){const{data,error}=await S.from('properties').select('*').order('created_at',{ascending:false});if(error){const list=document.getElementById('list');if(list)list.innerHTML='<div class="card" style="color:#b42318">'+esc(error.message)+'</div>';return}items=data||[];document.getElementById('list').innerHTML='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><b>Imóveis cadastrados</b><div class="help">'+items.length+' imóvel(is)</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn red" onclick="newProp()">+ Novo imóvel</button><button class="btn gray" onclick="load()">Atualizar</button><button class="btn gray" onclick="S.auth.signOut()">Sair</button></div></div><div style="margin-top:16px">'+(items.length?items.map(x=>'<div style="padding:13px 0;border-top:1px solid var(--line)"><b>'+esc(x.title)+'</b><br><span class="help">'+esc(x.neighborhood||'Sem bairro')+' · '+(x.transaction_type==='rent'?'Locação':'Venda')+' · R$ '+Number(x.price||0).toLocaleString('pt-BR')+' · '+(x.published?'Publicado':'Rascunho')+'</span><div style="margin-top:8px"><button class="btn gray" onclick="edit(\''+x.id+'\')">Editar</button> <button class="btn gray" onclick="toggle(\''+x.id+'\')">'+(x.published?'Despublicar':'Publicar')+'</button></div></div>').join(''):'<span class="help">Nenhum imóvel cadastrado.</span>')+'</div></div>'}
+function autoCode(){return 'VSN'+Date.now().toString()+Math.random().toString(36).slice(2,6).toUpperCase()}function counter(name,v,unit){return '<div class="counter"><button type="button" onclick="adjust(\''+name+'\',-1)" aria-label="Diminuir">−</button><input id="counter-'+name+'" name="'+name+'" type="number" min="0" step="1" value="'+(v||0)+'"><button type="button" class="plus" onclick="adjust(\''+name+'\',1)" aria-label="Aumentar">+</button></div><div class="counter-unit">'+unit+'</div>'}function adjust(n,d){const i=document.getElementById('counter-'+n);if(i)i.value=Math.max(0,(Number(i.value)||0)+d)}
+function forceAreaTextField(){const form=document.getElementById('propertyForm');if(!form)return;const area=form.elements.area;if(!area)return;const wrap=area.closest('.counter')||area.parentElement;if(wrap&&wrap.classList.contains('counter')){const holder=wrap.parentElement;const value=area.value||'';wrap.outerHTML='<div class="money"><span>m²</span><input name="area" type="text" inputmode="decimal" autocomplete="off" placeholder="Ex.: 85" value="'+esc(value)+'" oninput="formatAreaField(this)"></div>';}}async function importPropertyFromLink(){
+ const input=document.getElementById('propertySourceUrl'),status=document.getElementById('linkImportStatus'),btn=document.getElementById('importLinkBtn');
+ const url=String(input?.value||'').trim();
+ if(!url){toast('Cole o link do anúncio.','err');return}
+ try{const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Informe um link HTTP ou HTTPS válido.')}catch(e){toast(e.message||'Link inválido.','err');return}
+ const form=document.getElementById('propertyForm');
+ btn.disabled=true;btn.textContent='Buscando...';status.textContent='Lendo os dados públicos do anúncio...';
+ const mappings={title:'title',description:'description',price:'price',rent_price:'rent_price',area:'area',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
+ try{
+  const response=await fetch('/api/import-property-link.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+  const rawResponse=await response.text();
+  let result={};try{result=JSON.parse(rawResponse)}catch(_){}
+  if(!response.ok){
+   const detail=result.error||result.message;
+   if(detail)throw new Error(detail);
+   if(response.status>=500)throw new Error('O servidor de importação apresentou erro (HTTP '+response.status+'). Tente novamente em instantes.');
+   throw new Error('O portal não pôde ser lido (HTTP '+response.status+'). Confira o link e tente novamente.');
+  }
+  if(!result||typeof result!=='object'||!Object.values(result).some(v=>v!==null&&v!==undefined&&v!==''&&!(Array.isArray(v)&&!v.length)))throw new Error(result.error||'O portal respondeu, mas não retornou dados reconhecíveis do imóvel.');
+  Object.keys(mappings).forEach(name=>{const el=form?.elements.namedItem(name);if(el)el.value='';});
+  const set=(name,value)=>{const el=form?.elements.namedItem(name);if(!el||value===null||value===undefined||value==='')return;if(el.type==='checkbox')el.checked=!!value;else el.value=String(value);};
+  let imported=0;
+  Object.entries(mappings).forEach(([field,key])=>{const value=result[key];if(value!==null&&value!==undefined&&value!==''){set(field,value);imported++;}});
+  if(result.transaction_type==='rent'){const rent=form?.elements.namedItem('for_rent');if(rent)rent.checked=true;}
+  else if(result.transaction_type==='sale'){const sale=form?.elements.namedItem('for_sale');if(sale)sale.checked=true;}
+  status.textContent='Importei '+imported+' campo(s) encontrado(s) no anúncio. Confira os dados antes de salvar; campos não encontrados ficam em branco.';
+  switchPropertyTab('property');if(typeof syncPurposeAndTitle==='function')syncPurposeAndTitle();if(typeof autoCondo==='function')autoCondo();toast('Dados do anúncio importados para revisão.','ok');
  }catch(e){status.textContent=e.message||'Falha ao importar link.';toast(status.textContent,'err')}
  finally{btn.disabled=false;btn.textContent='Buscar dados do anúncio'}
 }
