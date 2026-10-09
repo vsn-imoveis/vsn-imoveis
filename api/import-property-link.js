@@ -3,15 +3,20 @@ const http = require("http");
 function send(res,status,data){res.setHeader("Content-Type","application/json; charset=utf-8");res.setHeader("Cache-Control","no-store");return res.status(status).json(data);}
 function decode(s){return String(s||"").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).trim();}
 function plain(s){return decode(String(s||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," "));}
-function meta(html,key){const safe=key.replace(/[.*+?^\${}()|[\]\\]/g,"\\$&");for(const re of [new RegExp('<meta[^>]+(?:property|name)=["\\']'+safe+'["\\'][^>]+content=["\\']([^"\\']*)["\\'][^>]*>','i'),new RegExp('<meta[^>]+content=["\\']([^"\\']*)["\\'][^>]+(?:property|name)=["\\']'+safe+'["\\'][^>]*>','i')]){const m=html.match(re);if(m)return decode(m[1]);}return "";}
+function meta(html,key){
+ const tags=String(html||"").match(/<meta\b[^>]*>/gi)||[];
+ const attr=(tag,name)=>{const re=new RegExp("\\b"+name+"\\s*=\\s*([\"'])(.*?)\\1","i");const m=tag.match(re);return m?decode(m[2]):"";};
+ for(const tag of tags){const ident=attr(tag,"property")||attr(tag,"name")||attr(tag,"itemprop");if(ident.toLowerCase()===String(key).toLowerCase()){const val=attr(tag,"content");if(val)return val;}}
+ return "";
+}
 function embeddedData(html){
  const out=[];
  const walk=(x,depth=0)=>{if(!x||depth>12)return;if(Array.isArray(x)){x.slice(0,3000).forEach(v=>walk(v,depth+1));return;}if(typeof x!=="object")return;out.push(x);Object.keys(x).forEach(k=>{if(x[k]&&typeof x[k]==="object")walk(x[k],depth+1);});};
- const re=/<script([^>]*)>([\\s\\S]*?)<\\/script>/gi;let m;
+ const re=/<script([^>]*)>([\s\S]*?)<\/script>/gi;let m;
  while((m=re.exec(html))){
   const attrs=m[1]||"",body=m[2]||"";
-  const isJsonLd=/type=["']application\\/ld\\+json["']/i.test(attrs);
-  const isJson=/type=["']application\\/json["']/i.test(attrs);
+  const isJsonLd=/type=["']application\/ld\+json["']/i.test(attrs);
+  const isJson=/type=["']application\/json["']/i.test(attrs);
   const isState=/__NEXT_DATA__|__INITIAL_STATE__|__APOLLO_STATE__|__NUXT__|__PRELOADED_STATE__/i.test(attrs+" "+body.slice(0,300));
   if(!isJsonLd&&!isJson&&!isState)continue;
   try{let raw=body.trim().replace(/^<!--|-->$/g,"").trim();if(raw.length>3000000)continue;walk(JSON.parse(raw));}catch(_){}
@@ -23,7 +28,7 @@ function valueFrom(nodes,keys){
  return null;
 }
 function imageValues(nodes){
- const out=[];const add=v=>{if(typeof v==="string"&&/^https?:\\/\\//i.test(v)&&!out.includes(v))out.push(v);else if(v&&typeof v==="object"){add(v.url);add(v.contentUrl);add(v.src);}};
+ const out=[];const add=v=>{if(typeof v==="string"&&/^https?:\/\//i.test(v)&&!out.includes(v))out.push(v);else if(v&&typeof v==="object"){add(v.url);add(v.contentUrl);add(v.src);}};
  for(const n of nodes){add(n.image);add(n.images);add(n.thumbnailUrl);add(n.photo);add(n.photos);add(n.coverImage);add(n.mainImage);}
  return out;
 }
@@ -47,7 +52,7 @@ module.exports=async function(req,res){
   const text=plain(description+" "+title), images=[];
   const add=x=>{const v=typeof x==="string"?x:x?.url;if(v&&/^https?:\/\//i.test(v)&&!images.includes(v))images.push(v);};
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);imageValues(nodes).forEach(add);add(meta(html,"og:image"));add(meta(html,"twitter:image"));
-  const imgRe=/<img[^>]+(?:src|data-src)=["']([^"']+)["']/gi;let im;while((im=imgRe.exec(html))&&images.length<35){const v=decode(im[1]);if(/^https?:\\/\\//i.test(v)&&/\\.(?:jpe?g|png|webp)(?:[?#]|$)/i.test(v))add(v);}
+  const imgRe=/<img[^>]+(?:src|data-src)=["']([^"']+)["']/gi;let im;while((im=imgRe.exec(html))&&images.length<35){const v=decode(im[1]);if(/^https?:\/\//i.test(v)&&/\.(?:jpe?g|png|webp)(?:[?#]|$)/i.test(v))add(v);}
   const full=typeof a==="string"?a:[a.streetAddress,a.addressLocality,a.addressRegion].filter(Boolean).join(", ");
   const rent=/alug|loca[cç][aã]o/i.test(title+" "+description);
   const result={title:plain(title).slice(0,220),description:plain(description).slice(0,8000),price:rent?null:price,rent_price:rent?price:null,transaction_type:rent?"rent":"sale",area:num(p.floorSize?.value||p.floorSize||valueFrom(nodes,["area","usableArea","privateArea","totalArea","livingArea"])||find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i)),bedrooms:num(p.numberOfBedrooms||valueFrom(nodes,["bedrooms","bedroomCount","dormitorios","quartos"])||find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i)),suites:num(valueFrom(nodes,["suites","suiteCount"])||find(text,/(\d+)\s*s[uú]ites?/i)),bathrooms:num(p.numberOfBathroomsTotal||valueFrom(nodes,["bathrooms","bathroomCount","banheiros"])||find(text,/(\d+)\s*banheiros?/i)),parking:num(valueFrom(nodes,["parkingSpaces","parking","garageSpaces","vagas"])||find(text,/(\d+)\s*(?:vagas?|garagens?)/i)),address:a.streetAddress||full||find(text,/(?:Rua|Avenida|Av\.?|Alameda|Estrada)\s+[^,\n]+/i),number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):find(text,/(?:n[úu]mero|n[º°.]?)\s*(\d+[A-Za-z]?)/i),cep:a.postalCode||find(text,/(\d{5}-?\d{3})/),neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:"",photos:images.slice(0,35),source_url:u.toString()};
