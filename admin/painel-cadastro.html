@@ -163,10 +163,8 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
  if(!url){toast('Cole o link do anúncio.','err');return}
  try{const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Informe um link HTTP ou HTTPS válido.')}catch(e){toast(e.message||'Link inválido.','err');return}
  const form=document.getElementById('propertyForm');
- const clearNames=['description','price','area'];
- const formFields=form;
- clearNames.forEach(name=>{const el=formFields?.elements.namedItem(name);if(el)el.value='';});
  btn.disabled=true;btn.textContent='Buscando...';status.textContent='Lendo os dados públicos do anúncio...';
+ const mappings={title:'title',description:'description',price:'price',rent_price:'rent_price',area:'area',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
  try{
   const response=await fetch('/api/import-property-link.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
   const rawResponse=await response.text();
@@ -177,11 +175,15 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
    if(response.status>=500)throw new Error('O servidor de importação apresentou erro (HTTP '+response.status+'). Tente novamente em instantes.');
    throw new Error('O portal não pôde ser lido (HTTP '+response.status+'). Confira o link e tente novamente.');
   }
-  if(!result||typeof result!=='object'||!result.title&&!result.description&&!result.price&&!result.area)throw new Error(result.error||'O portal respondeu, mas não retornou dados reconhecíveis do imóvel.');
+  if(!result||typeof result!=='object'||!Object.values(result).some(v=>v!==null&&v!==undefined&&v!==''&&!(Array.isArray(v)&&!v.length)))throw new Error(result.error||'O portal respondeu, mas não retornou dados reconhecíveis do imóvel.');
+  Object.keys(mappings).forEach(name=>{const el=form?.elements.namedItem(name);if(el)el.value='';});
   const set=(name,value)=>{const el=form?.elements.namedItem(name);if(!el||value===null||value===undefined||value==='')return;if(el.type==='checkbox')el.checked=!!value;else el.value=String(value);};
-  set('description',result.description);set('price',result.price);set('area',result.area);
-  status.textContent='Importei somente descrição, metragem e preço de venda. Confira esses três campos antes de salvar.';
-  switchPropertyTab('property');if(typeof syncPurposeAndTitle==='function')syncPurposeAndTitle();if(typeof autoCondo==='function')autoCondo();toast('Dados importados para revisão.','ok');
+  let imported=0;
+  Object.entries(mappings).forEach(([field,key])=>{const value=result[key];if(value!==null&&value!==undefined&&value!==''){set(field,value);imported++;}});
+  if(result.transaction_type==='rent'){const rent=form?.elements.namedItem('for_rent');if(rent)rent.checked=true;}
+  else if(result.transaction_type==='sale'){const sale=form?.elements.namedItem('for_sale');if(sale)sale.checked=true;}
+  status.textContent='Importei '+imported+' campo(s) encontrado(s) no anúncio. Confira os dados antes de salvar; campos não encontrados ficam em branco.';
+  switchPropertyTab('property');if(typeof syncPurposeAndTitle==='function')syncPurposeAndTitle();if(typeof autoCondo==='function')autoCondo();toast('Dados do anúncio importados para revisão.','ok');
  }catch(e){status.textContent=e.message||'Falha ao importar link.';toast(status.textContent,'err')}
  finally{btn.disabled=false;btn.textContent='Buscar dados do anúncio'}
 }
