@@ -10,18 +10,39 @@ function meta(html,key){
  return "";
 }
 function embeddedData(html){
- const out=[];
- const walk=(x,depth=0)=>{if(!x||depth>12)return;if(Array.isArray(x)){x.slice(0,3000).forEach(v=>walk(v,depth+1));return;}if(typeof x!=="object")return;out.push(x);Object.keys(x).forEach(k=>{if(x[k]&&typeof x[k]==="object")walk(x[k],depth+1);});};
+ const out=[];const seen=new Set();
+ const walk=(x,depth=0)=>{if(!x||depth>16)return;if(Array.isArray(x)){x.slice(0,5000).forEach(v=>walk(v,depth+1));return;}if(typeof x!=="object"||seen.has(x))return;seen.add(x);out.push(x);Object.keys(x).forEach(k=>{if(x[k]&&typeof x[k]==="object")walk(x[k],depth+1);});};
+ const parseFragments=(raw)=>{
+  let depth=0,start=-1,inString=false,escaped=false,count=0;
+  for(let i=0;i<raw.length&&count<2500;i++){
+   const c=raw[i];
+   if(inString){if(escaped)escaped=false;else if(c==="\\")escaped=true;else if(c==='"')inString=false;continue;}
+   if(c==='"'){inString=true;continue;}
+   if(c==="{"){if(depth===0)start=i;depth++;}
+   else if(c==="}"&&depth>0){depth--;if(depth===0&&start>=0){const chunk=raw.slice(start,i+1);if(chunk.length<2000000){try{walk(JSON.parse(chunk));count++;}catch(_){}}start=-1;}}
+  }
+ };
  const re=/<script([^>]*)>([\s\S]*?)<\/script>/gi;let m;
  while((m=re.exec(html))){
   const attrs=m[1]||"",body=m[2]||"";
+  if(body.length>4000000)continue;
   const isJsonLd=/type=["']application\/ld\+json["']/i.test(attrs);
   const isJson=/type=["']application\/json["']/i.test(attrs);
-  const isState=/__NEXT_DATA__|__INITIAL_STATE__|__APOLLO_STATE__|__NUXT__|__PRELOADED_STATE__/i.test(attrs+" "+body.slice(0,300));
-  if(!isJsonLd&&!isJson&&!isState)continue;
-  try{let raw=body.trim().replace(/^<!--|-->$/g,"").trim();if(raw.length>3000000)continue;walk(JSON.parse(raw));}catch(_){}
+  const isState=/__NEXT_DATA__|__INITIAL_STATE__|__APOLLO_STATE__|__NUXT__|__PRELOADED_STATE__/i.test(attrs+" "+body.slice(0,500));
+  if(isJsonLd||isJson||isState){try{walk(JSON.parse(body.trim().replace(/^<!--|-->$/g,"").trim()));continue;}catch(_){}}
+  // Next.js App Router streams page data through self.__next_f.push(...), not ordinary JSON script tags.
+  if(/__next_f|__NEXT_DATA__|__INITIAL_STATE__|__APOLLO_STATE__|__NUXT__|__PRELOADED_STATE__|bedrooms|dormitorios|salePrice|rentPrice|floorSize|parkingSpaces|condoPrice|condominiumFee/i.test(attrs+" "+body)){
+   const pushRe=/__next_f\.push\(\s*(\[[\s\S]*?\])\s*\)\s*;?/g;let pm;
+   while((pm=pushRe.exec(body))){try{const arr=JSON.parse(pm[1]);if(Array.isArray(arr)){for(const item of arr){if(typeof item==="string")parseFragments(item);else if(item&&typeof item==="object")walk(item);}}}catch(_){}}
+   parseFragments(body);
+  }
  }
  return out;
+}
+function deepValue(nodes,keys){
+ const wanted=new Set(keys.map(k=>String(k).toLowerCase().replace(/[^a-z0-9]/g,"")));
+ for(const n of nodes){for(const [k,v] of Object.entries(n||{})){const nk=k.toLowerCase().replace(/[^a-z0-9]/g,"");if(wanted.has(nk)&&v!==null&&v!==undefined&&v!==""&&typeof v!=="object")return v;}}
+ return null;
 }
 function propertyNode(nodes){
  let best=null,bestScore=0;
@@ -68,9 +89,11 @@ module.exports=async function(req,res){
   const p=propertyNode(nodes);
   const o=Array.isArray(p.offers)?p.offers[0]:(p.offers||{});
   const a=p.address||{};
-  const title=p.name||p.headline||p.title||meta(html,"og:title")||meta(html,"twitter:title")||find(html,/<title[^>]*>([\s\S]*?)<\/title>/i);
-  const description=p.description||meta(html,"og:description")||meta(html,"description")||"";
-  const price=num(o.price||p.price||p.salePrice||p.rentalPrice||p.rentPrice||meta(html,"product:price:amount")||find(plain(html),/(R\$\s*[\d.]+(?:,[\d]{2})?)/i));
+  const deep=(keys)=>deepValue(nodes,keys);
+  const first=(...values)=>values.find(v=>v!==null&&v!==undefined&&v!=="");
+  const title=first(p.name,p.headline,p.title,deep(["listingTitle","propertyTitle","displayTitle","title"]),meta(html,"og:title"),meta(html,"twitter:title"),find(html,/<title[^>]*>([\\s\\S]*?)<\\/title>/i))||"";
+  const description=first(p.description,deep(["listingDescription","propertyDescription","descriptionText","description"]),meta(html,"og:description"),meta(html,"description"))||"";
+  const price=num(first(o.price,p.price,p.salePrice,p.rentalPrice,p.rentPrice,deep(["salePrice","sale_price","price","askingPrice","rentPrice","rentalPrice","monthlyRent"]),meta(html,"product:price:amount"),find(plain(html),/(R\\$\\s*[\\d.]+(?:,[\\d]{2})?)/i)));
   // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
@@ -84,13 +107,13 @@ module.exports=async function(req,res){
   const labeledSuites=labeled(["suítes","suíte"]);
   const labeledBaths=labeled(["banheiros","banheiro"]);
   const labeledParking=labeled(["vagas","vaga","garagens","garagem"]);
-  const condoFee=num(labeled(["condomínio","valor do condomínio","taxa condominial"]));
-  const iptu=num(labeled(["iptu","iptu anual","valor do iptu"]));
-  const constructionYear=num(labeled(["ano de construção","ano de construcao","construído em","construida em"]));
+  const condoFee=num(first(p.condoPrice,p.condoFee,p.condominiumFee,p.condo_fee,deep(["condoPrice","condoFee","condominiumFee","condominiumValue","monthlyCondoFee","condo_fee"]),labeled(["condomínio","valor do condomínio","taxa condominial"])));
+  const iptu=num(first(p.iptu,p.propertyTax,p.iptuValue,deep(["iptu","iptuValue","propertyTax","annualPropertyTax","taxValue"]),labeled(["iptu","iptu anual","valor do iptu"])));
+  const constructionYear=num(first(p.constructionYear,p.yearBuilt,p.year_of_construction,deep(["constructionYear","yearBuilt","yearOfConstruction","builtYear"]),labeled(["ano de construção","ano de construcao","construído em","construida em"])));
   const condoMatch=pageText.match(/(?:condom[ií]nio|empreendimento)\s*[:\-]?\s*([A-ZÀ-Ú][^|•\n]{2,90})/i);
   const full=typeof a==="string"?a:[a.streetAddress,a.addressLocality,a.addressRegion].filter(Boolean).join(", ");
   const rent=/alug|loca[cç][aã]o/i.test(title+" "+description+" "+pageText.slice(0,1500));
-  const result={title:plain(title).slice(0,220),description:plain(description||pageText.slice(0,8000)).slice(0,8000),price:rent?null:(price||num(labeled(["preço","valor de venda","venda"]))),rent_price:rent?(price||num(labeled(["aluguel","valor da locação","valor mensal"]))):null,transaction_type:rent?"rent":"sale",area:num(p.floorSize?.value||p.floorSize||p.area||p.usableArea||p.privateArea||p.totalArea||p.livingArea||labeledArea||find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i)),bedrooms:num(p.numberOfBedrooms||p.bedrooms||p.bedroomCount||p.dormitorios||p.quartos||labeledBeds||find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i)),suites:num(p.suites||p.suiteCount||labeledSuites||find(text,/(\d+)\s*s[uú]ites?/i)),bathrooms:num(p.numberOfBathroomsTotal||p.bathrooms||p.bathroomCount||p.banheiros||labeledBaths||find(text,/(\d+)\s*banheiros?/i)),parking:num(p.parkingSpaces||p.parking||p.garageSpaces||p.vagas||labeledParking||find(text,/(\d+)\s*(?:vagas?|garagens?)/i)),condo_fee:condoFee,iptu,construction_year:constructionYear,address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:condoMatch?condoMatch[1].trim().split(/\s{2,}/)[0].slice(0,90):"",photos:images.slice(0,35),source_url:u.toString()};
+  const result={title:plain(title).slice(0,220),description:plain(description||pageText.slice(0,8000)).slice(0,8000),price:rent?null:(price||num(labeled(["preço","valor de venda","venda"]))),rent_price:rent?(price||num(labeled(["aluguel","valor da locação","valor mensal"]))):null,transaction_type:rent?"rent":"sale",area:num(first(p.floorSize?.value,p.floorSize,p.area,p.usableArea,p.privateArea,p.totalArea,p.livingArea,deep(["usableArea","privateArea","totalArea","livingArea","floorSize","area","areaM2","area_m2","squareMeters"]),labeledArea,find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i))),bedrooms:num(first(p.numberOfBedrooms,p.bedrooms,p.bedroomCount,p.dormitorios,p.quartos,deep(["numberOfBedrooms","bedrooms","bedroomCount","bedroomQuantity","dormitorios","quartos","rooms"]),labeledBeds,find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i))),suites:num(first(p.suites,p.suiteCount,deep(["suites","suiteCount","suiteQuantity"]),labeledSuites,find(text,/(\d+)\s*s[uú]ites?/i))),bathrooms:num(first(p.numberOfBathroomsTotal,p.bathrooms,p.bathroomCount,p.banheiros,deep(["numberOfBathroomsTotal","bathrooms","bathroomCount","bathroomQuantity","banheiros"]),labeledBaths,find(text,/(\d+)\s*banheiros?/i))),parking:num(first(p.parkingSpaces,p.parking,p.garageSpaces,p.vagas,deep(["parkingSpaces","parking","garageSpaces","garageCount","parkingCount","vagas"]),labeledParking,find(text,/(\d+)\s*(?:vagas?|garagens?)/i))),condo_fee:condoFee,iptu,construction_year:constructionYear,address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:first(p.condominiumName,p.condoName,p.buildingName,deep(["condominiumName","condoName","buildingName","developmentName","projectName"]),condoMatch?condoMatch[1].trim().split(/\s{2,}/)[0].slice(0,90):"")||"",photos:images.slice(0,35),source_url:u.toString()}
   if(![result.title,result.description,result.price,result.area,result.address].some(v=>v!==null&&v!==undefined&&v!=="")){
    const plainPage=plain(html).slice(0,1200).toLowerCase();
    if(/captcha|verifique se você é humano|access denied|acesso negado|cloudflare|robot check/.test(plainPage))return send(res,422,{error:"O portal bloqueou a leitura automática (proteção antirobô)."});
