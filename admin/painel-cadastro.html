@@ -384,40 +384,20 @@ function clearDraft(){}function addressData(){const f=document.getElementById("p
    return false;
  }
 }function clearCondoSelection(){const field=document.getElementById("condominium_name"),msg=document.getElementById("condomsg");if(field){field.value="";field.focus();}window.__condoEnrichment={};window.__pendingCondo=null;if(msg)msg.innerHTML="<span class=\"help\">Digite o novo condomínio e salve o imóvel. A identificação automática continua desativada na edição.</span>";}function autoCondo(){if(editId)return;clearTimeout(window.__condoTimer);window.__condoTimer=setTimeout(lookupCondoBase,450)}function setupCondo(){const f=document.getElementById("propertyForm");const a=f.elements.address,n=f.elements.number;if(a)a.addEventListener("input",autoCondo);if(n){n.addEventListener("input",autoCondo);n.addEventListener("blur",autoCondo)}}function applyCondoEnrichment(data){window.__condoEnrichment=data||{};const values=new Set(Array.isArray(data?.features)?data.features:[]);document.querySelectorAll('input[name="condo_feat"]').forEach(el=>{el.checked=values.has(el.value)});const parts=[];if(data?.condominium_delivery_year)parts.push("Entrega: "+data.condominium_delivery_year);if(data?.condominium_construction_year)parts.push("Construção: "+data.condominium_construction_year);if(data?.condominium_units)parts.push("Unidades: "+data.condominium_units);if(data?.towers)parts.push("Torres: "+data.towers);if(data?.floors)parts.push("Andares: "+data.floors);if(data?.condominium_builder)parts.push("Construtora: "+data.condominium_builder);const msg=document.getElementById("condomsg");if(msg&&parts.length){msg.insertAdjacentHTML("beforeend",'<div style="margin-top:10px;padding:10px;border:1px solid #d8e1e7;background:#f7fafc;border-radius:10px"><b>Dados encontrados do condomínio:</b><br><span style="font-size:12px;color:#5f6b73">'+esc(parts.join(" · "))+'</span></div>')}}async function identifyCondo(force=false){
-  const d=addressData(),msg=document.getElementById("condomsg"),field=document.getElementById("condominium_name");
-  try{
-    if(!d.address||!d.number){if(force)toast("Preencha Endereço e Número para identificar o condomínio.","err");return}
-    const clean=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
-    const addressKey=clean(d.address)+"|"+String(d.number).trim()+"|"+clean(d.city||"São Paulo")+"|"+clean(d.state||"SP");
-    window.__pendingCondo=null;
-    if(msg)msg.innerHTML="";
-    const found=await lookupCondoBase();
-    if(found){toast("Condomínio encontrado na base VSN.","ok");return;}
-    const rr=await fetch("/api/identify-condo-structural.js",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address:d.address,number:d.number,neighborhood:d.neighborhood,city:d.city||"São Paulo",state:d.state||"SP",cep:d.cep||""}),signal:AbortSignal.timeout(30000)});
-    const raw=await rr.text();
-    let result={};try{result=JSON.parse(raw)}catch(_){throw new Error("A API retornou uma resposta inválida.")};
-    if(!rr.ok)throw new Error(result.error||"Falha na API");
-    applyCondoEnrichment(result);
-    const candidates=[];
-    const addCandidate=(name,source)=>{
-      let n=String(name||"").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim();
-      if(!n||n.length<5||n.length>120)return;
-      if(/bing|google|source|markdown|skip to|search results|http|www\\.|href=|resultados|pesquisa/i.test(n))return;
-      if(!candidates.some(x=>clean(x.nome)===clean(n)))candidates.push({nome:n,fonte:source||"API estrutural"});
-    };
-    if(Array.isArray(result.candidates))result.candidates.forEach(x=>addCandidate(x.name,x.source));
-    if(result.condominium_name)addCandidate(result.condominium_name,result.sources?.[0]?.title||"API estrutural");
-    if(candidates.length){
-      window.__condoCandidates=candidates;
-      const buttons=candidates.map((c,i)=>'<button type="button" class="btn red" style="margin:8px 8px 0 0;padding:9px 13px;font-size:12px" onclick="selectCondoCandidate('+i+')">'+(i+1)+' — Usar este nome</button>').join("");
-      msg.innerHTML='<div data-condo-candidates style="margin-top:10px;padding:11px;border:1px solid #d8c28e;background:#fffaf0;border-radius:10px"><b>Nomes encontrados — confira antes de usar:</b><div style="margin-top:8px">'+candidates.map((c,i)=>'<div style="padding:8px 0;border-top:1px solid #eadfca"><b>'+(i+1)+'. '+esc(c.nome)+'</b><br><span style="font-size:11px;color:#6c7881">Fonte: '+esc(c.fonte)+'</span></div>').join("")+'</div>'+buttons+'</div>';
-      toast("Candidato encontrado. Nada foi salvo na base.","ok");
-    }else if(force)toast("A API não retornou um nome de condomínio.","err");
-  }catch(e){
-    console.error("[VSN] identifyCondo",e);
-    if(msg)msg.textContent="";
-    if(force)toast(e.message||"Falha ao identificar condomínio.","err");
-  }
+ const d=addressData(),msg=document.getElementById("condomsg"),field=document.getElementById("condominium_name");
+ if(!d.address||!d.number){if(force)toast("Preencha Endereço e Número para consultar a base VSN.","err");return}
+ window.__pendingCondo=null;
+ if(msg)msg.innerHTML='<span style="color:var(--blue)">Buscando exclusivamente na base de condomínios VSN...</span>';
+ try{
+   const found=await lookupCondoBase();
+   if(found){toast("Condomínio encontrado na base VSN.","ok");return}
+   if(msg)msg.innerHTML='<span class="help">Nenhum condomínio com correspondência segura de endereço e número foi encontrado na base VSN. Nenhuma pesquisa externa foi realizada.</span>';
+   if(force)toast("Condomínio não encontrado na base VSN. Confira o endereço e o número.","err");
+ }catch(e){
+   console.error("[VSN] identifyCondo",e);
+   if(msg)msg.innerHTML='<span class="help">Não foi possível consultar a base VSN. Tente novamente.</span>';
+   if(force)toast(e.message||"Falha ao consultar a base VSN.","err");
+ }
 }
 function selectCondoCandidate(i){
   const c=window.__condoCandidates?.[i],field=document.getElementById("condominium_name"),msg=document.getElementById("condomsg");
