@@ -180,6 +180,39 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
   const set=(name,value)=>{const el=form?.elements.namedItem(name);if(!el||value===null||value===undefined||value==='')return;if(el.type==='checkbox')el.checked=!!value;else el.value=String(value);};
   let imported=0;
   Object.entries(mappings).forEach(([field,key])=>{const value=result[key];if(value!==null&&value!==undefined&&value!==''){set(field,value);imported++;}});
+  // Se o anúncio identificou o condomínio, consulta a base VSN e usa o cadastro oficial para completar a localização.
+  let condoAddressFilled=false;
+  const condoName=String(result.condominium_name||'').trim();
+  if(condoName&&S){
+   try{
+    const normalizeName=v=>String(v||'').toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+    const normalized=normalizeName(condoName);
+    let condoQuery=await S.from('condominiums').select('id,name,address,number,cep,neighborhood,city,state').eq('normalized_name',normalized).limit(3);
+    if(condoQuery.error)throw condoQuery.error;
+    let candidates=condoQuery.data||[];
+    if(!candidates.length){
+     const exact=await S.from('condominiums').select('id,name,address,number,cep,neighborhood,city,state').ilike('name',condoName).limit(3);
+     if(exact.error)throw exact.error;
+     candidates=(exact.data||[]).filter(c=>normalizeName(c.name)===normalized);
+    }
+    if(candidates.length===1){
+     const condo=candidates[0];
+     const fillIfBlank=(field,value)=>{const el=form.elements.namedItem(field);if(el&&value!==null&&value!==undefined&&String(value).trim()!==''&&!String(el.value||'').trim()){el.value=String(value);return true;}return false;};
+     // Mantém dados específicos do anúncio e preenche os campos que vieram vazios.
+     condoAddressFilled=fillIfBlank('address',condo.address)||condoAddressFilled;
+     condoAddressFilled=fillIfBlank('number',condo.number)||condoAddressFilled;
+     condoAddressFilled=fillIfBlank('cep',condo.cep)||condoAddressFilled;
+     condoAddressFilled=fillIfBlank('neighborhood',condo.neighborhood)||condoAddressFilled;
+     condoAddressFilled=fillIfBlank('city',condo.city)||condoAddressFilled;
+     condoAddressFilled=fillIfBlank('state',condo.state)||condoAddressFilled;
+     const msg=document.getElementById('condomsg');
+     if(msg)msg.innerHTML='<span class="help" style="color:var(--blue)">Condomínio localizado na base VSN; endereço e localização completados com o cadastro existente.</span>';
+    }else if(candidates.length>1){
+     const msg=document.getElementById('condomsg');
+     if(msg)msg.innerHTML='<span class="help">O nome do condomínio corresponde a mais de um cadastro VSN. O endereço não foi preenchido automaticamente para evitar escolher o registro errado.</span>';
+    }
+   }catch(condoLookupError){console.warn('[VSN] consulta do endereço pelo nome do condomínio:',condoLookupError);}
+  }
   if(Array.isArray(result.features)){const checks=[...form.querySelectorAll('input[name="feat"]')];const norm=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();const incoming=result.features.map(norm);checks.forEach(el=>{if(incoming.includes(norm(el.value))||incoming.some(v=>v.includes(norm(el.value))||norm(el.value).includes(v)))el.checked=true;});}
   if(Array.isArray(result.photos)&&typeof photoOrder!=='undefined'){const existing=new Set(photoOrder.filter(x=>x.kind==='existing').map(x=>x.value));result.photos.filter(u=>typeof u==='string'&&(u.startsWith('https://')||u.startsWith('http://'))&&!existing.has(u)).slice(0,35-photoOrder.length).forEach(url=>photoOrder.push({kind:'existing',value:url,thumb:''}));if(typeof syncPhotoArrays==='function')syncPhotoArrays();if(typeof renderPhotos==='function')renderPhotos();}
   if(result.transaction_type==='rent'){const rent=form?.elements.namedItem('for_rent');if(rent)rent.checked=true;}
