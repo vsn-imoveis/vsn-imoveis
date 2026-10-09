@@ -50,7 +50,7 @@ function valueFrom(nodes,keys){
  return null;
 }
 function imageValues(nodes){
- const out=[];const add=v=>{if(typeof v==="string"&&/^https?:\/\//i.test(v)&&!out.includes(v))out.push(v);else if(v&&typeof v==="object"){add(v.url);add(v.contentUrl);add(v.src);}};
+ const out=[];const seen=new Set();const add=v=>{if(!v||seen.has(v))return;if(typeof v==="string"){seen.add(v);if(/^https?:\/\//i.test(v)&&!out.includes(v))out.push(v);return;}if(Array.isArray(v)){seen.add(v);v.forEach(add);return;}if(typeof v==="object"){seen.add(v);add(v.url);add(v.contentUrl);add(v.src);add(v.image);add(v.images);add(v.thumbnailUrl);add(v.photo);add(v.photos);add(v.content);}};
  for(const n of nodes){add(n.image);add(n.images);add(n.thumbnailUrl);add(n.photo);add(n.photos);add(n.coverImage);add(n.mainImage);}
  return out;
 }
@@ -71,13 +71,26 @@ module.exports=async function(req,res){
   const title=p.name||p.headline||p.title||meta(html,"og:title")||meta(html,"twitter:title")||find(html,/<title[^>]*>([\s\S]*?)<\/title>/i);
   const description=p.description||meta(html,"og:description")||meta(html,"description")||"";
   const price=num(o.price||p.price||p.salePrice||p.rentalPrice||p.rentPrice||meta(html,"product:price:amount")||find(plain(html),/(R\$\s*[\d.]+(?:,[\d]{2})?)/i));
-  const text=plain(description+" "+title), images=[];
-  const add=x=>{const v=typeof x==="string"?x:x?.url;if(v&&/^https?:\/\//i.test(v)&&!images.includes(v))images.push(v);};
+  // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
+  const pageText=plain(html);
+  const text=plain(description+" "+title+" "+pageText), images=[];
+  const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v&&/^https?:\/\//i.test(v)&&!images.includes(v))images.push(v);};
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);imageValues(nodes).forEach(add);add(meta(html,"og:image"));add(meta(html,"twitter:image"));
-  const imgRe=/<img[^>]+(?:src|data-src)=["']([^"']+)["']/gi;let im;while((im=imgRe.exec(html))&&images.length<35){const v=decode(im[1]);if(/^https?:\/\//i.test(v)&&/\.(?:jpe?g|png|webp)(?:[?#]|$)/i.test(v))add(v);}
+  const imgRe=/<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["']/gi;let im;while((im=imgRe.exec(html))&&images.length<35){const v=decode(im[1]);if(/^https?:\/\//i.test(v)&&/\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(v))add(v);}
+  // Campos numéricos são lidos por rótulos próximos para evitar capturar números aleatórios do rodapé.
+  const labeled=(labels)=>{for(const label of labels){const esc=label.replace(/ /g,"\\s+");const re=new RegExp(esc+"\\s*[:\\-]?\\s*(?:R\\$\\s*)?([\\d.]+(?:,[\\d]{1,2})?)","i");const m=pageText.match(re);if(m)return m[1];}return "";};
+  const labeledArea=labeled(["área privativa","área útil","área total","metragem","área"]);
+  const labeledBeds=labeled(["dormitórios","dormitório","quartos","quarto"]);
+  const labeledSuites=labeled(["suítes","suíte"]);
+  const labeledBaths=labeled(["banheiros","banheiro"]);
+  const labeledParking=labeled(["vagas","vaga","garagens","garagem"]);
+  const condoFee=num(labeled(["condomínio","valor do condomínio","taxa condominial"]));
+  const iptu=num(labeled(["iptu","iptu anual","valor do iptu"]));
+  const constructionYear=num(labeled(["ano de construção","ano de construcao","construído em","construida em"]));
+  const condoMatch=pageText.match(/(?:condom[ií]nio|empreendimento)\s*[:\-]?\s*([A-ZÀ-Ú][^|•\n]{2,90})/i);
   const full=typeof a==="string"?a:[a.streetAddress,a.addressLocality,a.addressRegion].filter(Boolean).join(", ");
-  const rent=/alug|loca[cç][aã]o/i.test(title+" "+description);
-  const result={title:plain(title).slice(0,220),description:plain(description).slice(0,8000),price:rent?null:price,rent_price:rent?price:null,transaction_type:rent?"rent":"sale",area:num(p.floorSize?.value||p.floorSize||p.area||p.usableArea||p.privateArea||p.totalArea||p.livingArea||find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i)),bedrooms:num(p.numberOfBedrooms||p.bedrooms||p.bedroomCount||p.dormitorios||p.quartos||find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i)),suites:num(p.suites||p.suiteCount||find(text,/(\d+)\s*s[uú]ites?/i)),bathrooms:num(p.numberOfBathroomsTotal||p.bathrooms||p.bathroomCount||p.banheiros||find(text,/(\d+)\s*banheiros?/i)),parking:num(p.parkingSpaces||p.parking||p.garageSpaces||p.vagas||find(text,/(\d+)\s*(?:vagas?|garagens?)/i)),address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:"",photos:images.slice(0,35),source_url:u.toString()};
+  const rent=/alug|loca[cç][aã]o/i.test(title+" "+description+" "+pageText.slice(0,1500));
+  const result={title:plain(title).slice(0,220),description:plain(description||pageText.slice(0,8000)).slice(0,8000),price:rent?null:(price||num(labeled(["preço","valor de venda","venda"]))),rent_price:rent?(price||num(labeled(["aluguel","valor da locação","valor mensal"]))):null,transaction_type:rent?"rent":"sale",area:num(p.floorSize?.value||p.floorSize||p.area||p.usableArea||p.privateArea||p.totalArea||p.livingArea||labeledArea||find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i)),bedrooms:num(p.numberOfBedrooms||p.bedrooms||p.bedroomCount||p.dormitorios||p.quartos||labeledBeds||find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i)),suites:num(p.suites||p.suiteCount||labeledSuites||find(text,/(\d+)\s*s[uú]ites?/i)),bathrooms:num(p.numberOfBathroomsTotal||p.bathrooms||p.bathroomCount||p.banheiros||labeledBaths||find(text,/(\d+)\s*banheiros?/i)),parking:num(p.parkingSpaces||p.parking||p.garageSpaces||p.vagas||labeledParking||find(text,/(\d+)\s*(?:vagas?|garagens?)/i)),condo_fee:condoFee,iptu,construction_year:constructionYear,address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:condoMatch?condoMatch[1].trim().split(/\s{2,}/)[0].slice(0,90):"",photos:images.slice(0,35),source_url:u.toString()};
   if(![result.title,result.description,result.price,result.area,result.address].some(v=>v!==null&&v!==undefined&&v!=="")){
    const plainPage=plain(html).slice(0,1200).toLowerCase();
    if(/captcha|verifique se você é humano|access denied|acesso negado|cloudflare|robot check/.test(plainPage))return send(res,422,{error:"O portal bloqueou a leitura automática (proteção antirobô)."});
