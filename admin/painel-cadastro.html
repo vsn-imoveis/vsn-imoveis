@@ -165,8 +165,15 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
  btn.disabled=true;btn.textContent='Buscando...';status.textContent='Lendo os dados públicos do anúncio...';
  try{
   const response=await fetch('/api/import-property-link.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
-  const result=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(result.error||'Não foi possível importar esse anúncio.');
+  const rawResponse=await response.text();
+  let result={};try{result=JSON.parse(rawResponse)}catch(_){}
+  if(!response.ok){
+   const detail=result.error||result.message;
+   if(detail)throw new Error(detail);
+   if(response.status>=500)throw new Error('O servidor de importação apresentou erro (HTTP '+response.status+'). Tente novamente em instantes.');
+   throw new Error('O portal não pôde ser lido (HTTP '+response.status+'). Confira o link e tente novamente.');
+  }
+  if(!result||typeof result!=='object'||!result.title&&!result.description&&!result.price&&!result.area)throw new Error(result.error||'O portal respondeu, mas não retornou dados reconhecíveis do imóvel.');
   const form=document.getElementById('propertyForm');
   const set=(name,value)=>{const el=form?.elements.namedItem(name);if(!el||value===null||value===undefined||value==='')return;if(el.type==='checkbox')el.checked=!!value;else el.value=String(value);};
   set('title',result.title);set('description',result.description);set('price',result.price);set('rent_price',result.rent_price);set('area',result.area);set('bedrooms',result.bedrooms);set('suites',result.suites);set('bathrooms',result.bathrooms);set('parking',result.parking);set('address',result.address);set('number',result.number);set('cep',result.cep);set('neighborhood',result.neighborhood);set('city',result.city);set('state',result.state);set('condominium_name',result.condominium_name);
