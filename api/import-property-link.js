@@ -70,10 +70,68 @@ function valueFrom(nodes,keys){
  for(const n of nodes){for(const k of keys){const v=n?.[k];if(v!==undefined&&v!==null&&v!==""&&typeof v!=="object")return v;}}
  return null;
 }
-function collectFeatures(nodes){
+function collectFeatures(nodes,pageText="",title="",description=""){
  const out=[];const seen=new Set();
  const add=v=>{if(!v)return;if(typeof v==="string"){const x=plain(v).trim();if(x&&x.length<100&&!seen.has(x)){seen.add(x);out.push(x);}return;}if(Array.isArray(v)){v.forEach(add);return;}if(typeof v==="object"){if(typeof v.name==="string")add(v.name);else if(typeof v.value==="string")add(v.value);else if(typeof v.label==="string")add(v.label);else if(typeof v.description==="string")add(v.description);}};
- for(const n of nodes){for(const k of ["features","amenities","amenityFeature","propertyFeatures","condominiumFeatures","leisure","facilities"]){if(n&&n[k]!==undefined)add(n[k]);}}
+ for(const n of nodes){for(const k of ["features","amenities","amenityFeature","propertyFeatures","propertyAmenities","characteristics","attributes","differentials","condominiumFeatures","leisure","facilities"]){if(n&&n[k]!==undefined)add(n[k]);}}
+ // Fallback: map portal-specific labels and visible feature names to the exact options used by the VSN form.
+ const canonical=[
+ ["Acabamento em alto padrão",["acabamento alto padrao","alto padrao"]],
+ ["Adega",["adega"]],
+ ["Ambientes integrados",["ambientes integrados","integracao de ambientes"]],
+ ["Aquecimento a gás",["aquecimento a gas"]],
+ ["Ar Condicionado",["ar condicionado","ar-condicionado","climatizacao"]],
+ ["Área de serviço",["area de servico","lavanderia"]],
+ ["Banheira",["banheira"]],
+ ["Blackout nas janelas",["blackout","persiana blackout"]],
+ ["Box no banheiro",["box no banheiro","box de vidro"]],
+ ["Churrasqueira",["churrasqueira"]],
+ ["Closet",["closet"]],
+ ["Copa",["copa"]],
+ ["Cozinha planejada",["cozinha planejada","armarios planejados na cozinha","moveis planejados na cozinha"]],
+ ["Dependência para funcionários",["dependencia de empregada","dependencia para funcionarios","quarto de empregada"]],
+ ["Depósito",["deposito","despensa externa"]],
+ ["Despensa",["despensa"]],
+ ["Dormitório para hóspedes",["dormitorio para hospedes","quarto de hospedes"]],
+ ["Eletrodomésticos",["eletrodomesticos","eletrodomesticos inclusos"]],
+ ["Elevador privativo",["elevador privativo"]],
+ ["Escritório",["escritorio","home office"]],
+ ["Espaço gourmet",["espaco gourmet"]],
+ ["Fechadura digital",["fechadura digital","fechadura eletronica"]],
+ ["Garden",["garden","jardim privativo"]],
+ ["Hall de entrada",["hall de entrada"]],
+ ["Hidromassagem",["hidromassagem","hidro"]],
+ ["Infraestrutura de ar condicionado",["infraestrutura para ar condicionado","preparacao para ar condicionado"]],
+ ["Isolamento acústico",["isolamento acustico"]],
+ ["Lareira",["lareira"]],
+ ["Lavabo",["lavabo"]],
+ ["Lavanderia",["lavanderia"]],
+ ["Mobiliado",["mobiliado","totalmente mobiliado","semi mobiliado","semi-mobiliado"]],
+ ["Móveis planejados",["moveis planejados","marcenaria planejada"]],
+ ["Pé direito alto",["pe direito alto"]],
+ ["Piscina",["piscina"]],
+ ["Piso aquecido",["piso aquecido"]],
+ ["Piso de cerâmica",["piso ceramica","piso de ceramica"]],
+ ["Piso de granito",["piso granito","piso de granito"]],
+ ["Piso de madeira",["piso madeira","piso de madeira"]],
+ ["Piso de mármore",["piso marmore","piso de marmore"]],
+ ["Piso laminado",["piso laminado"]],
+ ["Piso porcelanato",["porcelanato","piso porcelanato"]],
+ ["Quarto(s) com armário(s)",["quarto com armarios","dormitorio com armarios","armarios embutidos"]],
+ ["Quarto(s) com sacada",["quarto com sacada","dormitorio com sacada"]],
+ ["Reformado",["reformado","reformada","reforma recente"]],
+ ["Sacada",["sacada"]],
+ ["Sacada com churrasqueira",["sacada com churrasqueira","varanda com churrasqueira"]],
+ ["Sauna",["sauna"]],
+ ["Tanque de lavar roupa",["tanque de lavar roupa"]],
+ ["Teto em gesso",["teto em gesso","sanca de gesso","forro de gesso"]],
+ ["Varanda",["varanda"]],
+ ["Varanda gourmet",["varanda gourmet"]],
+ ["Aceita pets",["aceita pets","pet friendly","permite animais"]]
+ ];
+ const norm=v=>plain(String(v||"")).toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+ const corpus=norm([title,description,pageText].join(" "));
+ for(const [label,aliases] of canonical){if(aliases.some(a=>{const needle=norm(a);return needle&&corpus.includes(needle);}))add(label);}
  return out.slice(0,80);
 }
 function inferPropertyType(nodes,title,description){
@@ -132,7 +190,7 @@ module.exports=async function(req,res){
   const full=typeof a==="string"?a:[a.streetAddress,a.addressLocality,a.addressRegion].filter(Boolean).join(", ");
   const rent=/alug|loca[cç][aã]o/i.test(title+" "+description+" "+pageText.slice(0,1500));
   const propertyType=inferPropertyType(nodes,title,description);
-  const features=collectFeatures(nodes);
+  const features=collectFeatures(nodes,pageText,title,description);
   const result={property_type:propertyType,features,title:plain(title).slice(0,220),description:plain(description||pageText.slice(0,8000)).slice(0,8000),price:rent?null:(price||num(labeled(["preço","valor de venda","venda"]))),rent_price:rent?(price||num(labeled(["aluguel","valor da locação","valor mensal"]))):null,transaction_type:rent?"rent":"sale",area:num(first(p.floorSize?.value,p.floorSize,p.area,p.usableArea,p.privateArea,p.totalArea,p.livingArea,deep(["usableArea","privateArea","totalArea","livingArea","floorSize","area","areaM2","area_m2","squareMeters"]),labeledArea,find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i))),bedrooms:num(first(p.numberOfBedrooms,p.bedrooms,p.bedroomCount,p.dormitorios,p.quartos,deep(["numberOfBedrooms","bedrooms","bedroomCount","bedroomQuantity","dormitorios","quartos","rooms"]),labeledBeds,find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i))),suites:num(first(p.suites,p.suiteCount,deep(["suites","suiteCount","suiteQuantity"]),labeledSuites,find(text,/(\d+)\s*s[uú]ites?/i))),bathrooms:num(first(p.numberOfBathroomsTotal,p.bathrooms,p.bathroomCount,p.banheiros,deep(["numberOfBathroomsTotal","bathrooms","bathroomCount","bathroomQuantity","banheiros"]),labeledBaths,find(text,/(\d+)\s*banheiros?/i))),parking:num(first(p.parkingSpaces,p.parking,p.garageSpaces,p.vagas,deep(["parkingSpaces","parking","garageSpaces","garageCount","parkingCount","vagas"]),labeledParking,find(text,/(\d+)\s*(?:vagas?|garagens?)/i))),condo_fee:condoFee,iptu,construction_year:constructionYear,address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:first(p.condominiumName,p.condoName,p.buildingName,deep(["condominiumName","condoName","buildingName","developmentName","projectName"]),condoMatch?condoMatch[1].trim().split(/\s{2,}/)[0].slice(0,90):"")||"",photos:images.slice(0,35),source_url:u.toString()}
   if(![result.title,result.description,result.price,result.area,result.address].some(v=>v!==null&&v!==undefined&&v!=="")){
    const plainPage=plain(html).slice(0,1200).toLowerCase();
