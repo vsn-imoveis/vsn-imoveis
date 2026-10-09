@@ -70,6 +70,24 @@ function valueFrom(nodes,keys){
  for(const n of nodes){for(const k of keys){const v=n?.[k];if(v!==undefined&&v!==null&&v!==""&&typeof v!=="object")return v;}}
  return null;
 }
+function collectFeatures(nodes){
+ const out=[];const seen=new Set();
+ const add=v=>{if(!v)return;if(typeof v==="string"){const x=plain(v).trim();if(x&&x.length<100&&!seen.has(x)){seen.add(x);out.push(x);}return;}if(Array.isArray(v)){v.forEach(add);return;}if(typeof v==="object"){if(typeof v.name==="string")add(v.name);else if(typeof v.value==="string")add(v.value);else if(typeof v.label==="string")add(v.label);else if(typeof v.description==="string")add(v.description);}};
+ for(const n of nodes){for(const k of ["features","amenities","amenityFeature","propertyFeatures","condominiumFeatures","leisure","facilities"]){if(n&&n[k]!==undefined)add(n[k]);}}
+ return out.slice(0,80);
+}
+function inferPropertyType(nodes,title,description){
+ const v=String(deepValue(nodes,["propertyType","realEstateType","property_type","typeOfUnit","unitType"])||"");
+ const raw=(v+" "+title+" "+description).toLocaleLowerCase("pt-BR");
+ if(/cobertura/.test(raw))return "Cobertura";
+ if(/studio|est[uú]dio/.test(raw))return "Studio";
+ if(/casa de condom[ií]nio|sobrado em condom[ií]nio/.test(raw))return "Casa de condomínio";
+ if(/apartamento|apto\\b/.test(raw))return "Apartamento";
+ if(/terreno|lote/.test(raw))return "Terreno";
+ if(/sala comercial|conjunto comercial|escrit[oó]rio comercial/.test(raw))return "Sala comercial";
+ if(/casa|sobrado/.test(raw))return "Casa";
+ return "";
+}
 function imageValues(nodes){
  const out=[];const seen=new Set();const add=v=>{if(!v||seen.has(v))return;if(typeof v==="string"){seen.add(v);if(/^https?:\/\//i.test(v)&&!out.includes(v))out.push(v);return;}if(Array.isArray(v)){seen.add(v);v.forEach(add);return;}if(typeof v==="object"){seen.add(v);add(v.url);add(v.contentUrl);add(v.src);add(v.image);add(v.images);add(v.thumbnailUrl);add(v.photo);add(v.photos);add(v.content);}};
  for(const n of nodes){add(n.image);add(n.images);add(n.thumbnailUrl);add(n.photo);add(n.photos);add(n.coverImage);add(n.mainImage);}
@@ -113,7 +131,9 @@ module.exports=async function(req,res){
   const condoMatch=pageText.match(/(?:condom[ií]nio|empreendimento)\s*[:\-]?\s*([A-ZÀ-Ú][^|•\n]{2,90})/i);
   const full=typeof a==="string"?a:[a.streetAddress,a.addressLocality,a.addressRegion].filter(Boolean).join(", ");
   const rent=/alug|loca[cç][aã]o/i.test(title+" "+description+" "+pageText.slice(0,1500));
-  const result={title:plain(title).slice(0,220),description:plain(description||pageText.slice(0,8000)).slice(0,8000),price:rent?null:(price||num(labeled(["preço","valor de venda","venda"]))),rent_price:rent?(price||num(labeled(["aluguel","valor da locação","valor mensal"]))):null,transaction_type:rent?"rent":"sale",area:num(first(p.floorSize?.value,p.floorSize,p.area,p.usableArea,p.privateArea,p.totalArea,p.livingArea,deep(["usableArea","privateArea","totalArea","livingArea","floorSize","area","areaM2","area_m2","squareMeters"]),labeledArea,find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i))),bedrooms:num(first(p.numberOfBedrooms,p.bedrooms,p.bedroomCount,p.dormitorios,p.quartos,deep(["numberOfBedrooms","bedrooms","bedroomCount","bedroomQuantity","dormitorios","quartos","rooms"]),labeledBeds,find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i))),suites:num(first(p.suites,p.suiteCount,deep(["suites","suiteCount","suiteQuantity"]),labeledSuites,find(text,/(\d+)\s*s[uú]ites?/i))),bathrooms:num(first(p.numberOfBathroomsTotal,p.bathrooms,p.bathroomCount,p.banheiros,deep(["numberOfBathroomsTotal","bathrooms","bathroomCount","bathroomQuantity","banheiros"]),labeledBaths,find(text,/(\d+)\s*banheiros?/i))),parking:num(first(p.parkingSpaces,p.parking,p.garageSpaces,p.vagas,deep(["parkingSpaces","parking","garageSpaces","garageCount","parkingCount","vagas"]),labeledParking,find(text,/(\d+)\s*(?:vagas?|garagens?)/i))),condo_fee:condoFee,iptu,construction_year:constructionYear,address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:first(p.condominiumName,p.condoName,p.buildingName,deep(["condominiumName","condoName","buildingName","developmentName","projectName"]),condoMatch?condoMatch[1].trim().split(/\s{2,}/)[0].slice(0,90):"")||"",photos:images.slice(0,35),source_url:u.toString()}
+  const propertyType=inferPropertyType(nodes,title,description);
+  const features=collectFeatures(nodes);
+  const result={property_type:propertyType,features,title:plain(title).slice(0,220),description:plain(description||pageText.slice(0,8000)).slice(0,8000),price:rent?null:(price||num(labeled(["preço","valor de venda","venda"]))),rent_price:rent?(price||num(labeled(["aluguel","valor da locação","valor mensal"]))):null,transaction_type:rent?"rent":"sale",area:num(first(p.floorSize?.value,p.floorSize,p.area,p.usableArea,p.privateArea,p.totalArea,p.livingArea,deep(["usableArea","privateArea","totalArea","livingArea","floorSize","area","areaM2","area_m2","squareMeters"]),labeledArea,find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i))),bedrooms:num(first(p.numberOfBedrooms,p.bedrooms,p.bedroomCount,p.dormitorios,p.quartos,deep(["numberOfBedrooms","bedrooms","bedroomCount","bedroomQuantity","dormitorios","quartos","rooms"]),labeledBeds,find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i))),suites:num(first(p.suites,p.suiteCount,deep(["suites","suiteCount","suiteQuantity"]),labeledSuites,find(text,/(\d+)\s*s[uú]ites?/i))),bathrooms:num(first(p.numberOfBathroomsTotal,p.bathrooms,p.bathroomCount,p.banheiros,deep(["numberOfBathroomsTotal","bathrooms","bathroomCount","bathroomQuantity","banheiros"]),labeledBaths,find(text,/(\d+)\s*banheiros?/i))),parking:num(first(p.parkingSpaces,p.parking,p.garageSpaces,p.vagas,deep(["parkingSpaces","parking","garageSpaces","garageCount","parkingCount","vagas"]),labeledParking,find(text,/(\d+)\s*(?:vagas?|garagens?)/i))),condo_fee:condoFee,iptu,construction_year:constructionYear,address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:first(p.condominiumName,p.condoName,p.buildingName,deep(["condominiumName","condoName","buildingName","developmentName","projectName"]),condoMatch?condoMatch[1].trim().split(/\s{2,}/)[0].slice(0,90):"")||"",photos:images.slice(0,35),source_url:u.toString()}
   if(![result.title,result.description,result.price,result.area,result.address].some(v=>v!==null&&v!==undefined&&v!=="")){
    const plainPage=plain(html).slice(0,1200).toLowerCase();
    if(/captcha|verifique se você é humano|access denied|acesso negado|cloudflare|robot check/.test(plainPage))return send(res,422,{error:"O portal bloqueou a leitura automática (proteção antirobô)."});
