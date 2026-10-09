@@ -164,7 +164,7 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
  try{const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Informe um link HTTP ou HTTPS válido.')}catch(e){toast(e.message||'Link inválido.','err');return}
  const form=document.getElementById('propertyForm');
  btn.disabled=true;btn.textContent='Buscando...';status.textContent='Lendo os dados públicos do anúncio...';
- const mappings={title:'title',description:'description',price:'price',rent_price:'rent_price',area:'area',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
+ const mappings={title:'title',description:'description',price:'price',rent_price:'rent_price',area:'area',bedrooms:'bedrooms',suites:'suites',bathrooms:'bathrooms',parking:'parking',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
  try{
   const response=await fetch('/api/import-property-link.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
   const rawResponse=await response.text();
