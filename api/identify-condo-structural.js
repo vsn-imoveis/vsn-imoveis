@@ -23,11 +23,7 @@ async function handler(req,res){
         return res.status(200).json({condominium_name:row.condominium_name||condo?.name||null,condominium_id:condo?.id||row.condominium_id||null,features:condo?.features||[],condominium_builder:condo?.builder||null,condominium_delivery_year:condo?.delivery_year||null,condominium_construction_year:condo?.construction_year||null,condominium_units:condo?.units||null,towers:condo?.towers||null,floors:condo?.floors||null,sources:condo?.source_urls||[],confidence:condo?.confidence||null,evidence:condo?.evidence||"Condomínio encontrado no banco próprio por endereço exato.",candidates:[{name:row.condominium_name||condo?.name||"",source:row.source||"Banco próprio",evidence_hits:1,context:row.address||searched}],searched_address:searched,address_key:addressKey,from_database:true,saved_to_database:false,database_configured:true});
       }
     }
-    // Vercel frequentemente entrega req.url como caminho relativo (/api/...). Não use new URL(req.url) sem base.
-    const proto=String(req.headers["x-forwarded-proto"]||"https").split(",")[0].trim();
-    const host=String(req.headers["x-forwarded-host"]||req.headers.host||process.env.VERCEL_URL||"").split(",")[0].trim();
-    if(!host) throw new Error("Não foi possível determinar o host da API para a pesquisa externa.");
-    const origin=host.startsWith("http://")||host.startsWith("https://")?host:proto+"://"+host;
+    const origin=new URL(req.url).origin;
     const rr=await fetch(origin+"/api/identify-condo-fixed.js",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({address,number,neighborhood,city,state,cep}),signal:AbortSignal.timeout(28000)});
     const data=await rr.json().catch(()=>({}));
     const name=String(data.condominium_name||"").trim();
