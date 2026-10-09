@@ -28,16 +28,19 @@ function propertyNode(nodes){
  const types=x=>Array.isArray(x["@type"])?x["@type"].join(" "):String(x["@type"]||"");
  for(const x of nodes){
   const t=types(x);
-  if(/Organization|WebSite|WebPage|BreadcrumbList|PostalAddress|Person|LocalBusiness/i.test(t)&&!/RealEstate|Residence|Apartment|House|Product/i.test(t))continue;
+  if(/Organization|WebSite|WebPage|BreadcrumbList|PostalAddress|Person|LocalBusiness|ContactPoint|SiteNavigationElement/i.test(t)&&!/RealEstate|Residence|Apartment|House|Product/i.test(t))continue;
+  const hasPropertySignals=!!(x.offers||x.price||x.salePrice||x.rentalPrice||x.rentPrice||x.floorSize||x.area||x.usableArea||x.privateArea||x.totalArea||x.numberOfBedrooms||x.bedrooms||x.bedroomCount||x.dormitorios||x.numberOfBathroomsTotal||x.parkingSpaces);
+  const typedProperty=/Product|Residence|Apartment|House|SingleFamilyResidence|RealEstateListing|Accommodation|RealEstate/i.test(t);
+  // An address alone is not enough: footer/contact JSON often contains a business address.
+  if(!hasPropertySignals&&!typedProperty)continue;
   let score=0;
-  if(/Product|Residence|Apartment|House|SingleFamilyResidence|RealEstateListing|Accommodation|RealEstate/i.test(t))score+=8;
-  if(x.address&&typeof x.address==="object")score+=4;
-  if(x.offers||x.price||x.salePrice||x.rentalPrice||x.rentPrice)score+=3;
-  if(x.floorSize||x.area||x.usableArea||x.privateArea||x.totalArea)score+=3;
-  if(x.numberOfBedrooms||x.bedrooms||x.bedroomCount||x.dormitorios)score+=3;
-  if(x.numberOfBathroomsTotal||x.bathrooms||x.bathroomCount)score+=1;
+  if(typedProperty)score+=8;
+  if(x.offers||x.price||x.salePrice||x.rentalPrice||x.rentPrice)score+=5;
+  if(x.floorSize||x.area||x.usableArea||x.privateArea||x.totalArea)score+=4;
+  if(x.numberOfBedrooms||x.bedrooms||x.bedroomCount||x.dormitorios)score+=4;
+  if(x.numberOfBathroomsTotal||x.bathrooms||x.bathroomCount)score+=2;
+  if(x.address&&typeof x.address==="object")score+=2;
   if(x.name||x.headline||x.title)score+=1;
-  if(!x.address&&!x.floorSize&&!x.area&&!x.offers&&!x.price&&!x.salePrice&&!x.rentalPrice&&!x.numberOfBedrooms&&!x.bedrooms)continue;
   if(score>bestScore){best=x;bestScore=score;}
  }
  return best||{};
