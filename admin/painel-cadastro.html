@@ -164,7 +164,7 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
  try{const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))throw new Error('Informe um link HTTP ou HTTPS válido.')}catch(e){toast(e.message||'Link inválido.','err');return}
  const form=document.getElementById('propertyForm');
  btn.disabled=true;btn.textContent='Buscando...';status.textContent='Lendo os dados públicos do anúncio...';
- const mappings={title:'title',description:'description',price:'price',rent_price:'rent_price',area:'area',bedrooms:'bedrooms',suites:'suites',bathrooms:'bathrooms',parking:'parking',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
+ const mappings={title:'title',description:'description',property_type:'property_type',price:'price',rent_price:'rent_price',area:'area',bedrooms:'bedrooms',suites:'suites',bathrooms:'bathrooms',parking:'parking',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
  try{
   const response=await fetch('/api/import-property-link.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
   const rawResponse=await response.text();
@@ -180,6 +180,8 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
   const set=(name,value)=>{const el=form?.elements.namedItem(name);if(!el||value===null||value===undefined||value==='')return;if(el.type==='checkbox')el.checked=!!value;else el.value=String(value);};
   let imported=0;
   Object.entries(mappings).forEach(([field,key])=>{const value=result[key];if(value!==null&&value!==undefined&&value!==''){set(field,value);imported++;}});
+  if(Array.isArray(result.features)){const checks=[...form.querySelectorAll('input[name="feat"]')];const norm=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();const incoming=result.features.map(norm);checks.forEach(el=>{if(incoming.includes(norm(el.value))||incoming.some(v=>v.includes(norm(el.value))||norm(el.value).includes(v)))el.checked=true;});}
+  if(Array.isArray(result.photos)&&typeof photoOrder!=='undefined'){const existing=new Set(photoOrder.filter(x=>x.kind==='existing').map(x=>x.value));result.photos.filter(u=>typeof u==='string'&&/^https?:\\/\\//i.test(u)&&!existing.has(u)).slice(0,35-photoOrder.length).forEach(url=>photoOrder.push({kind:'existing',value:url,thumb:''}));if(typeof syncPhotoArrays==='function')syncPhotoArrays();if(typeof renderPhotos==='function')renderPhotos();}
   if(result.transaction_type==='rent'){const rent=form?.elements.namedItem('for_rent');if(rent)rent.checked=true;}
   else if(result.transaction_type==='sale'){const sale=form?.elements.namedItem('for_sale');if(sale)sale.checked=true;}
   status.textContent='Importei '+imported+' campo(s) encontrado(s) no anúncio. Confira os dados antes de salvar; campos não encontrados ficam em branco.';
