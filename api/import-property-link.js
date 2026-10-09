@@ -10,18 +10,39 @@ function meta(html,key){
  return "";
 }
 function embeddedData(html){
- const out=[];
- const walk=(x,depth=0)=>{if(!x||depth>12)return;if(Array.isArray(x)){x.slice(0,3000).forEach(v=>walk(v,depth+1));return;}if(typeof x!=="object")return;out.push(x);Object.keys(x).forEach(k=>{if(x[k]&&typeof x[k]==="object")walk(x[k],depth+1);});};
+ const out=[];const seen=new Set();
+ const walk=(x,depth=0)=>{if(!x||depth>16)return;if(Array.isArray(x)){x.slice(0,5000).forEach(v=>walk(v,depth+1));return;}if(typeof x!=="object"||seen.has(x))return;seen.add(x);out.push(x);Object.keys(x).forEach(k=>{if(x[k]&&typeof x[k]==="object")walk(x[k],depth+1);});};
+ const parseFragments=(raw)=>{
+  let depth=0,start=-1,inString=false,escaped=false,count=0;
+  for(let i=0;i<raw.length&&count<2500;i++){
+   const c=raw[i];
+   if(inString){if(escaped)escaped=false;else if(c==="\\")escaped=true;else if(c==='"')inString=false;continue;}
+   if(c==='"'){inString=true;continue;}
+   if(c==="{"){if(depth===0)start=i;depth++;}
+   else if(c==="}"&&depth>0){depth--;if(depth===0&&start>=0){const chunk=raw.slice(start,i+1);if(chunk.length<2000000){try{walk(JSON.parse(chunk));count++;}catch(_){}}start=-1;}}
+  }
+ };
  const re=/<script([^>]*)>([\s\S]*?)<\/script>/gi;let m;
  while((m=re.exec(html))){
   const attrs=m[1]||"",body=m[2]||"";
+  if(body.length>4000000)continue;
   const isJsonLd=/type=["']application\/ld\+json["']/i.test(attrs);
   const isJson=/type=["']application\/json["']/i.test(attrs);
-  const isState=/__NEXT_DATA__|__INITIAL_STATE__|__APOLLO_STATE__|__NUXT__|__PRELOADED_STATE__/i.test(attrs+" "+body.slice(0,300));
-  if(!isJsonLd&&!isJson&&!isState)continue;
-  try{let raw=body.trim().replace(/^<!--|-->$/g,"").trim();if(raw.length>3000000)continue;walk(JSON.parse(raw));}catch(_){}
+  const isState=/__NEXT_DATA__|__INITIAL_STATE__|__APOLLO_STATE__|__NUXT__|__PRELOADED_STATE__/i.test(attrs+" "+body.slice(0,500));
+  if(isJsonLd||isJson||isState){try{walk(JSON.parse(body.trim().replace(/^<!--|-->$/g,"").trim()));continue;}catch(_){}}
+  // Next.js App Router streams page data through self.__next_f.push(...), not ordinary JSON script tags.
+  if(/__next_f|__NEXT_DATA__|__INITIAL_STATE__|__APOLLO_STATE__|__NUXT__|__PRELOADED_STATE__|bedrooms|dormitorios|salePrice|rentPrice|floorSize|parkingSpaces|condoPrice|condominiumFee/i.test(attrs+" "+body)){
+   const pushRe=/__next_f\.push\(\s*(\[[\s\S]*?\])\s*\)\s*;?/g;let pm;
+   while((pm=pushRe.exec(body))){try{const arr=JSON.parse(pm[1]);if(Array.isArray(arr)){for(const item of arr){if(typeof item==="string")parseFragments(item);else if(item&&typeof item==="object")walk(item);}}}catch(_){}}
+   parseFragments(body);
+  }
  }
  return out;
+}
+function deepValue(nodes,keys){
+ const wanted=new Set(keys.map(k=>String(k).toLowerCase().replace(/[^a-z0-9]/g,"")));
+ for(const n of nodes){for(const [k,v] of Object.entries(n||{})){const nk=k.toLowerCase().replace(/[^a-z0-9]/g,"");if(wanted.has(nk)&&v!==null&&v!==undefined&&v!==""&&typeof v!=="object")return v;}}
+ return null;
 }
 function propertyNode(nodes){
  let best=null,bestScore=0;
