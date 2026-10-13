@@ -10,7 +10,7 @@
   "rewrites": [
     {
       "source": "/imovel/:slug",
-      "destination": "/imovel.html?slug=:slug"
+      "destination": "/api/property-share?slug=:slug"
     },
     {
       "source": "/condominio/:slug",
