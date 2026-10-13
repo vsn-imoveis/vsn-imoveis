@@ -21,7 +21,7 @@ function escapeHtml(value) {
 }
 function setMeta(html, selector, value) {
   const escaped = escapeHtml(value);
-  const re = new RegExp('(<meta\\s+[^>]*(?:id="' + selector + '"|property="' + selector + '"|name="' + selector + '")[^>]*content=")[^"]*(")', 'i');
+  const re = new RegExp('(<meta\s+[^>]*(?:id="' + selector + '"|property="' + selector + '"|name="' + selector + '")[^>]*content=")[^"]*(")', 'i');
   if (re.test(html)) return html.replace(re, '$1' + escaped + '$2');
   return html.replace('</head>', '<meta property="' + selector + '" content="' + escaped + '"></head>');
 }
@@ -54,14 +54,14 @@ export default async function handler(req, res) {
       SITE + '/api/site-share-image';
 
     html = html.replace(/<title>[^<]*<\/title>/i, '<title>' + escapeHtml(title) + '</title>');
-    html = html.replace(/(<meta\\s+id="seoDescription"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(description) + '$2');
-    html = html.replace(/(<link\\s+id="seoCanonical"[^>]*href=")[^"]*(")/i, '$1' + SITE + '/imovel/' + encodeURIComponent(slug) + '$2');
-    html = html.replace(/(<meta\\s+id="seoOgTitle"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(title) + '$2');
-    html = html.replace(/(<meta\\s+id="seoOgDescription"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(description) + '$2');
-    html = html.replace(/(<meta\\s+id="seoOgUrl"[^>]*content=")[^"]*(")/i, '$1' + SITE + '/imovel/' + encodeURIComponent(slug) + '$2');
-    html = html.replace(/(<meta\\s+id="seoOgImage"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(photo) + '$2');
-    if (/<meta\\s+property="og:image:width"/i.test(html)) {
-      html = html.replace(/(<meta\\s+property="og:image:width"[^>]*content=")[^"]*(")/i, '$11200$2');
+    html = html.replace(/(<meta\s+id="seoDescription"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(description) + '$2');
+    html = html.replace(/(<link\s+id="seoCanonical"[^>]*href=")[^"]*(")/i, '$1' + SITE + '/imovel/' + encodeURIComponent(slug) + '$2');
+    html = html.replace(/(<meta\s+id="seoOgTitle"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(title) + '$2');
+    html = html.replace(/(<meta\s+id="seoOgDescription"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(description) + '$2');
+    html = html.replace(/(<meta\s+id="seoOgUrl"[^>]*content=")[^"]*(")/i, '$1' + SITE + '/imovel/' + encodeURIComponent(slug) + '$2');
+    html = html.replace(/(<meta\s+id="seoOgImage"[^>]*content=")[^"]*(")/i, '$1' + escapeHtml(photo) + '$2');
+    if (/<meta\s+property="og:image:width"/i.test(html)) {
+      html = html.replace(/(<meta\s+property="og:image:width"[^>]*content=")[^"]*(")/i, '$11200$2');
     } else {
       html = html.replace('</head>', '<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="' + escapeHtml(photo) + '"></head>');
     }
