@@ -74,3 +74,14 @@ drop policy if exists crm_domains_member_read on public.crm_domains;
 create policy crm_domains_member_read on public.crm_domains for select to authenticated
 using (exists (select 1 from public.crm_memberships m where m.company_id=crm_domains.company_id and m.user_id=(select auth.uid())));
 grant select, insert, update, delete on public.crm_companies, public.crm_memberships, public.crm_subscriptions, public.crm_domains to authenticated;
+
+-- Seed the first customer. Existing VSN properties are intentionally not assigned
+-- to this tenant yet; that migration requires an audited property ownership mapping.
+insert into public.crm_companies (name, slug, contact_name, status, max_properties, max_photos_per_property, primary_color)
+values ('VSN Imóveis', 'vsn-imoveis', 'Vinicius Silva Nascimento', 'active', 100, 35, '#d3aa62')
+on conflict (slug) do nothing;
+
+insert into public.crm_subscriptions (company_id, plan_code, plan_name, monthly_price, property_limit, photo_limit, status)
+select id, 'essencial', 'Essencial', 100.00, 100, 35, 'trial'
+from public.crm_companies where slug = 'vsn-imoveis'
+on conflict (company_id) do nothing;
