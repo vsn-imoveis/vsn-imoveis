@@ -358,7 +358,16 @@ async function load(){
       setHtml('proximityInfo',proximitySection(condoData.proximity));
       const condoSelect='id,title,photos,price,rent_price,for_sale,for_rent,transaction_type,area,bedrooms,bathrooms,parking,published,address,number,city,state,condominium_name';
       const queries=[];
-      if(resolvedName)queries.push(db.from('properties').select(condoSelect).eq('published',true).ilike('condominium_name','%'+resolvedName+'%').neq('id',p.id).order('created_at',{ascending:false}));
+      // O nome do mesmo condomínio pode variar entre as três portarias/endereços.
+      // Procuramos as variações do nome-base, além dos imóveis no mesmo endereço.
+      const condoNameSearches=[p.condominium_name,resolvedName].filter(Boolean);
+      const normalizedCondoName=String(p.condominium_name||resolvedName||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+      if(normalizedCondoName.includes('space residence')||normalizedCondoName.includes('parque das orquideas')){
+        condoNameSearches.push('Space Residence','Parque das Orquideas');
+      }
+      [...new Set(condoNameSearches)].forEach(name=>{
+        queries.push(db.from('properties').select(condoSelect).eq('published',true).ilike('condominium_name','%'+name+'%').neq('id',p.id).order('created_at',{ascending:false}));
+      });
       if(p.address&&p.number)queries.push(db.from('properties').select(condoSelect).eq('published',true).eq('address',p.address).eq('number',p.number).eq('city',city).eq('state',state).neq('id',p.id).order('created_at',{ascending:false}));
       const results=await Promise.all(queries);
       const related=new Map();results.forEach(q=>(Array.isArray(q.data)?q.data:[]).forEach(x=>related.set(x.id,x)));
