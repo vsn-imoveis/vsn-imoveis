@@ -93,10 +93,12 @@ let id=null,app=document.getElementById('app');
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const brl=v=>Number(v||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
 let photos=[],photoThumbs=[],current=0;
-function gallery(){if(!photos.length)return '<div class="empty">Sem fotos disponíveis</div>';const a=photos[0],b=photos[1]||a,c=photos[2]||a;return '<div class="gallery"><img id="g0" src="'+esc(a)+'" fetchpriority="high" decoding="async" onclick="openPresenter(current)"><img id="g1" src="'+esc(b)+'" loading="lazy" decoding="async" onclick="openPresenter((current+1)%photos.length)"><img id="g2" src="'+esc(c)+'" loading="lazy" decoding="async" onclick="openPresenter((current+2)%photos.length)"><button class="prev" onclick="show(current-1)">‹</button><button class="next" onclick="show(current+1)">›</button><div id="count" class="counter"></div></div><div class="thumbs" id="thumbs"></div>'}
-function show(n){if(!photos.length)return;current=(n+photos.length)%photos.length;[0,1,2].forEach(i=>{const e=document.getElementById('g'+i);if(e)e.src=photos[(current+i)%photos.length]});document.getElementById('count').textContent=(current+1)+' / '+photos.length;document.getElementById('thumbs').innerHTML=photos.map((p,i)=>'<img class="'+(i===current?'active':'')+'" src="'+esc(photoThumbs[i]||p)+'" loading="lazy" decoding="async" onclick="show('+i+')">').join('')}
+const photoPlaceholder='data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22600%22 viewBox=%220 0 800 600%22%3E%3Crect width=%22800%22 height=%22600%22 fill=%22%23eef1f2%22/%3E%3Cpath d=%22M250 390l90-100 70 70 55-55 95 85z%22 fill=%22%23c7d0d5%22/%3E%3Ccircle cx=%22320%22 cy=%22220%22 r=%2230%22 fill=%22%23c7d0d5%22/%3E%3Ctext x=%22400%22 y=%22470%22 font-family=%22Arial%22 font-size=%2224%22 text-anchor=%22middle%22 fill=%22%236c7881%22%3EFoto indispon%C3%ADvel%3C/text%3E%3C/svg%3E';
+function handlePhotoError(img,index,presenter=false){if(!img)return;const thumb=photoThumbs[index];if(!img.dataset.thumbTried&&thumb&&thumb!==img.src){img.dataset.thumbTried='1';img.src=thumb;return}img.onerror=null;img.src=photoPlaceholder;img.style.objectFit='contain';img.style.background='#eef1f2';}
+function gallery(){if(!photos.length)return '<div class="empty">Sem fotos disponíveis</div>';const a=photos[0],b=photos[1]||a,c=photos[2]||a;return '<div class="gallery"><img id="g0" src="'+esc(a)+'" onerror="handlePhotoError(this,current)" fetchpriority="high" decoding="async" onclick="openPresenter(current)"><img id="g1" src="'+esc(b)+'" onerror="handlePhotoError(this,(current+1)%photos.length)" loading="lazy" decoding="async" onclick="openPresenter((current+1)%photos.length)"><img id="g2" src="'+esc(c)+'" onerror="handlePhotoError(this,(current+2)%photos.length)" loading="lazy" decoding="async" onclick="openPresenter((current+2)%photos.length)"><button class="prev" onclick="show(current-1)">‹</button><button class="next" onclick="show(current+1)">›</button><div id="count" class="counter"></div></div><div class="thumbs" id="thumbs"></div>'}
+function show(n){if(!photos.length)return;current=(n+photos.length)%photos.length;[0,1,2].forEach(i=>{const e=document.getElementById('g'+i);if(e){e.dataset.thumbTried='';e.onerror=()=>handlePhotoError(e,(current+i)%photos.length);e.src=photos[(current+i)%photos.length]}});document.getElementById('count').textContent=(current+1)+' / '+photos.length;document.getElementById('thumbs').innerHTML=photos.map((p,i)=>'<img class="'+(i===current?'active':'')+'" src="'+esc(p)+'" loading="lazy" decoding="async" onclick="show('+i+')">').join('')}
 function openPresenter(n){if(!photos.length)return;current=(n+photos.length)%photos.length;document.getElementById('presenter').style.setProperty('--presenter-bg',"url('"+photos[current].replace(/'/g,"\\'")+"')");document.getElementById('presenter').classList.add('open');document.body.style.overflow='hidden';updatePresenter()}
-function updatePresenter(){document.getElementById('presenterImage').src=photos[current];document.getElementById('presenterCount').textContent=(current+1)+' / '+photos.length;document.getElementById('presenter').style.setProperty('--presenter-bg',"url('"+photos[current].replace(/'/g,"\\'")+"')")}
+function updatePresenter(){const img=document.getElementById('presenterImage');img.dataset.thumbTried='';img.onerror=()=>handlePhotoError(img,current,true);img.src=photos[current];document.getElementById('presenterCount').textContent=(current+1)+' / '+photos.length;document.getElementById('presenter').style.setProperty('--presenter-bg',"url('"+photos[current].replace(/'/g,"\\'")+"')")}
 function move(n){current=(current+n+photos.length)%photos.length;updatePresenter();show(current)}
 function closePresenter(){document.getElementById('presenter').classList.remove('open');document.body.style.overflow=''}
 function moneyInput(v){const n=Number(String(v||'').replace(/[^0-9,.-]/g,'').replace(/\./g,'').replace(',','.'));return isFinite(n)?n:0}
@@ -262,9 +264,13 @@ function proximitySection(rows){
 async function loadCondoAndProximity(p,city,state){
   let condo=null, proximity=[];
   try{
-    if(p.condominium_name){
-      const q=await db.from('condominiums').select('id,name,features').ilike('name',p.condominium_name).limit(1).maybeSingle();
-      condo=q.data||null;
+    // Resolve pelo endereço da portaria primeiro: o nome digitado no imóvel pode
+    // ser uma variação e apontar para outro registro do mesmo empreendimento.
+    if(p.address && p.number){
+      const direct=await db.from('condominiums').select('id,name,features')
+        .ilike('address',p.address).eq('number',p.number).ilike('city',city).ilike('state',state)
+        .limit(1).maybeSingle();
+      condo=direct.data||null;
     }
     if(!condo && p.address && p.number){
       const q=await db.from('condominium_address_map').select('condominium_id,condominium_name').eq('address',p.address).eq('number',p.number).eq('city',city).eq('state',state).limit(1).maybeSingle();
@@ -272,6 +278,10 @@ async function loadCondoAndProximity(p,city,state){
         const cq=await db.from('condominiums').select('id,name,features').eq('id',q.data.condominium_id).maybeSingle();
         condo=cq.data||{id:q.data.condominium_id,name:q.data.condominium_name,features:[]};
       }
+    }
+    if(!condo && p.condominium_name){
+      const q=await db.from('condominiums').select('id,name,features').ilike('name',p.condominium_name).limit(1).maybeSingle();
+      condo=q.data||null;
     }
     if(condo?.id){
       const pq=await db.from('condominium_proximity').select('category,place_names,description').eq('condominium_id',condo.id);
@@ -356,7 +366,16 @@ async function load(){
       setHtml('proximityInfo',proximitySection(condoData.proximity));
       const condoSelect='id,title,photos,price,rent_price,for_sale,for_rent,transaction_type,area,bedrooms,bathrooms,parking,published,address,number,city,state,condominium_name';
       const queries=[];
-      if(resolvedName)queries.push(db.from('properties').select(condoSelect).eq('published',true).ilike('condominium_name','%'+resolvedName+'%').neq('id',p.id).order('created_at',{ascending:false}));
+      // O nome do mesmo condomínio pode variar entre as três portarias/endereços.
+      // Procuramos as variações do nome-base, além dos imóveis no mesmo endereço.
+      const condoNameSearches=[p.condominium_name,resolvedName].filter(Boolean);
+      const normalizedCondoName=String(p.condominium_name||resolvedName||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+      if(normalizedCondoName.includes('space residence')||normalizedCondoName.includes('parque das orquideas')){
+        condoNameSearches.push('Space Residence','Parque das Orquideas');
+      }
+      [...new Set(condoNameSearches)].forEach(name=>{
+        queries.push(db.from('properties').select(condoSelect).eq('published',true).ilike('condominium_name','%'+name+'%').neq('id',p.id).order('created_at',{ascending:false}));
+      });
       if(p.address&&p.number)queries.push(db.from('properties').select(condoSelect).eq('published',true).eq('address',p.address).eq('number',p.number).eq('city',city).eq('state',state).neq('id',p.id).order('created_at',{ascending:false}));
       const results=await Promise.all(queries);
       const related=new Map();results.forEach(q=>(Array.isArray(q.data)?q.data:[]).forEach(x=>related.set(x.id,x)));
