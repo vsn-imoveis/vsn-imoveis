@@ -264,9 +264,13 @@ function proximitySection(rows){
 async function loadCondoAndProximity(p,city,state){
   let condo=null, proximity=[];
   try{
-    if(p.condominium_name){
-      const q=await db.from('condominiums').select('id,name,features').ilike('name',p.condominium_name).limit(1).maybeSingle();
-      condo=q.data||null;
+    // Resolve pelo endereço da portaria primeiro: o nome digitado no imóvel pode
+    // ser uma variação e apontar para outro registro do mesmo empreendimento.
+    if(p.address && p.number){
+      const direct=await db.from('condominiums').select('id,name,features')
+        .ilike('address',p.address).eq('number',p.number).ilike('city',city).ilike('state',state)
+        .limit(1).maybeSingle();
+      condo=direct.data||null;
     }
     if(!condo && p.address && p.number){
       const q=await db.from('condominium_address_map').select('condominium_id,condominium_name').eq('address',p.address).eq('number',p.number).eq('city',city).eq('state',state).limit(1).maybeSingle();
@@ -274,6 +278,10 @@ async function loadCondoAndProximity(p,city,state){
         const cq=await db.from('condominiums').select('id,name,features').eq('id',q.data.condominium_id).maybeSingle();
         condo=cq.data||{id:q.data.condominium_id,name:q.data.condominium_name,features:[]};
       }
+    }
+    if(!condo && p.condominium_name){
+      const q=await db.from('condominiums').select('id,name,features').ilike('name',p.condominium_name).limit(1).maybeSingle();
+      condo=q.data||null;
     }
     if(condo?.id){
       const pq=await db.from('condominium_proximity').select('category,place_names,description').eq('condominium_id',condo.id);
