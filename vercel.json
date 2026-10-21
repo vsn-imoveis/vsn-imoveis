@@ -14,7 +14,7 @@
     },
     {
       "source": "/condominio/:slug",
-      "destination": "/condominio.html?slug=:slug"
+      "destination": "/api/condo-share?slug=:slug"
     },
     {
       "source": "/sitemap-properties.xml",
