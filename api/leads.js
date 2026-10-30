@@ -15,6 +15,33 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Serviço de e-mail não configurado' });
     }
 
+    // Persist the lead in the VSN database before sending the notification email.
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://jpdfynaioepcmgqlqlht.supabase.co';
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03';
+    const saved = await fetch(supabaseUrl + '/rest/v1/leads', {
+      method: 'POST',
+      headers: {
+        apikey: supabaseKey,
+        Authorization: 'Bearer ' + supabaseKey,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify({
+        nome: String(nome).trim(),
+        whatsapp: String(whatsapp).trim(),
+        email: String(email).trim().toLowerCase(),
+        interesse: interesse || null,
+        mensagem: [imovel ? 'Região / imóvel: ' + imovel : '', mensagem || ''].filter(Boolean).join('\\n\\n') || null
+      })
+    });
+    if (!saved.ok) {
+      const detail = await saved.text();
+      console.error('Supabase lead save error:', saved.status, detail);
+      return res.status(500).json({ error: 'Não foi possível registrar seu contato.' });
+    }
+    const savedRows = await saved.json();
+    const leadId = savedRows?.[0]?.id || null;
+
     const resend = new Resend(process.env.RESEND_API_KEY);
     const safe = (v = '') => String(v).replace(/[&<>"']/g, c => ({
       '&': '&amp;',
@@ -47,14 +74,16 @@ export default async function handler(req, res) {
     // Resend can return an error object without throwing.
     // Never tell the customer that the lead was sent if Resend rejected it.
     if (error) {
-      console.error('Resend error:', error);
-      return res.status(502).json({
-        error: 'Não foi possível enviar o lead por e-mail',
-        details: error.message || 'Erro no serviço de e-mail'
+      console.error('Resend error (lead already saved):', error);
+      return res.status(200).json({
+        ok: true,
+        leadId,
+        emailSent: false,
+        warning: 'Contato registrado, mas o e-mail de aviso não foi enviado.'
       });
     }
 
-    return res.status(200).json({ ok: true, id: data?.id });
+    return res.status(200).json({ ok: true, leadId, emailSent: true, id: data?.id });
   } catch (error) {
     console.error('Lead API error:', error);
     return res.status(500).json({ error: 'Falha ao enviar lead', details: error?.message || 'Erro interno no servidor' });
