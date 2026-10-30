@@ -480,8 +480,8 @@ function openLeadDetails(id){
 }
 function closeLeadDetails(){const m=document.getElementById('vsnLeadModal');if(m)m.style.display='none'}
 async function openClientsSection(selectedId=''){
-  const report=document.getElementById('reportApp'),section=document.getElementById('clientsApp');if(!section)return;
-  if(report)report.style.display='none';section.hidden=false;
+  const report=document.getElementById('reportApp'),section=document.getElementById('clientsApp'),mainHeader=document.querySelector('#app > .head');if(!section)return;
+  if(mainHeader)mainHeader.style.display='none';if(report)report.style.display='none';section.hidden=false;
   document.querySelectorAll('.sidebar-link').forEach(a=>a.classList.toggle('active',a.getAttribute('href')?.includes('#clientes')));
   section.innerHTML='<div class="head"><div><h1>Relatório de leads</h1><p>Contatos recebidos pelo formulário do site VSN Imóveis.</p></div><span class="muted">Carregando...</span></div>';
   try{
@@ -491,7 +491,7 @@ async function openClientsSection(selectedId=''){
     else{const id=new URLSearchParams(location.search).get('lead');if(id)openLeadDetails(id)}
   }catch(e){section.innerHTML='<div class="card" style="padding:20px;color:#a92828">Não foi possível carregar os leads: '+esc(e.message)+'</div>'}
 }
-function backToPropertyReport(){const section=document.getElementById('clientsApp'),report=document.getElementById('reportApp');if(section)section.hidden=true;if(report)report.style.display='';document.querySelectorAll('.sidebar-link').forEach(a=>a.classList.toggle('active',a.getAttribute('href')?.includes('painel-login.html')&&!a.getAttribute('href')?.includes('#')))}
+function backToPropertyReport(){const section=document.getElementById('clientsApp'),report=document.getElementById('reportApp'),mainHeader=document.querySelector('#app > .head');if(section)section.hidden=true;if(mainHeader)mainHeader.style.display='';if(report)report.style.display='';document.querySelectorAll('.sidebar-link').forEach(a=>a.classList.toggle('active',a.getAttribute('href')?.includes('painel-login.html')&&!a.getAttribute('href')?.includes('#')))}
 async function openManualLead(){
   const nome=prompt('Nome completo do lead:');if(!nome)return;
   const whatsapp=prompt('WhatsApp:')||'';const email=prompt('E-mail:')||'';
