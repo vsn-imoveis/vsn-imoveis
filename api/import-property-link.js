@@ -173,11 +173,21 @@ module.exports=async function(req,res){
   // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
-  const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v&&/^https?:\/\//i.test(v)&&!images.includes(v))images.push(v);};
+  const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v){let absolute;try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}if(/^https?:\/\//i.test(absolute)&&!images.includes(absolute))images.push(absolute);}};
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
   imageValues(nodes).forEach(add);
   add(meta(html,"og:image"));add(meta(html,"twitter:image"));
-  const imgRe=/<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["']/gi;let im;while((im=imgRe.exec(html))&&images.length<35){const v=decode(im[1]);if(/^https?:\/\//i.test(v)&&/\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(v))add(v);}
+  // QuintoAndar entrega fotos como caminhos relativos em /img/crop/.../original/{id}FotoN.jpg.
+  // Captura src, data-src e todas as alternativas de srcset; URLs relativas são resolvidas no domínio do anúncio.
+  const imgRe=/<img\\b[^>]*>/gi;let im;
+  while((im=imgRe.exec(html))&&images.length<35){
+    const tag=im[0],attrs=["src","data-src","data-lazy-src"];
+    for(const attr of attrs){const re=new RegExp("\\\\b"+attr+"\\\\s*=\\\\s*([\\\\\"\\\\']) (.*?)\\\\1","i");}
+    const attrRe=/(?:src|data-src|data-lazy-src)\\s*=\\s*["']([^"']+)["']/gi;let am;
+    while((am=attrRe.exec(tag))&&images.length<35)add(am[1]);
+    const srcset=tag.match(/\\bsrcset\\s*=\\s*["']([^"']+)["']/i);
+    if(srcset)srcset[1].split(",").forEach(part=>add(part.trim().split(/\\s+/)[0]));
+  }
   // Campos numéricos são lidos por rótulos próximos para evitar capturar números aleatórios do rodapé.
   const labeled=(labels)=>{for(const label of labels){const esc=label.replace(/ /g,"\\s+");const re=new RegExp(esc+"\\s*[:\\-]?\\s*(?:R\\$\\s*)?([\\d.]+(?:,[\\d]{1,2})?)","i");const m=pageText.match(re);if(m)return m[1];}return "";};
   const labeledArea=labeled(["área privativa","área útil","área total","metragem","área"]);
