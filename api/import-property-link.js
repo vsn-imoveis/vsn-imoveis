@@ -175,7 +175,6 @@ module.exports=async function(req,res){
   const text=plain(description+" "+title+" "+pageText), images=[];
   const listingId=(u.pathname.match(/\/imovel\/(\d+)/i)||[])[1];
   const photoKeys=new Set();
-  const photoKeys=new Set();
   const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v){let absolute;try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}if(!/^https?:\/\//i.test(absolute))return;
     // Deduplica variantes de crop/resolução do mesmo arquivo FotoN do QuintoAndar.
     const path=absolute.split(/[?#]/)[0], photo=path.match(/(?:Foto|foto)(\d+)\.jpe?g$/i), id=(path.match(/original[^/]*?(\d{9,})[-.]/i)||[])[1]||listingId;
