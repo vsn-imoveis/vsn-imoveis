@@ -173,7 +173,13 @@ module.exports=async function(req,res){
   // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
-  const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v){let absolute;try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}if(/^https?:\/\//i.test(absolute)&&!images.includes(absolute))images.push(absolute);}};
+  const photoKeys=new Set();
+  const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v){let absolute;try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}if(!/^https?:\/\//i.test(absolute))return;
+    // Deduplica variantes de crop/resolução do mesmo arquivo FotoN do QuintoAndar.
+    const path=absolute.split(/[?#]/)[0], photo=path.match(/(?:Foto|foto)(\d+)\.jpe?g$/i), id=(path.match(/original[^/]*?(\d{9,})[-.]/i)||[])[1]||listingId;
+    const key=photo&&id?("qa:"+id+":foto"+photo[1]):absolute;
+    if(!photoKeys.has(key)){photoKeys.add(key);images.push(absolute);}
+  }};
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
   imageValues(nodes).forEach(add);
   add(meta(html,"og:image"));add(meta(html,"twitter:image"));
