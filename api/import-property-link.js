@@ -177,17 +177,18 @@ module.exports=async function(req,res){
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
   imageValues(nodes).forEach(add);
   add(meta(html,"og:image"));add(meta(html,"twitter:image"));
-  // QuintoAndar entrega fotos como caminhos relativos em /img/crop/.../original/{id}FotoN.jpg.
-  // Captura src, data-src e todas as alternativas de srcset; URLs relativas são resolvidas no domínio do anúncio.
-  const imgRe=/<img\\b[^>]*>/gi;let im;
-  while((im=imgRe.exec(html))&&images.length<35){
-    const tag=im[0],attrs=["src","data-src","data-lazy-src"];
-    for(const attr of attrs){const re=new RegExp("\\\\b"+attr+"\\\\s*=\\\\s*([\\\\\"\\\\']) (.*?)\\\\1","i");}
-    const attrRe=/(?:src|data-src|data-lazy-src)\\s*=\\s*["']([^"']+)["']/gi;let am;
-    while((am=attrRe.exec(tag))&&images.length<35)add(am[1]);
-    const srcset=tag.match(/\\bsrcset\\s*=\\s*["']([^"']+)["']/i);
-    if(srcset)srcset[1].split(",").forEach(part=>add(part.trim().split(/\\s+/)[0]));
+  // QuintoAndar: as URLs da galeria são assets diretos e podem estar em src/srcset/data-src.
+  const imgRe=/<img\b[^>]*>/gi;let im;
+  while((im=imgRe.exec(html))&&images.length<80){
+    const tag=im[0];
+    const attrRe=/(?:src|data-src|data-lazy-src|data-original)\s*=\s*["']([^"']+)["']/gi;let am;
+    while((am=attrRe.exec(tag))&&images.length<80)add(am[1]);
+    const srcset=tag.match(/\bsrcset\s*=\s*["']([^"']+)["']/i);
+    if(srcset)srcset[1].split(",").forEach(part=>add(part.trim().split(/\s+/)[0]));
   }
+  // Também encontra URLs de fotos serializadas em scripts/JSON, inclusive FotoN não presente no DOM inicial.
+  const qaPhotoRe=/(?:https?:\\?\/\\?\/www\.quintoandar\.com\.br)?\\?\/img\\?\/crop\\?\/(?:square\\?\/640x640|landscape\\?\/1200x800)\\?\/original\\?\/[^"'\\\s<>]*?(?:Foto|foto)\d+\.jpe?g/gi;
+  let qm;while((qm=qaPhotoRe.exec(html))&&images.length<80)add(qm[0].replace(/\\\//g,"/").replace(/\\/g,""));
   // Campos numéricos são lidos por rótulos próximos para evitar capturar números aleatórios do rodapé.
   const labeled=(labels)=>{for(const label of labels){const esc=label.replace(/ /g,"\\s+");const re=new RegExp(esc+"\\s*[:\\-]?\\s*(?:R\\$\\s*)?([\\d.]+(?:,[\\d]{1,2})?)","i");const m=pageText.match(re);if(m)return m[1];}return "";};
   const labeledArea=labeled(["área privativa","área útil","área total","metragem","área"]);
