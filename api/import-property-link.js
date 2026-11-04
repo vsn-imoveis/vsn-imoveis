@@ -174,8 +174,18 @@ module.exports=async function(req,res){
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
   const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v&&/^https?:\/\//i.test(v)&&!images.includes(v))images.push(v);};
-  (Array.isArray(p.image)?p.image:[p.image]).forEach(add);imageValues(nodes).forEach(add);add(meta(html,"og:image"));add(meta(html,"twitter:image"));
-  const imgRe=/<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["']/gi;let im;while((im=imgRe.exec(html))&&images.length<35){const v=decode(im[1]);if(/^https?:\/\//i.test(v)&&/\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(v))add(v);}
+  const isQuintoAndar=/(^|\.)quintoandar\.com\.br$/i.test(u.hostname);
+  if(isQuintoAndar){
+    // No QuintoAndar, o HTML contém cards promocionais e imagens de imóveis relacionados.
+    // Limita a importação ao objeto principal do anúncio, evitando varrer JSON/DOM global.
+    (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
+    if(!images.length&&Array.isArray(p.photos))p.photos.forEach(add);
+  }else{
+    (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
+    imageValues(nodes).forEach(add);
+    add(meta(html,"og:image"));add(meta(html,"twitter:image"));
+    const imgRe=/<img[^>]+(?:src|data-src|data-lazy-src)=["']([^"']+)["']/gi;let im;while((im=imgRe.exec(html))&&images.length<35){const v=decode(im[1]);if(/^https?:\/\//i.test(v)&&/\.(?:jpe?g|png|webp|avif)(?:[?#]|$)/i.test(v))add(v);}
+  }
   // Campos numéricos são lidos por rótulos próximos para evitar capturar números aleatórios do rodapé.
   const labeled=(labels)=>{for(const label of labels){const esc=label.replace(/ /g,"\\s+");const re=new RegExp(esc+"\\s*[:\\-]?\\s*(?:R\\$\\s*)?([\\d.]+(?:,[\\d]{1,2})?)","i");const m=pageText.match(re);if(m)return m[1];}return "";};
   const labeledArea=labeled(["área privativa","área útil","área total","metragem","área"]);
