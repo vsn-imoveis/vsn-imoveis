@@ -173,6 +173,8 @@ module.exports=async function(req,res){
   // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
+  const listingId=(u.pathname.match(/\/imovel\/(\d+)/i)||[])[1];
+  const photoKeys=new Set();
   const photoKeys=new Set();
   const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v){let absolute;try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}if(!/^https?:\/\//i.test(absolute))return;
     // Deduplica variantes de crop/resolução do mesmo arquivo FotoN do QuintoAndar.
@@ -193,7 +195,6 @@ module.exports=async function(req,res){
     if(srcset)srcset[1].split(",").forEach(part=>add(part.trim().split(/\s+/)[0]));
   }
   // QuintoAndar: identifica URLs da galeria contendo o ID do anúncio e FotoN.
-  const listingId=(u.pathname.match(/\/imovel\/(\d+)/i)||[])[1];
   if(listingId){
     const photoPattern=new RegExp(
       "(?:https?:\\\\/\\\\/www\\\\.quintoandar\\\\.com\\\\.br)?\\\\/img\\\\/crop\\\\/(?:square\\\\/\\\\d+x\\\\d+|landscape\\\\/\\\\d+x\\\\d+)\\\\/original\\\\/[^\\\"'<>\\\\s]*?"+listingId+"[^\\\"'<>\\\\s]*?(?:Foto|foto)\\\\d+\\\\.jpe?g",
