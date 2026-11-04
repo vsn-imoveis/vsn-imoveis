@@ -186,9 +186,18 @@ module.exports=async function(req,res){
     const srcset=tag.match(/\bsrcset\s*=\s*["']([^"']+)["']/i);
     if(srcset)srcset[1].split(",").forEach(part=>add(part.trim().split(/\s+/)[0]));
   }
-  // Também encontra URLs de fotos serializadas em scripts/JSON, inclusive FotoN não presente no DOM inicial.
-  const qaPhotoRe=/(?:https?:\\?\/\\?\/www\.quintoandar\.com\.br)?\\?\/img\\?\/crop\\?\/(?:square\\?\/640x640|landscape\\?\/1200x800)\\?\/original\\?\/[^"'\\\s<>]*?(?:Foto|foto)\d+\.jpe?g/gi;
-  let qm;while((qm=qaPhotoRe.exec(html))&&images.length<80)add(qm[0].replace(/\\\//g,"/").replace(/\\/g,""));
+  // QuintoAndar: identifica URLs da galeria contendo o ID do anúncio e FotoN.
+  const listingId=(u.pathname.match(/\/imovel\/(\d+)/i)||[])[1];
+  if(listingId){
+    const photoPattern=new RegExp(
+      "(?:https?:\\\\/\\\\/www\\\\.quintoandar\\\\.com\\\\.br)?\\\\/img\\\\/crop\\\\/(?:square\\\\/\\\\d+x\\\\d+|landscape\\\\/\\\\d+x\\\\d+)\\\\/original\\\\/[^\\\"'<>\\\\s]*?"+listingId+"[^\\\"'<>\\\\s]*?(?:Foto|foto)\\\\d+\\\\.jpe?g",
+      "gi"
+    );
+    let pm;while((pm=photoPattern.exec(html))&&images.length<80)add(pm[0]);
+  }
+  // Referências escapadas em scripts/JSON.
+  const escapedPhoto=/(?:https?:\\?\/\\?\/www\.quintoandar\.com\.br)?\\?\/img\\?\/crop\\?\/(?:square\\?\/\d+x\d+|landscape\\?\/\d+x\d+)\\?\/original\\?\/[^"'<>\\\s]*?(?:Foto|foto)\d+\.jpe?g/gi;
+  let ep;while((ep=escapedPhoto.exec(html))&&images.length<80)add(ep[0].replace(/\\\//g,"/").replace(/\\/g,""));
   // Campos numéricos são lidos por rótulos próximos para evitar capturar números aleatórios do rodapé.
   const labeled=(labels)=>{for(const label of labels){const esc=label.replace(/ /g,"\\s+");const re=new RegExp(esc+"\\s*[:\\-]?\\s*(?:R\\$\\s*)?([\\d.]+(?:,[\\d]{1,2})?)","i");const m=pageText.match(re);if(m)return m[1];}return "";};
   const labeledArea=labeled(["área privativa","área útil","área total","metragem","área"]);
