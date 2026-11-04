@@ -130,8 +130,20 @@ function collectFeatures(nodes,pageText="",title="",description=""){
  ["Aceita pets",["aceita pets","pet friendly","permite animais"]]
  ];
  const norm=v=>plain(String(v||"")).toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
- const corpus=norm([title,description,pageText].join(" "));
- for(const [label,aliases] of canonical){if(aliases.some(a=>{const needle=norm(a);return needle&&corpus.includes(needle);}))add(label);}
+ const corpus=norm([title,description].join(" "));
+ const hasPhrase=(text,phrase)=>{const t=" "+norm(text)+" ",p=" "+norm(phrase)+" ";return t.includes(p);};
+ const negatives=["nao possui","nao tem","nao conta com","sem ","nao aceita","nao disponivel"];
+ const condoOnly=["piscina do condominio","piscina no condominio","piscina do empreendimento","piscina na area comum","churrasqueira do condominio","churrasqueira no condominio","academia do condominio"];
+ for(const [label,aliases] of canonical){
+  const matched=aliases.some(a=>hasPhrase(description||title,a));
+  if(!matched)continue;
+  const aliasFound=aliases.find(a=>hasPhrase(description||title,a));
+  const idx=norm(description||title).indexOf(norm(aliasFound));
+  const around=norm(description||title).slice(Math.max(0,idx-45),idx+norm(aliasFound).length+20);
+  if(negatives.some(n=>around.includes(norm(n))))continue;
+  if(label==="Piscina"&&condoOnly.some(n=>norm(description||title).includes(norm(n))))continue;
+  add(label);
+ }}
  return out.slice(0,80);
 }
 function inferPropertyType(nodes,title,description){
