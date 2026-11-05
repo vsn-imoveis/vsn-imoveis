@@ -205,14 +205,15 @@ module.exports=async function(req,res){
     }else{
       // Fallback para URLs sem FotoN: remove dimensões de crop, query e fragmento.
       const normalized=path
-        .replace(/\\/img\\/crop\\/(?:square|landscape)\\/\\d+x\\d+\\/original\\//i,"/img/original/")
-        .replace(/\\/(?:square|landscape)\\/\\d+x\\d+\\//i,"/")
-        .replace(/\\/+/g,"/");
-      key=normalized.toLowerCase();
         .replace(/\/img\/crop\/(?:square|landscape)\/\d+x\d+\/original\//i,"/img/original/")
         .replace(/\/(?:square|landscape)\/\d+x\d+\//i,"/")
         .replace(/\/+/g,"/");
+      key=normalized.toLowerCase();
+    }
+    if(!photoKeys.has(key)){
+      photoKeys.add(key);
       images.push(absolute);
+    }
     }
   };
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
