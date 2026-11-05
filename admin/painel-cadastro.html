@@ -221,7 +221,7 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
     }
    }catch(condoLookupError){console.warn('[VSN] consulta do endereço pelo nome do condomínio:',condoLookupError);}
   }
-  if(Array.isArray(result.features)){const checks=[...form.querySelectorAll('input[name="feat"]')];const norm=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();const incoming=result.features.map(norm);checks.forEach(el=>{if(incoming.includes(norm(el.value))||incoming.some(v=>v.includes(norm(el.value))||norm(el.value).includes(v)))el.checked=true;});}
+  if(Array.isArray(result.features)){const checks=[...form.querySelectorAll('input[name="feat"]')];const norm=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim().toLocaleLowerCase('pt-BR');const incoming=new Set(result.features.map(norm));checks.forEach(el=>{el.checked=incoming.has(norm(el.value));});}
   if(Array.isArray(result.photos)&&typeof photoOrder!=='undefined'){const existing=new Set(photoOrder.filter(x=>x.kind==='existing').map(x=>x.value));result.photos.filter(u=>typeof u==='string'&&(u.startsWith('https://')||u.startsWith('http://'))&&!existing.has(u)).slice(0,35-photoOrder.length).forEach(url=>photoOrder.push({kind:'existing',value:url,thumb:''}));if(typeof syncPhotoArrays==='function')syncPhotoArrays();if(typeof renderPhotos==='function')renderPhotos();}
   if(result.transaction_type==='rent'||result.transaction_type==='sale'||result.transaction_type==='both'){
    const sale=form?.elements.namedItem('for_sale'),rent=form?.elements.namedItem('for_rent');
