@@ -166,7 +166,7 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
  btn.disabled=true;btn.textContent='Buscando...';status.textContent='Lendo os dados públicos do anúncio...';
  const mappings={title:'title',description:'description',property_type:'property_type',price:'price',rent_price:'rent_price',area:'area',bedrooms:'bedrooms',suites:'suites',bathrooms:'bathrooms',parking:'parking',cep:'cep',address:'address',number:'number',neighborhood:'neighborhood',city:'city',state:'state',condominium_name:'condominium_name',condo_fee:'condo_fee',iptu:'iptu',unit_number:'unit_number'};
  try{
-  const response=await fetch('/api/import-property-link.js',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
+  const response=await fetch('/api/import-property-link',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url})});
   const rawResponse=await response.text();
   let result={};try{result=JSON.parse(rawResponse)}catch(_){}
   if(!response.ok){
