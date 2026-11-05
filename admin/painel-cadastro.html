@@ -223,8 +223,11 @@ function forceAreaTextField(){const form=document.getElementById('propertyForm')
   }
   if(Array.isArray(result.features)){const checks=[...form.querySelectorAll('input[name="feat"]')];const norm=v=>String(v||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLocaleLowerCase('pt-BR').trim();const incoming=result.features.map(norm);checks.forEach(el=>{if(incoming.includes(norm(el.value))||incoming.some(v=>v.includes(norm(el.value))||norm(el.value).includes(v)))el.checked=true;});}
   if(Array.isArray(result.photos)&&typeof photoOrder!=='undefined'){const existing=new Set(photoOrder.filter(x=>x.kind==='existing').map(x=>x.value));result.photos.filter(u=>typeof u==='string'&&(u.startsWith('https://')||u.startsWith('http://'))&&!existing.has(u)).slice(0,35-photoOrder.length).forEach(url=>photoOrder.push({kind:'existing',value:url,thumb:''}));if(typeof syncPhotoArrays==='function')syncPhotoArrays();if(typeof renderPhotos==='function')renderPhotos();}
-  if(result.transaction_type==='rent'){const rent=form?.elements.namedItem('for_rent');if(rent)rent.checked=true;}
-  else if(result.transaction_type==='sale'){const sale=form?.elements.namedItem('for_sale');if(sale)sale.checked=true;}
+  if(result.transaction_type==='rent'||result.transaction_type==='sale'||result.transaction_type==='both'){
+   const sale=form?.elements.namedItem('for_sale'),rent=form?.elements.namedItem('for_rent');
+   if(sale)sale.checked=result.transaction_type==='sale'||result.transaction_type==='both';
+   if(rent)rent.checked=result.transaction_type==='rent'||result.transaction_type==='both';
+  }
   status.textContent='Importei '+imported+' campo(s) encontrado(s) no anúncio. Confira os dados antes de salvar; campos não encontrados ficam em branco.';
   switchPropertyTab('property');if(typeof syncPurposeAndTitle==='function')syncPurposeAndTitle();if(typeof autoCondo==='function')autoCondo();toast('Dados do anúncio importados para revisão.','ok');
  }catch(e){status.textContent=e.message||'Falha ao importar link.';toast(status.textContent,'err')}
