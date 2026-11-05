@@ -185,17 +185,36 @@ module.exports=async function(req,res){
   // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
-  const listingId=(u.pathname.match(/\/imovel\/(\d+)/i)||[])[1];
+  const listingId=(u.pathname.match(/\\/imovel\\/(\\d+)/i)||[])[1];
   const photoKeys=new Set();
-  const add=x=>{if(Array.isArray(x)){x.forEach(add);return;}const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);if(v){let absolute;try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}if(!/^https?:\/\//i.test(absolute))return;
-    // Remove parâmetros e dimensões de crop para reconhecer a mesma foto em tamanhos diferentes.
+  const add=x=>{
+    if(Array.isArray(x)){x.forEach(add);return;}
+    const v=typeof x==="string"?x:(x?.url||x?.contentUrl||x?.src);
+    if(!v)return;
+    let absolute;
+    try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}
+    if(!/^https?:\\/\\//i.test(absolute))return;
     const path=absolute.split(/[?#]/)[0];
-    const canonical=path.replace(/\/img\/crop\/(?:square|landscape)\/\d+x\d+\/original\//i,"/img/original/");
-    const photo=canonical.match(/(?:Foto|foto)(\d+)\.(?:jpe?g|png|webp)$/i);
-    const id=(canonical.match(/original[^/]*?(\d{9,})[-.]/i)||[])[1]||listingId;
-    const key=photo&&id?("qa:"+id+":foto"+photo[1]):canonical.toLowerCase();
-    if(!photoKeys.has(key)){photoKeys.add(key);images.push(absolute);}
-  }};
+    const filename=path.split("/").pop()||"";
+    // O QuintoAndar repete a mesma foto em URLs de crop/resolução diferentes.
+    // O número FotoN é estável dentro do anúncio; usa o ID do anúncio como escopo.
+    const photoMatch=filename.match(/Foto[_-]?(\\d+)(?=[^0-9]|$)/i);
+    let key;
+    if(photoMatch&&listingId){
+      key="quintoandar:"+listingId+":foto:"+Number(photoMatch[1]);
+    }else{
+      // Fallback para URLs sem FotoN: remove dimensões de crop, query e fragmento.
+      const normalized=path
+        .replace(/\\/img\\/crop\\/(?:square|landscape)\\/\\d+x\\d+\\/original\\//i,"/img/original/")
+        .replace(/\\/(?:square|landscape)\\/\\d+x\\d+\\//i,"/")
+        .replace(/\\/+/g,"/");
+      key=normalized.toLowerCase();
+    }
+    if(!photoKeys.has(key)){
+      photoKeys.add(key);
+      images.push(absolute);
+    }
+  };
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
   imageValues(nodes).forEach(add);
   add(meta(html,"og:image"));add(meta(html,"twitter:image"));
