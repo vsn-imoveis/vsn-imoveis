@@ -185,7 +185,7 @@ module.exports=async function(req,res){
   // Varre o texto visível inteiro: muitos portais não incluem as características no JSON-LD.
   const pageText=plain(html);
   const text=plain(description+" "+title+" "+pageText), images=[];
-  const listingId=(u.pathname.match(/\\/imovel\\/(\\d+)/i)||[])[1];
+  const listingId=(u.pathname.match(/\/imovel\/(\d+)/i)||[])[1];
   const photoKeys=new Set();
   const add=x=>{
     if(Array.isArray(x)){x.forEach(add);return;}
@@ -193,12 +193,12 @@ module.exports=async function(req,res){
     if(!v)return;
     let absolute;
     try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}
-    if(!/^https?:\\/\\//i.test(absolute))return;
+    if(!/^https?:\/\//i.test(absolute))return;
     const path=absolute.split(/[?#]/)[0];
     const filename=path.split("/").pop()||"";
     // O QuintoAndar repete a mesma foto em URLs de crop/resolução diferentes.
     // O número FotoN é estável dentro do anúncio; usa o ID do anúncio como escopo.
-    const photoMatch=filename.match(/Foto[_-]?(\\d+)(?=[^0-9]|$)/i);
+    const photoMatch=filename.match(/Foto[_-]?(\d+)(?=[^0-9]|$)/i);
     let key;
     if(photoMatch&&listingId){
       key="quintoandar:"+listingId+":foto:"+Number(photoMatch[1]);
@@ -253,8 +253,8 @@ module.exports=async function(req,res){
   const structuredPurpose=String(first(p.transactionType,p.transaction_type,p.businessType,p.listingType,p.offerType,p.purpose,deep(["transactionType","transaction_type","businessType","listingType","offerType","purpose"]))||"").toLocaleLowerCase("pt-BR");
   const purposeText=plain(title+" "+description+" "+structuredPurpose).toLocaleLowerCase("pt-BR");
   const pathText=decode(u.pathname+" "+u.search).toLocaleLowerCase("pt-BR");
-  const saleSignal=/(?:\\bcomprar\\b|\\bcompra\\b|\\bà venda\\b|\\ba venda\\b|\\bvenda\\b|\\bsale\\b)/i.test(purposeText)||/(?:^|[\\/_-])(?:comprar|compra|venda|sale)(?:[\\/_?&=-]|$)/i.test(pathText);
-  const rentSignal=/(?:\\balugar\\b|\\baluguel\\b|\\bloca[cç][aã]o\\b|\\brent\\b|\\bfor rent\\b)/i.test(purposeText)||/(?:^|[\\/_-])(?:alugar|aluguel|locacao|rent)(?:[\\/_?&=-]|$)/i.test(pathText);
+  const saleSignal=/(?:\bcomprar\b|\bcompra\b|\bà venda\b|\ba venda\b|\bvenda\b|\bsale\b)/i.test(purposeText)||/(?:^|[\/_-])(?:comprar|compra|venda|sale)(?:[\/_?&=-]|$)/i.test(pathText);
+  const rentSignal=/(?:\balugar\b|\baluguel\b|\bloca[cç][aã]o\b|\brent\b|\bfor rent\b)/i.test(purposeText)||/(?:^|[\/_-])(?:alugar|aluguel|locacao|rent)(?:[\/_?&=-]|$)/i.test(pathText);
   const rent=rentSignal&&!saleSignal;
   const transactionType=rentSignal&&saleSignal?"both":rent?"rent":saleSignal?"sale":"";
   const propertyType=inferPropertyType(nodes,title,description);
