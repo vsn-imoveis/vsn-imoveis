@@ -214,7 +214,6 @@ module.exports=async function(req,res){
       photoKeys.add(key);
       images.push(absolute);
     }
-    }
   };
   (Array.isArray(p.image)?p.image:[p.image]).forEach(add);
   imageValues(nodes).forEach(add);
