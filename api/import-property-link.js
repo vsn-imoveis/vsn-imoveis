@@ -143,7 +143,7 @@ function collectFeatures(nodes,pageText="",title="",description=""){
   if(negatives.some(n=>around.includes(norm(n))))continue;
   if(label==="Piscina"&&condoOnly.some(n=>norm(description||title).includes(norm(n))))continue;
   add(label);
- }}
+ }
  return out.slice(0,80);
 }
 function inferPropertyType(nodes,title,description){
