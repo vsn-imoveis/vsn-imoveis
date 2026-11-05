@@ -209,9 +209,9 @@ module.exports=async function(req,res){
         .replace(/\\/(?:square|landscape)\\/\\d+x\\d+\\//i,"/")
         .replace(/\\/+/g,"/");
       key=normalized.toLowerCase();
-    }
-    if(!photoKeys.has(key)){
-      photoKeys.add(key);
+        .replace(/\/img\/crop\/(?:square|landscape)\/\d+x\d+\/original\//i,"/img/original/")
+        .replace(/\/(?:square|landscape)\/\d+x\d+\//i,"/")
+        .replace(/\/+/g,"/");
       images.push(absolute);
     }
   };
