@@ -70,10 +70,10 @@ function valueFrom(nodes,keys){
  for(const n of nodes){for(const k of keys){const v=n?.[k];if(v!==undefined&&v!==null&&v!==""&&typeof v!=="object")return v;}}
  return null;
 }
-function collectFeatures(nodes,pageText="",title="",description=""){
+function collectFeatures(nodes,pageText="",title="",description="",isQuintoAndar=false){
  const out=[];const seen=new Set();
  const add=v=>{if(!v)return;if(typeof v==="string"){const x=plain(v).trim();if(x&&x.length<100&&!seen.has(x)){seen.add(x);out.push(x);}return;}if(Array.isArray(v)){v.forEach(add);return;}if(typeof v==="object"){if(typeof v.name==="string")add(v.name);else if(typeof v.value==="string")add(v.value);else if(typeof v.label==="string")add(v.label);else if(typeof v.description==="string")add(v.description);}};
- for(const n of nodes){for(const k of ["features","amenities","amenityFeature","propertyFeatures","propertyAmenities","characteristics","attributes","differentials","condominiumFeatures","leisure","facilities"]){if(n&&n[k]!==undefined)add(n[k]);}}
+ if(!isQuintoAndar){for(const n of nodes){for(const k of ["features","amenities","amenityFeature","propertyFeatures","propertyAmenities","characteristics","attributes","differentials","condominiumFeatures","leisure","facilities"]){if(n&&n[k]!==undefined)add(n[k]);}}}
  // Fallback: map portal-specific labels and visible feature names to the exact options used by the VSN form.
  const canonical=[
  ["Acabamento em alto padrão",["acabamento alto padrao","alto padrao"]],
@@ -130,16 +130,22 @@ function collectFeatures(nodes,pageText="",title="",description=""){
  ["Aceita pets",["aceita pets","pet friendly","permite animais"]]
  ];
  const norm=v=>plain(String(v||"")).toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
- const corpus=norm([title,description].join(" "));
+ const qaText=norm(pageText);
+ const availableStart=qaText.indexOf("itens disponiveis");
+ const unavailableStart=qaText.indexOf("itens indisponiveis");
+ const hasQuintoAndarSections=availableStart>=0&&unavailableStart>availableStart;
+ const featureSource=isQuintoAndar
+   ? (hasQuintoAndarSections?qaText.slice(availableStart+"itens disponiveis".length,unavailableStart):"")
+   : norm(description||title);
  const hasPhrase=(text,phrase)=>{const t=" "+norm(text)+" ",p=" "+norm(phrase)+" ";return t.includes(p);};
  const negatives=["nao possui","nao tem","nao conta com","sem ","nao aceita","nao disponivel"];
  const condoOnly=["piscina do condominio","piscina no condominio","piscina do empreendimento","piscina na area comum","churrasqueira do condominio","churrasqueira no condominio","academia do condominio"];
  for(const [label,aliases] of canonical){
-  const matched=aliases.some(a=>hasPhrase(description||title,a));
+  const matched=aliases.some(a=>hasPhrase(featureSource,a));
   if(!matched)continue;
-  const aliasFound=aliases.find(a=>hasPhrase(description||title,a));
-  const idx=norm(description||title).indexOf(norm(aliasFound));
-  const around=norm(description||title).slice(Math.max(0,idx-45),idx+norm(aliasFound).length+20);
+  const aliasFound=aliases.find(a=>hasPhrase(featureSource,a));
+  const idx=featureSource.indexOf(norm(aliasFound));
+  const around=featureSource.slice(Math.max(0,idx-45),idx+norm(aliasFound).length+20);
   if(negatives.some(n=>around.includes(norm(n))))continue;
   if(label==="Piscina"&&condoOnly.some(n=>norm(description||title).includes(norm(n))))continue;
   add(label);
@@ -258,7 +264,7 @@ module.exports=async function(req,res){
   const rent=rentSignal&&!saleSignal;
   const transactionType=rentSignal&&saleSignal?"both":rent?"rent":saleSignal?"sale":"";
   const propertyType=inferPropertyType(nodes,title,description);
-  const features=collectFeatures(nodes,pageText,title,description);
+  const features=collectFeatures(nodes,pageText,title,description,/quintoandar\.com\.br$/i.test(u.hostname));
   const result={property_type:propertyType,features,title:plain(title).slice(0,220),description:plain(description||pageText.slice(0,8000)).slice(0,8000),price:rent?null:(price||num(labeled(["preço","valor de venda","venda"]))),rent_price:rent?(price||num(labeled(["aluguel","valor da locação","valor mensal"]))):null,transaction_type:transactionType,area:num(first(p.floorSize?.value,p.floorSize,p.area,p.usableArea,p.privateArea,p.totalArea,p.livingArea,deep(["usableArea","privateArea","totalArea","livingArea","floorSize","area","areaM2","area_m2","squareMeters"]),labeledArea,find(text,/([\d.,]+)\s*m(?:²|2|etros quadrados)/i))),bedrooms:num(first(p.numberOfBedrooms,p.bedrooms,p.bedroomCount,p.dormitorios,p.quartos,deep(["numberOfBedrooms","bedrooms","bedroomCount","bedroomQuantity","dormitorios","quartos","rooms"]),labeledBeds,find(text,/(\d+)\s*(?:quartos?|dormitórios?)/i))),suites:num(first(p.suites,p.suiteCount,deep(["suites","suiteCount","suiteQuantity"]),labeledSuites,find(text,/(\d+)\s*s[uú]ites?/i))),bathrooms:num(first(p.numberOfBathroomsTotal,p.bathrooms,p.bathroomCount,p.banheiros,deep(["numberOfBathroomsTotal","bathrooms","bathroomCount","bathroomQuantity","banheiros"]),labeledBaths,find(text,/(\d+)\s*banheiros?/i))),parking:num(first(p.parkingSpaces,p.parking,p.garageSpaces,p.vagas,deep(["parkingSpaces","parking","garageSpaces","garageCount","parkingCount","vagas"]),labeledParking,find(text,/(\d+)\s*(?:vagas?|garagens?)/i))),condo_fee:condoFee,iptu,construction_year:constructionYear,address:a.streetAddress||"",number:a.streetAddress?find(a.streetAddress,/[, ]+(\d+[A-Za-z]?)(?:\s|$)/):"",cep:a.postalCode||"",neighborhood:a.addressNeighborhood||a.neighborhood||"",city:a.addressLocality||"",state:a.addressRegion||"",condominium_name:first(p.condominiumName,p.condoName,p.buildingName,deep(["condominiumName","condoName","buildingName","developmentName","projectName"]),condoMatch?condoMatch[1].trim().split(/\s{2,}/)[0].slice(0,90):"")||"",photos:images.slice(0,35),source_url:u.toString()}
   if(![result.title,result.description,result.price,result.area,result.address].some(v=>v!==null&&v!==undefined&&v!=="")){
    const plainPage=plain(html).slice(0,1200).toLowerCase();
