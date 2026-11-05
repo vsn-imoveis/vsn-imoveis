@@ -201,10 +201,9 @@ module.exports=async function(req,res){
     try{absolute=new URL(decode(v),u.origin).toString();}catch(_){return;}
     if(!/^https?:\/\//i.test(absolute))return;
     const path=absolute.split(/[?#]/)[0];
-    const filename=path.split("/").pop()||"";
-    // O QuintoAndar repete a mesma foto em URLs de crop/resolução diferentes.
-    // O número FotoN é estável dentro do anúncio; usa o ID do anúncio como escopo.
-    const photoMatch=filename.match(/Foto[_-]?(\d+)(?=[^0-9]|$)/i);
+    // Procura FotoN no caminho inteiro, não só no último segmento:
+    // alguns formatos do QuintoAndar acrescentam sufixos ou pastas após o nome da foto.
+    const photoMatch=path.match(/(?:^|[_/.-])Foto[_-]?(\d+)(?=[^0-9]|$)/i);
     let key;
     if(photoMatch&&listingId){
       key="quintoandar:"+listingId+":foto:"+Number(photoMatch[1]);
