@@ -1,88 +1,142 @@
-import { Resend } from 'resend';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_SERVER_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '';
+
+function getHost(req) {
+  const raw = req.headers['x-forwarded-host'] || req.headers.host || '';
+  return String(Array.isArray(raw) ? raw[0] : raw).split(',')[0].trim().toLowerCase().replace(/:\\d+$/, '');
+}
+
+async function supabaseRequest(path, options = {}) {
+  const response = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_SERVER_KEY,
+      Authorization: 'Bearer ' + SUPABASE_SERVER_KEY,
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+  if (!response.ok) {
+    console.error('[CRM leads] Supabase request failed:', response.status, data);
+    throw new Error('Falha ao registrar o contato.');
+  }
+  return data;
+}
+
+async function resolveCompany(req) {
+  // Optional for a dedicated single-company deployment. For shared hosting,
+  // resolve the tenant strictly from an active hostname mapping.
+  const configuredSlug = String(process.env.CRM_COMPANY_SLUG || '').trim().toLowerCase();
+  let slug = configuredSlug;
+
+  if (!slug) {
+    const hostname = getHost(req);
+    if (!hostname) return null;
+    const domains = await supabaseRequest(
+      'crm_domains?select=company_id&hostname=eq.' + encodeURIComponent(hostname) + '&status=eq.active&limit=1'
+    );
+    const companyId = Array.isArray(domains) ? domains[0]?.company_id : null;
+    if (!companyId) return null;
+    const companies = await supabaseRequest(
+      'crm_companies?select=id,slug,name,contact_email,status&id=eq.' + encodeURIComponent(companyId) + '&status=eq.active&limit=1'
+    );
+    return Array.isArray(companies) ? companies[0] || null : null;
+  }
+
+  const companies = await supabaseRequest(
+    'crm_companies?select=id,slug,name,contact_email,status&slug=eq.' + encodeURIComponent(slug) + '&status=eq.active&limit=1'
+  );
+  return Array.isArray(companies) ? companies[0] || null : null;
+}
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ ok: false, error: 'Método não permitido.' });
+  }
+
+  if (!SUPABASE_URL || !SUPABASE_SERVER_KEY) {
+    console.error('[CRM leads] Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (server only).');
+    return res.status(500).json({ ok: false, error: 'Captação temporariamente indisponível.' });
+  }
 
   try {
-    const { nome, whatsapp, email, interesse, imovel, mensagem } = req.body || {};
+    const body = req.body || {};
+    const nome = String(body.nome || '').trim();
+    const whatsapp = String(body.whatsapp || '').trim();
+    const email = String(body.email || '').trim().toLowerCase();
+    const interesse = String(body.interesse || '').trim();
+    const imovel = String(body.imovel || '').trim();
+    const mensagem = String(body.mensagem || '').trim();
 
     if (!nome || !whatsapp || !email) {
-      return res.status(400).json({ error: 'Dados obrigatórios ausentes' });
+      return res.status(400).json({ ok: false, error: 'Informe nome, WhatsApp e e-mail.' });
+    }
+    if (nome.length > 160 || whatsapp.length > 40 || email.length > 254 ||
+        interesse.length > 120 || imovel.length > 500 || mensagem.length > 4000) {
+      return res.status(400).json({ ok: false, error: 'Os dados enviados excedem o limite permitido.' });
     }
 
-    // Persist the lead in the VSN database before sending the notification email.
-    const supabaseUrl = process.env.SUPABASE_URL || 'https://jpdfynaioepcmgqlqlht.supabase.co';
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03';
-    const saved = await fetch(supabaseUrl + '/rest/v1/leads', {
+    const company = await resolveCompany(req);
+    if (!company) {
+      return res.status(404).json({ ok: false, error: 'Não foi possível identificar uma empresa ativa para este site.' });
+    }
+
+    const combinedMessage = [imovel ? 'Região / imóvel: ' + imovel : '', mensagem]
+      .filter(Boolean).join('\\n\\n') || null;
+
+    const saved = await supabaseRequest('crm_leads?select=id', {
       method: 'POST',
-      headers: {
-        apikey: supabaseKey,
-        Authorization: 'Bearer ' + supabaseKey,
-        'Content-Type': 'application/json',
-        Prefer: 'return=representation'
-      },
+      headers: { Prefer: 'return=representation' },
       body: JSON.stringify({
-        nome: String(nome).trim(),
-        whatsapp: String(whatsapp).trim(),
-        email: String(email).trim().toLowerCase(),
-        interesse: interesse || null,
-        mensagem: [imovel ? 'Região / imóvel: ' + imovel : '', mensagem || ''].filter(Boolean).join('\\n\\n') || null
+        company_id: company.id,
+        contact_name: nome,
+        phone: whatsapp,
+        email,
+        interest: interesse || null,
+        message: combinedMessage,
+        status: 'new',
+        source: 'site',
+        source_url: 'https://' + getHost(req)
       })
     });
-    if (!saved.ok) {
-      const detail = await saved.text();
-      console.error('Supabase lead save error:', saved.status, detail);
-      return res.status(500).json({ error: 'Não foi possível registrar seu contato.' });
-    }
-    const savedRows = await saved.json();
-    const leadId = savedRows?.[0]?.id || null;
 
-    if (!process.env.RESEND_API_KEY) {
-      console.warn('RESEND_API_KEY não configurada; lead salvo sem e-mail.');
-      return res.status(200).json({ ok: true, leadId, emailSent: false });
-    }
+    const leadId = Array.isArray(saved) ? saved[0]?.id || null : null;
 
-    try {
-      const resend = new Resend(process.env.RESEND_API_KEY);
-      const safe = (v = '') => String(v).replace(/[&<>"']/g, c => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      }[c]));
-
-      const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-      const { data, error } = await resend.emails.send({
-        from: `VSN Imóveis <${from}>`,
-        to: ['vsnimoveis@gmail.com'],
-        replyTo: email,
-        subject: `Novo lead — ${safe(nome)}`,
-        html: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#18212b">
-            <h2>Novo lead recebido pelo site VSN Imóveis</h2>
-            <p><b>Nome:</b> ${safe(nome)}</p>
-            <p><b>WhatsApp:</b> ${safe(whatsapp)}</p>
-            <p><b>E-mail:</b> ${safe(email)}</p>
-            <p><b>Interesse:</b> ${safe(interesse)}</p>
-            <p><b>Imóvel/região:</b> ${safe(imovel)}</p>
-            <p><b>Mensagem:</b><br>${safe(mensagem)}</p>
-          </div>
-        `
-      });
-
-      if (error) {
-        console.error('Resend error (lead already saved):', error);
-        return res.status(200).json({ ok: true, leadId, emailSent: false, warning: 'Contato registrado, mas o e-mail de aviso não foi enviado.' });
+    if (process.env.RESEND_API_KEY && company.contact_email) {
+      try {
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const safe = value => String(value || '').replace(/[&<>"']/g, c => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+        const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+        const result = await resend.emails.send({
+          from: (company.name || 'Versus CRM') + ' <' + from + '>',
+          to: [company.contact_email],
+          replyTo: email,
+          subject: 'Novo contato pelo site — ' + nome,
+          html: '<div style="font-family:Arial,sans-serif;line-height:1.6">' +
+            '<h2>Novo lead — ' + safe(company.name) + '</h2>' +
+            '<p><b>Nome:</b> ' + safe(nome) + '</p>' +
+            '<p><b>WhatsApp:</b> ' + safe(whatsapp) + '</p>' +
+            '<p><b>E-mail:</b> ' + safe(email) + '</p>' +
+            '<p><b>Interesse:</b> ' + safe(interesse) + '</p>' +
+            '<p><b>Imóvel/região:</b> ' + safe(imovel) + '</p>' +
+            '<p><b>Mensagem:</b> ' + safe(mensagem) + '</p></div>'
+        });
+        if (result.error) console.error('[CRM leads] Notification email failed:', result.error);
+      } catch (emailError) {
+        console.error('[CRM leads] Notification email failed:', emailError);
       }
-      return res.status(200).json({ ok: true, leadId, emailSent: true, id: data?.id });
-    } catch (emailError) {
-      console.error('Resend exception (lead already saved):', emailError);
-      return res.status(200).json({ ok: true, leadId, emailSent: false, warning: 'Contato registrado, mas o e-mail de aviso não foi enviado.' });
     }
 
+    return res.status(200).json({ ok: true, leadId });
   } catch (error) {
-    console.error('Lead API error:', error);
-    return res.status(500).json({ error: 'Falha ao enviar lead', details: error?.message || 'Erro interno no servidor' });
+    console.error('[CRM leads] Lead API error:', error);
+    return res.status(500).json({ ok: false, error: 'Não foi possível registrar seu contato.' });
   }
 }
