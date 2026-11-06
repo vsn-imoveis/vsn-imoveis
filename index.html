@@ -158,7 +158,7 @@ async function loadProperties(){
       if(!tenantResponse.ok||!tenantData.ok||!tenantData.company)throw new Error(tenantData.error||'Imobiliária não encontrada.');
       TENANT_COMPANY=tenantData.company;
       const company=TENANT_COMPANY;
-      const parts=String(company.name||'Imobiliária').trim().split(/\\s+/);
+      const parts=String(company.name||'Imobiliária').trim().split(/\s+/);
       const brand=document.getElementById('siteBrandName'),sub=document.getElementById('siteBrandSub');
       if(brand)brand.textContent=parts.shift()||company.name;
       if(sub)sub.textContent=parts.join(' ')||'IMÓVEIS';
@@ -181,7 +181,7 @@ async function loadProperties(){
       const logo=document.getElementById('siteFooterLogo'),logoImg=document.getElementById('siteFooterLogoImg');
       if(company.logo_url&&logo&&logoImg){logo.classList.add('has-image');logoImg.src=company.logo_url;logoImg.alt=company.name;}
       if(company.contact_phone){
-        const digits=String(company.contact_phone).replace(/\\D/g,'');
+        const digits=String(company.contact_phone).replace(/\D/g,'');
         const waUrl='https://wa.me/'+(digits.startsWith('55')?digits:'55'+digits);
         document.querySelectorAll('.wa-top,.float-wa').forEach(el=>el.href=waUrl);
         const footerWa=document.getElementById('siteFooterWhatsApp');
