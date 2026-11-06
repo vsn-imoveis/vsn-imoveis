@@ -19,6 +19,10 @@
     {
       "source": "/sitemap-properties.xml",
       "destination": "/api/sitemap-properties"
+    },
+    {
+      "source": "/:slug([a-z0-9-]+)",
+      "destination": "/index.html?tenant=:slug"
     }
   ]
 }
