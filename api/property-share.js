@@ -1,5 +1,5 @@
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://jpdfynaioepcmgqlqlht.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03';
+const SUPABASE_URL = process.env.SUPABASE_URL || '';
+const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 const SITE = 'https://vsn-imoveis.vercel.app';
 
 function slugPart(value) {
@@ -28,6 +28,7 @@ function setMeta(html, selector, value) {
 
 export default async function handler(req, res) {
   try {
+    if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error('Configuração do Supabase não definida no ambiente.');
     const slug = String(req.query?.slug || '').trim();
     if (!slug) return res.status(400).send('Slug do imóvel não informado.');
 
