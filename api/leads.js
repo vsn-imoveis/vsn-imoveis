@@ -26,27 +26,28 @@ async function supabaseRequest(path, options = {}) {
   return data;
 }
 
-async function resolveCompany(req) {
-  // Dedicated deployments may define a company slug. Shared hosting must
-  // resolve the tenant strictly through an active hostname mapping.
-  const configuredSlug = String(process.env.CRM_COMPANY_SLUG || '').trim().toLowerCase();
-
-  if (!configuredSlug) {
-    const hostname = getHost(req);
-    if (!hostname) return null;
-    const domains = await supabaseRequest(
-      'crm_domains?select=company_id&hostname=eq.' + encodeURIComponent(hostname) + '&status=eq.active&limit=1'
-    );
-    const companyId = Array.isArray(domains) ? domains[0]?.company_id : null;
-    if (!companyId) return null;
+async function resolveCompany(req, requestedSlug) {
+  // A public slug may identify the tenant, but the company_id is always
+  // resolved server-side against an active company in the Versus database.
+  const slug = String(requestedSlug || process.env.CRM_COMPANY_SLUG || '').trim().toLowerCase();
+  if (slug) {
+    if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug)) return null;
     const companies = await supabaseRequest(
-      'crm_companies?select=id,slug,name,status&id=eq.' + encodeURIComponent(companyId) + '&status=eq.active&limit=1'
+      'crm_companies?select=id,slug,name,status&slug=eq.' + encodeURIComponent(slug) + '&status=eq.active&limit=2'
     );
-    return Array.isArray(companies) ? companies[0] || null : null;
+    return Array.isArray(companies) && companies.length === 1 ? companies[0] : null;
   }
 
+  // Backward compatibility for a dedicated hostname already registered.
+  const hostname = getHost(req);
+  if (!hostname) return null;
+  const domains = await supabaseRequest(
+    'crm_domains?select=company_id&hostname=eq.' + encodeURIComponent(hostname) + '&status=eq.active&limit=1'
+  );
+  const companyId = Array.isArray(domains) ? domains[0]?.company_id : null;
+  if (!companyId) return null;
   const companies = await supabaseRequest(
-    'crm_companies?select=id,slug,name,status&slug=eq.' + encodeURIComponent(configuredSlug) + '&status=eq.active&limit=1'
+    'crm_companies?select=id,slug,name,status&id=eq.' + encodeURIComponent(companyId) + '&status=eq.active&limit=1'
   );
   return Array.isArray(companies) ? companies[0] || null : null;
 }
@@ -79,7 +80,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: 'Os dados enviados excedem o limite permitido.' });
     }
 
-    const company = await resolveCompany(req);
+    const company = await resolveCompany(req, body.slug);
     if (!company) {
       return res.status(404).json({ ok: false, error: 'Não foi possível identificar uma empresa ativa para este site.' });
     }
