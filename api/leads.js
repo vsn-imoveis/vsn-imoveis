@@ -20,7 +20,7 @@ async function supabaseRequest(path, options = {}) {
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch { data = text; }
   if (!response.ok) {
-    console.error('[CRM leads] Supabase request failed:', response.status, data);
+    console.error('[VersusCRM] Falha ao gravar em public.crm_leads:', response.status, data);
     throw new Error('Falha ao registrar o contato.');
   }
   return data;
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
   }
 
   if (!SUPABASE_URL || !SUPABASE_SERVER_KEY) {
-    console.error('[CRM leads] Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (server only).');
+    console.error('[VersusCRM] Configure SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY/SUPABASE_SECRET_KEY no ambiente server-side. Nunca usar chave pública para gravar leads.');
     return res.status(500).json({ ok: false, error: 'Captação temporariamente indisponível.' });
   }
 
@@ -107,7 +107,7 @@ export default async function handler(req, res) {
     const leadId = Array.isArray(saved) ? saved[0]?.id || null : null;
     return res.status(200).json({ ok: true, leadId });
   } catch (error) {
-    console.error('[CRM leads] Lead API error:', error);
+    console.error('[VersusCRM] Erro no endpoint /api/leads (destino: public.crm_leads):', error);
     return res.status(500).json({ ok: false, error: 'Não foi possível registrar seu contato.' });
   }
 }
