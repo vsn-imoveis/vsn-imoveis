@@ -180,6 +180,15 @@ async function loadProperties(){
       if(yt&&company.youtube_url)yt.href=company.youtube_url;
       const logo=document.getElementById('siteFooterLogo'),logoImg=document.getElementById('siteFooterLogoImg');
       if(company.logo_url&&logo&&logoImg){logo.classList.add('has-image');logoImg.src=company.logo_url;logoImg.alt=company.name;}
+      if(company.contact_phone){
+        const digits=String(company.contact_phone).replace(/\\D/g,'');
+        const waUrl='https://wa.me/'+(digits.startsWith('55')?digits:'55'+digits);
+        document.querySelectorAll('.wa-top,.float-wa').forEach(el=>el.href=waUrl);
+        const footerWa=document.getElementById('siteFooterWhatsApp');
+        if(footerWa)footerWa.href=waUrl;
+        const footerPhone=document.getElementById('siteFooterPhone');
+        if(footerPhone)footerPhone.textContent=company.contact_phone;
+      }
       const propertyResponse=await fetch('/api/crm-public-properties?company_id='+encodeURIComponent(company.id));
       const propertyData=await propertyResponse.json().catch(()=>({}));
       if(!propertyResponse.ok||!propertyData.ok)throw new Error(propertyData.error||'Não foi possível carregar os imóveis.');
