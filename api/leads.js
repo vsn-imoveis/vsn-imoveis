@@ -3,7 +3,7 @@ const SUPABASE_SERVER_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env
 
 function getHost(req) {
   const raw = req.headers['x-forwarded-host'] || req.headers.host || '';
-  return String(Array.isArray(raw) ? raw[0] : raw).split(',')[0].trim().toLowerCase().replace(/:\\d+$/, '');
+  return String(Array.isArray(raw) ? raw[0] : raw).split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
 }
 
 async function supabaseRequest(path, options = {}) {
@@ -86,7 +86,7 @@ export default async function handler(req, res) {
     }
 
     const combinedMessage = [imovel ? 'Região / imóvel: ' + imovel : '', mensagem]
-      .filter(Boolean).join('\\n\\n') || null;
+      .filter(Boolean).join('\n\n') || null;
 
     const saved = await supabaseRequest('crm_leads?select=id', {
       method: 'POST',
