@@ -27,12 +27,11 @@ async function supabaseRequest(path, options = {}) {
 }
 
 async function resolveCompany(req) {
-  // Optional for a dedicated single-company deployment. For shared hosting,
-  // resolve the tenant strictly from an active hostname mapping.
+  // Dedicated deployments may define a company slug. Shared hosting must
+  // resolve the tenant strictly through an active hostname mapping.
   const configuredSlug = String(process.env.CRM_COMPANY_SLUG || '').trim().toLowerCase();
-  let slug = configuredSlug;
 
-  if (!slug) {
+  if (!configuredSlug) {
     const hostname = getHost(req);
     if (!hostname) return null;
     const domains = await supabaseRequest(
@@ -41,13 +40,13 @@ async function resolveCompany(req) {
     const companyId = Array.isArray(domains) ? domains[0]?.company_id : null;
     if (!companyId) return null;
     const companies = await supabaseRequest(
-      'crm_companies?select=id,slug,name,contact_email,status&id=eq.' + encodeURIComponent(companyId) + '&status=eq.active&limit=1'
+      'crm_companies?select=id,slug,name,status&id=eq.' + encodeURIComponent(companyId) + '&status=eq.active&limit=1'
     );
     return Array.isArray(companies) ? companies[0] || null : null;
   }
 
   const companies = await supabaseRequest(
-    'crm_companies?select=id,slug,name,contact_email,status&slug=eq.' + encodeURIComponent(slug) + '&status=eq.active&limit=1'
+    'crm_companies?select=id,slug,name,status&slug=eq.' + encodeURIComponent(configuredSlug) + '&status=eq.active&limit=1'
   );
   return Array.isArray(companies) ? companies[0] || null : null;
 }
@@ -100,40 +99,11 @@ export default async function handler(req, res) {
         message: combinedMessage,
         status: 'new',
         source: 'site',
-        source_url: 'https://' + getHost(req)
+        source_url: getHost(req) ? 'https://' + getHost(req) : null
       })
     });
 
     const leadId = Array.isArray(saved) ? saved[0]?.id || null : null;
-
-    if (process.env.RESEND_API_KEY && company.contact_email) {
-      try {
-        const { Resend } = await import('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        const safe = value => String(value || '').replace(/[&<>"']/g, c => ({
-          '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[c]));
-        const from = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
-        const result = await resend.emails.send({
-          from: (company.name || 'Versus CRM') + ' <' + from + '>',
-          to: [company.contact_email],
-          replyTo: email,
-          subject: 'Novo contato pelo site — ' + nome,
-          html: '<div style="font-family:Arial,sans-serif;line-height:1.6">' +
-            '<h2>Novo lead — ' + safe(company.name) + '</h2>' +
-            '<p><b>Nome:</b> ' + safe(nome) + '</p>' +
-            '<p><b>WhatsApp:</b> ' + safe(whatsapp) + '</p>' +
-            '<p><b>E-mail:</b> ' + safe(email) + '</p>' +
-            '<p><b>Interesse:</b> ' + safe(interesse) + '</p>' +
-            '<p><b>Imóvel/região:</b> ' + safe(imovel) + '</p>' +
-            '<p><b>Mensagem:</b> ' + safe(mensagem) + '</p></div>'
-        });
-        if (result.error) console.error('[CRM leads] Notification email failed:', result.error);
-      } catch (emailError) {
-        console.error('[CRM leads] Notification email failed:', emailError);
-      }
-    }
-
     return res.status(200).json({ ok: true, leadId });
   } catch (error) {
     console.error('[CRM leads] Lead API error:', error);
