@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
   try {
     const query = new URLSearchParams({
-      select: 'id,name,slug,status,logo_url,primary_color,instagram_url,facebook_url,youtube_url,public_address,about_text,site_photo_url,site_cover_url,site_share_image_url',
+      select: 'id,name,slug,status,contact_phone,logo_url,primary_color,instagram_url,facebook_url,youtube_url,public_address,about_text,site_photo_url,site_cover_url,site_share_image_url',
       slug: 'eq.' + slug,
       status: 'eq.active',
       limit: '2'
@@ -63,6 +63,7 @@ export default async function handler(req, res) {
         id: company.id,
         name: company.name,
         slug: company.slug,
+        contact_phone: company.contact_phone || null,
         logo_url: company.logo_url || null,
         primary_color: company.primary_color || null,
         instagram_url: company.instagram_url || null,
