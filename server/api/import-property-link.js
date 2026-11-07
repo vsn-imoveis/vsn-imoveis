@@ -1,5 +1,5 @@
-const https = require("https");
-const http = require("http");
+import https from "node:https";
+import http from "node:http";
 function send(res,status,data){res.statusCode=status;res.setHeader("Content-Type","application/json; charset=utf-8");res.setHeader("Cache-Control","no-store");return res.end(JSON.stringify(data));}
 function decode(s){return String(s||"").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n))).trim();}
 function plain(s){return decode(String(s||"").replace(/<script[\s\S]*?<\/script>/gi," ").replace(/<style[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," "));}
@@ -171,7 +171,7 @@ function imageValues(nodes){
 }
 function num(v){if(v===null||v===undefined||v==="")return null;if(typeof v==="number")return v;const s=String(v).replace(/[^\d,.-]/g,"");if(!s)return null;let n;if(s.includes(",")&&s.includes("."))n=Number(s.lastIndexOf(",")>s.lastIndexOf(".")?s.replace(/\./g,"").replace(",","."):s.replace(/,/g,""));else n=Number(s.replace(",","."));return Number.isFinite(n)?n:null;}
 function find(t,re){const m=String(t||"").match(re);return m?m[1].trim():"";}
-module.exports=async function(req,res){
+export default async function handler(req,res){
  if(req.method!=="POST")return send(res,405,{error:"Método não permitido."});
  try{
   const raw=String(req.body?.url||"").trim();let u;try{u=new URL(raw);}catch(_){return send(res,400,{error:"Informe um link válido."});}
