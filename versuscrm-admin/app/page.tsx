@@ -16,6 +16,10 @@ const statusLabel: Record<string, string> = { pending: 'Pendente', active: 'Ativ
 const money = (value: number | undefined) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0))
 const slugify = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
 const emptyForm: FormState = { name: '', slug: '', contact_name: '', contact_email: '', contact_phone: '', account_status: 'pending', subscription_status: 'trial', monthly_price: '100', property_limit: '100', photo_limit: '35' }
+async function callAdmin(action: string, payload: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke('admin-actions', { body: { action, ...payload } })
+  return { ok: !error && data?.ok !== false, json: async () => error ? { error: error.message } : (data || {}) }
+}
 
 export default function Page() {
   const [session, setSession] = useState(false), [loading, setLoading] = useState(true), [email, setEmail] = useState(''), [password, setPassword] = useState(''), [error, setError] = useState('')
@@ -61,7 +65,7 @@ export default function Page() {
     if (companyError || !createdCompany) { setNotice('Não foi possível criar o cliente: ' + (companyError?.message || 'erro inesperado')); return }
     const { error: subscriptionError } = await supabase.from('crm_subscriptions').insert({ company_id: createdCompany.id, plan_code: 'essencial', plan_name: 'Essencial', monthly_price: 100, property_limit: 100, photo_limit: 35, status: 'active' })
     if (subscriptionError) { await supabase.from('crm_companies').delete().eq('id',createdCompany.id); setNotice('Cliente criado parcialmente; falha ao criar assinatura. ' + subscriptionError.message); return }
-    const response = await fetch('/api/admin/provision-client', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${current.access_token}`}, body:JSON.stringify({companyId:createdCompany.id,email:lead.email.trim().toLowerCase(),companyName:name}) })
+    const response = await callAdmin('provision', { companyId: createdCompany.id, email: lead.email.trim().toLowerCase(), companyName: name })
     const provision = await response.json().catch(()=>({}))
     if (!response.ok) {
       await supabase.from('crm_subscriptions').delete().eq('company_id',createdCompany.id)
@@ -87,7 +91,7 @@ export default function Page() {
     const { data: { session: current } } = await supabase.auth.getSession()
     if (!current?.access_token) { setNotice('Sessão administrativa expirada. Entre novamente.'); return }
     setNotice('Processando decisão...')
-    const response = await fetch('/api/admin/decide-catalog-request', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${current.access_token}`}, body:JSON.stringify({requestId:item.id,decision,note}) })
+    const response = await callAdmin('decide-catalog', { requestId: item.id, decision, note })
     const result = await response.json().catch(()=>({}))
     if (!response.ok) { setNotice(result.error || 'Não foi possível concluir a solicitação.'); return }
     setNotice(decision === 'approved' ? 'Solicitação aprovada e cadastro atualizado.' : 'Solicitação rejeitada. O solicitante será notificado.')
@@ -187,11 +191,7 @@ export default function Page() {
       return
     }
 
-    const response = await fetch('/api/admin/provision-client', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentSession.access_token}` },
-      body: JSON.stringify({ companyId: c.id, email: contactEmail, companyName: name }),
-    })
+    const response = await callAdmin('provision', { companyId: c.id, email: contactEmail, companyName: name })
     const provision = await response.json().catch(() => ({}))
     if (!response.ok) {
       await supabase.from('crm_subscriptions').delete().eq('company_id', c.id)
@@ -219,11 +219,7 @@ export default function Page() {
     const { data: { session: current } } = await supabase.auth.getSession()
     if (!current?.access_token) { setNotice('Sua sessão administrativa expirou. Entre novamente.'); return }
     setNotice('Atualizando acesso de ' + company.name + '...')
-    const response = await fetch('/api/admin/manage-client-access', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + current.access_token },
-      body: JSON.stringify({ companyId: company.id, password: first }),
-    })
+    const response = await callAdmin('manage-access', { companyId: company.id, password: first })
     const result = await response.json().catch(() => ({}))
     if (!response.ok) { setNotice(result.error || 'Não foi possível atualizar o acesso.'); return }
     setNotice(`Acesso de ${result.email} configurado com sucesso. A senha definida já pode ser usada na área do cliente.`)
