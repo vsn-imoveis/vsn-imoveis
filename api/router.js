@@ -13,6 +13,7 @@ import proprietarioRecuperarSenha from '../server/api/proprietario-recuperar-sen
 import siteShareImage from '../server/api/site-share-image.js';
 import sitemapProperties from '../server/api/sitemap-properties.js';
 import supabaseConfig from '../server/api/supabase-config.js';
+import crmSupabaseConfig from '../server/api/crm-supabase-config.js';
 
 const handlers = {
   'condo-share': condoShare,
@@ -29,7 +30,8 @@ const handlers = {
   'proprietario-recuperar-senha': proprietarioRecuperarSenha,
   'site-share-image': siteShareImage,
   'sitemap-properties': sitemapProperties,
-  'supabase-config': supabaseConfig
+  'supabase-config': supabaseConfig,
+  'crm-supabase-config': crmSupabaseConfig
 };
 
 export default async function handler(req, res) {
