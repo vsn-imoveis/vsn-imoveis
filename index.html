@@ -153,7 +153,7 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
 async function loadProperties(){
   try{
     if(TENANT_SLUG){
-      const tenantResponse=await fetch('/api/crm-tenant?slug='+encodeURIComponent(TENANT_SLUG));
+      const tenantResponse=await fetch('/api/crm-tenant/'+encodeURIComponent(TENANT_SLUG));
       const tenantData=await tenantResponse.json().catch(()=>({}));
       if(!tenantResponse.ok||!tenantData.ok||!tenantData.company)throw new Error(tenantData.error||'Imobiliária não encontrada.');
       TENANT_COMPANY=tenantData.company;
@@ -189,7 +189,7 @@ async function loadProperties(){
         const footerPhone=document.getElementById('siteFooterPhone');
         if(footerPhone)footerPhone.textContent=company.contact_phone;
       }
-      const propertyResponse=await fetch('/api/crm-public-properties?company_id='+encodeURIComponent(company.id));
+      const propertyResponse=await fetch('/api/crm-public-properties/'+encodeURIComponent(company.id));
       const propertyData=await propertyResponse.json().catch(()=>({}));
       if(!propertyResponse.ok||!propertyData.ok)throw new Error(propertyData.error||'Não foi possível carregar os imóveis.');
       allProperties=Array.isArray(propertyData.properties)?propertyData.properties:[];
@@ -206,7 +206,7 @@ async function loadProperties(){
     searchProperties(false);
   }catch(e){
     console.error('Erro ao carregar imóveis:',e);
-    propertyCards.innerHTML='<div class="property-loading">Não foi possível carregar os imóveis agora.</div>';
+    propertyCards.innerHTML='<div class="property-loading">Não foi possível carregar os imóveis agora.</div>';const allCards=document.getElementById('allPropertyCards');if(allCards)allCards.innerHTML='<div class="property-loading">Não foi possível carregar os imóveis agora.</div>';
   }
 }
 loadProperties();;;;;</script><script>const modal=document.getElementById('modal'),form=document.getElementById('leadForm'),err=document.getElementById('err');function openModal(){modal.classList.add('open');document.body.style.overflow='hidden'}function closeModal(){modal.classList.remove('open');document.body.style.overflow=''}document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active')}));form.addEventListener('submit',async e=>{e.preventDefault();const b=form.querySelector('button[type=submit]');b.disabled=true;b.textContent='Enviando...';err.textContent='';try{const r=await fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...Object.fromEntries(new FormData(form)),slug:location.pathname.split('/').filter(Boolean)[0]||''})});const result=await r.json().catch(()=>({}));if(!r.ok||!result.ok)throw Error(result.error||'Não foi possível registrar seu contato. Tente novamente.');form.reset();closeModal();alert('Seu contato foi registrado com sucesso. Em breve entraremos em contato.')}catch(x){err.textContent=x.message}finally{b.disabled=false;b.textContent='Enviar meu contato'}});</script><script id="site-settings-footer-script">
