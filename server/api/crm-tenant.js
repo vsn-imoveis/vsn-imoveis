@@ -33,7 +33,9 @@ export default async function handler(req, res) {
   }
 
   const rawSlug = Array.isArray(req.query?.slug) ? req.query.slug[0] : req.query?.slug;
-  const slug = String(rawSlug || '').trim().toLowerCase();
+  const requestedSlug = String(rawSlug || '').trim().toLowerCase();
+  // Compatibilidade com URLs antigas que omitiam o hífen do slug oficial da VSN.
+  const slug = requestedSlug === 'vsnimoveis' ? 'vsn-imoveis' : requestedSlug;
   if (!SLUG_RE.test(slug)) {
     return send(res, 400, { ok: false, error: 'Identificador da imobiliária inválido.' });
   }
