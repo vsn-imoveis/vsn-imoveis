@@ -9,16 +9,76 @@
   ],
   "rewrites": [
     {
+      "source": "/api/condo-share",
+      "destination": "/api/router?handler=condo-share"
+    },
+    {
+      "source": "/api/crm-public-properties",
+      "destination": "/api/router?handler=crm-public-properties"
+    },
+    {
+      "source": "/api/crm-tenant",
+      "destination": "/api/router?handler=crm-tenant"
+    },
+    {
+      "source": "/api/generate-description",
+      "destination": "/api/router?handler=generate-description"
+    },
+    {
+      "source": "/api/identify-condo-fixed",
+      "destination": "/api/router?handler=identify-condo-fixed"
+    },
+    {
+      "source": "/api/identify-condo-structural",
+      "destination": "/api/router?handler=identify-condo-structural"
+    },
+    {
+      "source": "/api/import-property-link",
+      "destination": "/api/router?handler=import-property-link"
+    },
+    {
+      "source": "/api/leads",
+      "destination": "/api/router?handler=leads"
+    },
+    {
+      "source": "/api/location-nearby",
+      "destination": "/api/router?handler=location-nearby"
+    },
+    {
+      "source": "/api/property-share",
+      "destination": "/api/router?handler=property-share"
+    },
+    {
+      "source": "/api/proprietario-cadastro",
+      "destination": "/api/router?handler=proprietario-cadastro"
+    },
+    {
+      "source": "/api/proprietario-recuperar-senha",
+      "destination": "/api/router?handler=proprietario-recuperar-senha"
+    },
+    {
+      "source": "/api/site-share-image",
+      "destination": "/api/router?handler=site-share-image"
+    },
+    {
+      "source": "/api/sitemap-properties",
+      "destination": "/api/router?handler=sitemap-properties"
+    },
+    {
+      "source": "/api/supabase-config",
+      "destination": "/api/router?handler=supabase-config"
+    },
+    {
       "source": "/imovel/:slug",
-      "destination": "/api/property-share?slug=:slug"
+      "destination": "/api/router?handler=property-share&slug=:slug"
     },
     {
       "source": "/condominio/:slug",
-      "destination": "/api/condo-share?slug=:slug"
+      "destination": "/api/router?handler=condo-share&slug=:slug"
     },
     {
       "source": "/sitemap-properties.xml",
-      "destination": "/api/sitemap-properties"
+      "destination": "/api/router?handler=sitemap-properties"
     },
     {
       "source": "/:slug([a-z0-9-]+)",
