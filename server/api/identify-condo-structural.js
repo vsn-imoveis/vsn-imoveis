@@ -31,4 +31,4 @@ async function handler(req,res){
     return res.status(200).json({...data,searched_address:searched,address_key:addressKey,from_database:false,saved_to_database:false,database_configured:!!(base&&key)});
   }catch(e){return res.status(500).json({error:"Erro interno na identificação do condomínio.",message:String(e?.message||e),candidates:[]});}
 }
-module.exports=handler;
+export default handler;
