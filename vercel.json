@@ -13,6 +13,14 @@
       "destination": "/api/router?handler=condo-share"
     },
     {
+      "source": "/api/crm-tenant/:slug",
+      "destination": "/api/router?handler=crm-tenant&slug=:slug"
+    },
+    {
+      "source": "/api/crm-public-properties/:company_id",
+      "destination": "/api/router?handler=crm-public-properties&company_id=:company_id"
+    },
+    {
       "source": "/api/crm-public-properties",
       "destination": "/api/router?handler=crm-public-properties"
     },
