@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { Building2, Bell, Check, CreditCard, ClipboardList, ExternalLink, Globe2, LayoutDashboard, MessageCircle, Pencil, Plus, RefreshCw, Search, Trash2, UserRound, X, XCircle, Menu, ChevronLeft } from 'lucide-react'
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xmwkakimyifmspzoziji.supabase.co', process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_bDiXCzTT1gXO_xbVGhnAXg_Muy4lx03')
+const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://xmwkakimyifmspzoziji.supabase.co', process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_Ulvr8RljdGaSS1dqlBijkg_vIC4wT4C')
 type Company = { id: string; name: string; slug: string; contact_name: string; contact_email: string; contact_phone: string | null; status: string; max_properties: number; max_photos_per_property: number; created_at: string }
 type Subscription = { company_id: string; plan_name: string; monthly_price: number; property_limit: number; photo_limit: number; status: string }
 type PublicLead = { id: string; company_id: string | null; contact_name: string; email: string | null; phone: string | null; interest: string | null; message: string | null; status: string; source: string | null; source_url: string | null; converted_company_id: string | null; created_at: string }
