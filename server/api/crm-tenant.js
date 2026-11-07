@@ -21,8 +21,15 @@ export default async function handler(req, res) {
   }
 
   if (!SUPABASE_URL || !SERVER_KEY) {
-    console.error('[crm-tenant] Configuração server-side do Supabase ausente.');
-    return send(res, 503, { ok: false, error: 'Resolução de imobiliárias indisponível.' });
+    const missing = [];
+    if (!SUPABASE_URL) missing.push('SUPABASE_URL');
+    if (!SERVER_KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY (ou SUPABASE_SECRET_KEY)');
+    console.error('[crm-tenant] Variáveis server-side ausentes:', missing.join(', '));
+    return send(res, 503, {
+      ok: false,
+      error: 'Resolução de imobiliárias indisponível.',
+      missing
+    });
   }
 
   const rawSlug = Array.isArray(req.query?.slug) ? req.query.slug[0] : req.query?.slug;
