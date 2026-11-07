@@ -18,7 +18,12 @@ const slugify = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036
 const emptyForm: FormState = { name: '', slug: '', contact_name: '', contact_email: '', contact_phone: '', account_status: 'pending', subscription_status: 'trial', monthly_price: '100', property_limit: '100', photo_limit: '35' }
 async function callAdmin(action: string, payload: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('admin-actions', { body: { action, ...payload } })
-  return { ok: !error && data?.ok !== false, json: async () => error ? { error: error.message } : (data || {}) }
+  let result: any = data || {}
+  if (error) {
+    try { result = await (error as any).context?.json?.() || { error: error.message } }
+    catch { result = { error: error.message } }
+  }
+  return { ok: !error && result?.ok !== false, json: async () => result }
 }
 
 export default function Page() {
