@@ -44,6 +44,7 @@ export default function Page() {
     }))
     setNotice('Dados atualizados agora.') }
   useEffect(() => { (async () => { const { data: { session: current } } = await supabase.auth.getSession(); if (!current) { setLoading(false); return } const { data: profile } = await supabase.from('profiles').select('full_name,role').eq('id', current.user.id).maybeSingle(); if (profile?.role !== 'admin') { await supabase.auth.signOut(); setError('Esta conta não possui permissão de administrador.'); setLoading(false); return } setProfileName((profile.full_name || current.user.email || 'V').charAt(0).toUpperCase()); setAdminUserId(current.user.id); setSession(true); await loadData(); await loadLeadAlerts(current.user.id); setLoading(false) })() }, [])
+  useEffect(() => { if (view === 'leads' && selectedLeadId) document.getElementById(`lead-${selectedLeadId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [view, selectedLeadId, publicLeads])
   const subs = useMemo(() => new Map(subscriptions.map(s => [s.company_id, s])), [subscriptions])
   const filtered = companies.filter(c => [c.name, c.slug, c.contact_name, c.contact_email].some(v => String(v || '').toLowerCase().includes(search.toLowerCase()))).filter(c => view !== 'subscriptions' || subs.has(c.id))
   const totals = { active: subscriptions.filter(s => s.status === 'active').length, mrr: subscriptions.filter(s => s.status === 'active').reduce((sum, s) => sum + Number(s.monthly_price || 0), 0) }
