@@ -81,7 +81,7 @@
       "destination": "/api/router?handler=sitemap-properties"
     },
     {
-      "source": "/:slug([a-z0-9-]+)",
+      "source": "/:slug",
       "destination": "/index.html?tenant=:slug"
     }
   ]
