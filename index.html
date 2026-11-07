@@ -197,7 +197,7 @@ async function loadProperties(){
       searchProperties(false);
       return;
     }
-    const url=SUPABASE_URL+'/rest/v1/public_properties?select=id,code,title,transaction_type,property_type,price,rent_price,area,bedrooms,bathrooms,parking,neighborhood,city,address,condominium_name,photos,photo_thumbnails,for_sale,for_rent,published,featured&order=created_at.desc';
+    const url=SUPABASE_URL+'/rest/v1/properties?select=id,code,title,transaction_type,property_type,price,rent_price,area,bedrooms,bathrooms,parking,neighborhood,city,address,condominium_name,photos,photo_thumbnails,for_sale,for_rent,published,featured&published=eq.true&order=created_at.desc';
     const r=await fetch(url,{headers:{apikey:SUPABASE_KEY,Accept:'application/json'}});
     if(!r.ok) throw new Error('Supabase HTTP '+r.status);
     const data=await r.json();
