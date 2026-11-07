@@ -9,6 +9,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/crm-supabase-config",
+      "destination": "/api/router?handler=crm-supabase-config"
+    },
+    {
       "source": "/api/condo-share",
       "destination": "/api/router?handler=condo-share"
     },
