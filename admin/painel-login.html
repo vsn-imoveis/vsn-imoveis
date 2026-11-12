@@ -501,4 +501,188 @@ async function openManualLead(){
   await openClientsSection();
 }
 
-S.auth.onAuthStateChange((_e,s)=>{if(s)panel(s);else login()});window.addEventListener('hashchange',async()=>{if(location.hash==='#clientes'&&window.__panelUserId){if(document.getElementById('clientsApp'))openClientsSection();else{const {data:{session}}=await S.auth.getSession();if(session)await panel(session)}}else if(!location.hash&&window.__panelUserId){if(document.getElementById('reportApp'))backToPropertyReport();else{const {data:{session}}=await S.auth.getSession();if(session)await panel(session)}}});boot();</script><script id="vsn-sidebar-controller">(function(){const b=document.getElementById('vsnSidebarToggle');if(!b)return;const key='vsnAdminSidebarCollapsed';function set(v){document.body.classList.toggle('vsn-sidebar-collapsed',v);b.setAttribute('aria-expanded',String(!v));b.setAttribute('aria-label',v?'Expandir menu lateral':'Recolher menu lateral');b.title=v?'Expandir menu':'Recolher menu';}let saved=false;try{saved=localStorage.getItem(key)==='1'}catch(e){}set(saved);b.addEventListener('click',()=>{const v=!document.body.classList.contains('vsn-sidebar-collapsed');set(v);try{localStorage.setItem(key,v?'1':'0')}catch(e){}});})();</script><script id="vsn-sidebar-page-height-fix">(function(){const side=document.querySelector('.admin-sidebar');if(!side)return;let raf=0;function fit(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const root=document.documentElement;const body=document.body;const top=parseFloat(getComputedStyle(root).getPropertyValue('--vsn-sidebar-top'))||98;const main=document.querySelector('main.wrap, main, #app, .wrap');const mainBottom=main?main.getBoundingClientRect().bottom+window.scrollY:0;const docBottom=Math.max(root.scrollHeight,body.scrollHeight,mainBottom,window.innerHeight);const h=Math.max(window.innerHeight-top,docBottom-top);root.style.setProperty('--vsn-sidebar-document-height',Math.ceil(h)+'px');side.style.height=Math.ceil(h)+'px';side.style.minHeight=Math.ceil(h)+'px';});}fit();window.addEventListener('resize',fit,{passive:true});window.addEventListener('load',fit,{once:true});window.addEventListener('orientationchange',fit,{passive:true});if(window.ResizeObserver){const main=document.querySelector('main.wrap, main, #app, .wrap');if(main)new ResizeObserver(fit).observe(main);}if(window.MutationObserver){new MutationObserver(fit).observe(document.body,{childList:true,subtree:true});}})();</script></body></html>
+S.auth.onAuthStateChange((_e,s)=>{if(s)panel(s);else login()});window.addEventListener('hashchange',async()=>{if(location.hash==='#clientes'&&window.__panelUserId){if(document.getElementById('clientsApp'))openClientsSection();else{const {data:{session}}=await S.auth.getSession();if(session)await panel(session)}}else if(!location.hash&&window.__panelUserId){if(document.getElementById('reportApp'))backToPropertyReport();else{const {data:{session}}=await S.auth.getSession();if(session)await panel(session)}}});boot();</script><script id="vsn-sidebar-controller">(function(){const b=document.getElementById('vsnSidebarToggle');if(!b)return;const key='vsnAdminSidebarCollapsed';function set(v){document.body.classList.toggle('vsn-sidebar-collapsed',v);b.setAttribute('aria-expanded',String(!v));b.setAttribute('aria-label',v?'Expandir menu lateral':'Recolher menu lateral');b.title=v?'Expandir menu':'Recolher menu';}let saved=false;try{saved=localStorage.getItem(key)==='1'}catch(e){}set(saved);b.addEventListener('click',()=>{const v=!document.body.classList.contains('vsn-sidebar-collapsed');set(v);try{localStorage.setItem(key,v?'1':'0')}catch(e){}});})();</script><script id="vsn-sidebar-page-height-fix">(function(){const side=document.querySelector('.admin-sidebar');if(!side)return;let raf=0;function fit(){cancelAnimationFrame(raf);raf=requestAnimationFrame(()=>{const root=document.documentElement;const body=document.body;const top=parseFloat(getComputedStyle(root).getPropertyValue('--vsn-sidebar-top'))||98;const main=document.querySelector('main.wrap, main, #app, .wrap');const mainBottom=main?main.getBoundingClientRect().bottom+window.scrollY:0;const docBottom=Math.max(root.scrollHeight,body.scrollHeight,mainBottom,window.innerHeight);const h=Math.max(window.innerHeight-top,docBottom-top);root.style.setProperty('--vsn-sidebar-document-height',Math.ceil(h)+'px');side.style.height=Math.ceil(h)+'px';side.style.minHeight=Math.ceil(h)+'px';});}fit();window.addEventListener('resize',fit,{passive:true});window.addEventListener('load',fit,{once:true});window.addEventListener('orientationchange',fit,{passive:true});if(window.ResizeObserver){const main=document.querySelector('main.wrap, main, #app, .wrap');if(main)new ResizeObserver(fit).observe(main);}if(window.MutationObserver){new MutationObserver(fit).observe(document.body,{childList:true,subtree:true});}})();</script>
+<script id="vsn-single-shell-navigation">
+(function(){
+  'use strict';
+  var app=document.getElementById('app');
+  if(!app)return;
+  var frame=null;
+  var activeAnchor=null;
+  var shellStyle=null;
+
+  function resolveMenuTarget(href){
+    var raw=String(href||'').trim();
+    if(!raw||raw==='#')return null;
+    var url;
+    try{url=new URL(raw,location.href)}catch(_){return null}
+    if(url.origin!==location.origin||!/(^|\\/)admin\\/[^/]+\\.html$/i.test(url.pathname))return null;
+    return url;
+  }
+
+  function setActive(anchor){
+    document.querySelectorAll('.sidebar-menu a[href]').forEach(function(a){
+      a.classList.toggle('active',!!anchor&&(a===anchor||a.parentElement===anchor.parentElement));
+    });
+    activeAnchor=anchor||null;
+  }
+
+  function removeFrame(){
+    if(frame){frame.remove();frame=null}
+    window.__vsnContentFrame=null;
+    app.classList.remove('vsn-frame-active');
+  }
+
+  function showDashboard(){
+    removeFrame();
+    var report=document.getElementById('reportApp');
+    var dashboard=document.getElementById('dashboard');
+    var clients=document.getElementById('clientsApp');
+    var head=app.querySelector(':scope > .head');
+    if(report)report.style.display='';
+    if(dashboard)dashboard.style.display='';
+    if(clients)clients.hidden=true;
+    if(head)head.style.display='';
+    setActive(Array.from(document.querySelectorAll('.sidebar-menu a[href]')).find(function(a){
+      return a.getAttribute('href')==='painel-login.html';
+    })||null);
+  }
+
+  function openSpecial(url,anchor){
+    var file=url.pathname.split('/').pop().toLowerCase();
+    var hash=url.hash.toLowerCase();
+    if(file!=='painel-login.html')return false;
+    if(!hash){showDashboard();setActive(anchor||activeAnchor);return true}
+    removeFrame();
+    if(hash==='#clientes'&&typeof window.openClientsSection==='function'){
+      window.openClientsSection();setActive(anchor);return true;
+    }
+    if(hash==='#usuarios'&&typeof window.openUserManagement==='function'){
+      window.openUserManagement();setActive(anchor);return true;
+    }
+    if((hash==='#configuracoes-site'||hash==='#configuracoes')&&typeof window.openSettingsSection==='function'){
+      window.openSettingsSection('site');setActive(anchor);return true;
+    }
+    return false;
+  }
+
+  function fitFrame(){
+    if(!frame)return;
+    try{
+      var doc=frame.contentDocument;
+      if(!doc||!doc.documentElement)return;
+      var height=Math.max(doc.documentElement.scrollHeight,doc.body?doc.body.scrollHeight:0,window.innerHeight-100);
+      frame.style.height=Math.min(Math.max(height,600),16000)+'px';
+    }catch(_){}
+  }
+
+  function prepareFrame(){
+    if(!frame)return;
+    try{
+      var doc=frame.contentDocument;
+      if(!doc||!doc.head)return;
+      if(!doc.getElementById('vsn-embedded-content-style')){
+        var style=doc.createElement('style');
+        style.id='vsn-embedded-content-style';
+        style.textContent=[
+          'html,body{min-height:100%!important;height:auto!important;overflow-x:hidden!important;}',
+          'body{padding-left:0!important;margin:0!important;}',
+          '.admin-sidebar,aside.admin-sidebar,.admin-top,header.admin-top,body>.top,body>header.top,.admin-main>.top,.admin-main>header.top,#vsnSidebarToggle,.vsn-sidebar-toggle{display:none!important;}',
+          '.admin-main{margin:0!important;padding:0!important;min-width:0!important;}',
+          '.wrap,.admin-main>.wrap,main.wrap{margin-left:0!important;margin-right:auto!important;max-width:none!important;width:auto!important;}',
+          '.admin-main>.wrap{padding-left:20px!important;padding-right:20px!important;}',
+          'body.owner-edit-mode .wrap{margin-left:auto!important;margin-right:auto!important;}'
+        ].join('');
+        doc.head.appendChild(style);
+      }
+      fitFrame();
+      if(frame.__vsnResizeObserver)frame.__vsnResizeObserver.disconnect();
+      if(doc.defaultView&&doc.defaultView.ResizeObserver){
+        frame.__vsnResizeObserver=new doc.defaultView.ResizeObserver(fitFrame);
+        frame.__vsnResizeObserver.observe(doc.documentElement);
+        if(doc.body)frame.__vsnResizeObserver.observe(doc.body);
+      }
+      if(doc.defaultView){
+        doc.defaultView.addEventListener('load',fitFrame);
+        doc.defaultView.addEventListener('resize',fitFrame);
+      }
+      if(doc.body&&doc.defaultView&&doc.defaultView.MutationObserver){
+        if(frame.__vsnMutationObserver)frame.__vsnMutationObserver.disconnect();
+        frame.__vsnMutationObserver=new doc.defaultView.MutationObserver(fitFrame);
+        frame.__vsnMutationObserver.observe(doc.body,{childList:true,subtree:true,attributes:true});
+      }
+    }catch(error){console.warn('[VSN] Não foi possível ajustar a página incorporada.',error)}
+  }
+
+  function openScreen(url,anchor,addHistory){
+    var target=url instanceof URL?url:new URL(url,location.href);
+    if(openSpecial(target,anchor)){
+      if(addHistory!==false){
+        var hash=target.hash||'';
+        history.pushState({vsnShellTarget:target.href},'',location.pathname+location.search+hash);
+      }
+      return;
+    }
+    var file=target.pathname.split('/').pop();
+    if(!frame){
+      frame=document.createElement('iframe');
+      frame.id='vsnContentFrame';
+      frame.title='Conteúdo administrativo VSN Imóveis';
+      frame.setAttribute('loading','eager');
+      frame.setAttribute('referrerpolicy','same-origin');
+      frame.style.cssText='display:block;width:100%;min-height:calc(100vh - 100px);height:900px;border:0;background:#f6f8fa;';
+      frame.addEventListener('load',prepareFrame);
+      app.appendChild(frame);
+      window.__vsnContentFrame=frame;
+    }
+    app.classList.add('vsn-frame-active');
+    var targetUrl=new URL(target.href);
+    targetUrl.searchParams.delete('vsn_content');
+    frame.src=targetUrl.href;
+    setActive(anchor);
+    if(addHistory!==false){
+      var displayHash='#vsn='+encodeURIComponent(target.pathname+target.search+target.hash);
+      history.pushState({vsnShellTarget:target.href,vsnShellFile:file},'',location.pathname+location.search+displayHash);
+    }
+  }
+
+  shellStyle=document.createElement('style');
+  shellStyle.id='vsn-single-shell-navigation-style';
+  shellStyle.textContent='#app.vsn-frame-active> :not(#vsnContentFrame){display:none!important}#app.vsn-frame-active{padding-bottom:0!important}#vsnContentFrame{box-sizing:border-box}';
+  document.head.appendChild(shellStyle);
+
+  history.replaceState(Object.assign({},history.state||{},{vsnShellRoot:true}),'',location.href);
+
+  document.addEventListener('click',function(event){
+    var anchor=event.target&&event.target.closest?event.target.closest('.sidebar-menu a[href]'):null;
+    if(!anchor)return;
+    var target=resolveMenuTarget(anchor.getAttribute('href'));
+    if(!target)return;
+    event.preventDefault();
+    event.stopPropagation();
+    if(event.stopImmediatePropagation)event.stopImmediatePropagation();
+    openScreen(target,anchor,true);
+  },true);
+
+  window.addEventListener('popstate',function(event){
+    var state=event.state||{};
+    if(state.vsnShellTarget){
+      var target;
+      try{target=new URL(state.vsnShellTarget,location.href)}catch(_){showDashboard();return}
+      var link=Array.from(document.querySelectorAll('.sidebar-menu a[href]')).find(function(a){
+        var candidate=resolveMenuTarget(a.getAttribute('href'));
+        return candidate&&candidate.pathname===target.pathname&&candidate.hash===target.hash;
+      })||null;
+      openScreen(target,link,false);
+      return;
+    }
+    if(location.hash==='#clientes'||location.hash==='#usuarios'||location.hash==='#configuracoes-site'){
+      var special=new URL('/admin/painel-login.html'+location.hash,location.origin);
+      var link=Array.from(document.querySelectorAll('.sidebar-menu a[href]')).find(function(a){return a.getAttribute('href')==='painel-login.html'+location.hash})||null;
+      openScreen(special,link,false);
+      return;
+    }
+    showDashboard();
+  });
+})();
+</script></body></html>
