@@ -516,7 +516,7 @@ S.auth.onAuthStateChange((_e,s)=>{if(s)panel(s);else login()});window.addEventLi
     if(!raw||raw==='#')return null;
     var url;
     try{url=new URL(raw,location.href)}catch(_){return null}
-    if(url.origin!==location.origin||!/(^|\\/)admin\\/[^/]+\\.html$/i.test(url.pathname))return null;
+    if(url.origin!==location.origin||url.pathname.toLowerCase().indexOf('/admin/')!==0||!/\.html$/i.test(url.pathname))return null;
     return url;
   }
 
