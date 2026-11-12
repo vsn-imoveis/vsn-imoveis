@@ -521,8 +521,9 @@ S.auth.onAuthStateChange((_e,s)=>{if(s)panel(s);else login()});window.addEventLi
   }
 
   function setActive(anchor){
+    var parentLink=anchor&&anchor.parentElement&&anchor.parentElement.classList.contains('sidebar-sub')?anchor.parentElement.previousElementSibling:null;
     document.querySelectorAll('.sidebar-menu a[href]').forEach(function(a){
-      a.classList.toggle('active',!!anchor&&(a===anchor||a.parentElement===anchor.parentElement));
+      a.classList.toggle('active',!!anchor&&(a===anchor||a===parentLink));
     });
     activeAnchor=anchor||null;
   }
@@ -676,7 +677,7 @@ S.auth.onAuthStateChange((_e,s)=>{if(s)panel(s);else login()});window.addEventLi
       openScreen(target,link,false);
       return;
     }
-    if(location.hash==='#clientes'||location.hash==='#usuarios'||location.hash==='#configuracoes-site'){
+    if(location.hash==='#clientes'||location.hash==='#usuarios'||location.hash==='#configuracoes-site'||location.hash==='#configuracoes'){
       var special=new URL('/admin/painel-login.html'+location.hash,location.origin);
       var link=Array.from(document.querySelectorAll('.sidebar-menu a[href]')).find(function(a){return a.getAttribute('href')==='painel-login.html'+location.hash})||null;
       openScreen(special,link,false);
