@@ -2,6 +2,27 @@
 const frame=document.getElementById('panel');
 function findForm(win){try{const doc=win.document;const f=doc.getElementById('propertyForm');if(f)return{win,doc,form:f};for(const fr of doc.querySelectorAll('iframe')){try{const r=findForm(fr.contentWindow);if(r)return r}catch(e){}}}catch(e){}return null}
 async function setup(){const ctx=findForm(frame.contentWindow);if(!ctx)return;const{win,doc,form}=ctx;
+
+if(!doc.getElementById('vsn-mobile-responsive')){const st=doc.createElement('style');st.id='vsn-mobile-responsive';st.textContent=`
+@media(max-width:760px){
+html,body{max-width:100%;overflow-x:hidden}
+.wrap,main,.container,.content,.main-content{width:100%!important;max-width:100%!important}
+.wrap,main{padding-left:14px!important;padding-right:14px!important}
+header,.top,.toolbar,.head{flex-wrap:wrap}
+.head{align-items:flex-start!important}
+.stats,.grid,.form-grid,.fields,.cards{grid-template-columns:minmax(0,1fr)!important}
+.panel,.card,.box{min-width:0;padding:14px!important}
+form input,form select,form textarea,button,.btn{min-height:42px}
+.field,.form-group{min-width:0}
+.field input,.field select,.field textarea,input,select,textarea{max-width:100%}
+.table-wrap,.table-container{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{min-width:620px}
+.modal{padding:10px!important;align-items:flex-start!important}
+.modal .box,.modal-content{width:100%!important;max-width:100%!important;margin:10px 0}
+.modal-actions{flex-wrap:wrap}
+}
+`;doc.head.appendChild(st)}
+
 if(!doc.documentElement.dataset.vsnLogoutReady){
  doc.documentElement.dataset.vsnLogoutReady='1';
  doc.addEventListener('click',e=>{
