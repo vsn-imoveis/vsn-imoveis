@@ -19,7 +19,7 @@ export default async function handler(req, res) {
         apikey: supabaseKey,
         Authorization: 'Bearer ' + supabaseKey,
         'Content-Type': 'application/json',
-        Prefer: 'return=representation'
+        Prefer: 'return=minimal'
       },
       body: JSON.stringify({
         nome: String(nome).trim(),
@@ -34,8 +34,8 @@ export default async function handler(req, res) {
       console.error('Supabase lead save error:', saved.status, detail);
       return res.status(500).json({ error: 'Não foi possível registrar seu contato.' });
     }
-    const savedRows = await saved.json();
-    const leadId = savedRows?.[0]?.id || null;
+    // Minimal return avoids requiring anon SELECT permission on the leads table.
+    const leadId = null;
 
     if (!process.env.RESEND_API_KEY) {
       console.warn('RESEND_API_KEY não configurada; lead salvo sem e-mail.');
