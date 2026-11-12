@@ -1,0 +1,83 @@
+/* VSN Imóveis — camada responsiva compartilhada (mobile-first) */
+:root{color-scheme:light}
+*,*::before,*::after{box-sizing:border-box}
+html{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{max-width:100%;min-width:320px;overflow-x:hidden}
+img,video,iframe,svg{max-width:100%}
+input,select,textarea,button{max-width:100%;font:inherit}
+input,select,textarea{min-width:0}
+button,a,select{touch-action:manipulation}
+table{max-width:100%}
+@media(max-width:900px){
+  .wrap,.container,.container-fluid{max-width:100%}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .search-btn{min-width:0;width:100%}
+}
+@media(max-width:760px){
+  body{min-width:320px}
+  .header{height:auto;min-height:64px;padding:10px 16px;gap:12px;flex-wrap:wrap}
+  .header .nav{order:3;flex:1 0 100%;justify-content:flex-start;gap:18px;overflow-x:auto;padding:8px 0 3px}
+  .header .actions{margin-left:auto}
+  .wrap,.search,.quick,.featured{width:calc(100% - 28px)}
+  .hero{height:auto;min-height:260px;padding:42px 20px}
+  .hero-note{display:none}
+  .search{margin-top:-18px;padding:12px}
+  .tabs{height:auto;overflow-x:auto;padding-bottom:10px}
+  .tab{min-width:112px;padding:0 14px;white-space:nowrap}
+  .advanced{margin-left:0;white-space:nowrap}
+  .fields{grid-template-columns:1fr 1fr;gap:9px}
+  .fields .field:first-child{grid-column:1/-1}
+  .quick{grid-template-columns:1fr;gap:12px}
+  .quick-card{height:145px}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .card-photo{height:125px}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:20px}
+  .stat{border:0;justify-content:flex-start}
+  .founder-inner{grid-template-columns:1fr;gap:24px}
+  .founder-copy h2{font-size:30px}
+  .founder-photo{justify-self:center;width:min(100%,360px)}
+  .service-grid{grid-template-columns:1fr}
+  .footer{flex-wrap:wrap;gap:12px;padding:20px}
+  .footer-brand{width:100%;border:0;padding:0}
+  .footer-item{padding:8px 0;border:0;min-height:0}
+  main,section{min-width:0}
+  table{display:block;width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  form .row{display:grid;grid-template-columns:1fr;gap:10px}
+  input,select,textarea{font-size:16px}
+}
+@media(max-width:480px){
+  .brand-text{width:82px;height:48px}
+  .brand-text span,.brand-text #siteBrandName{font-size:30px}
+  .brand-text small,.brand-text #siteBrandSub{font-size:6px;letter-spacing:3px;margin-top:5px}
+  .header .nav{font-size:11px}
+  .contact{padding:10px 13px;font-size:11px}
+  .wa-top{width:34px;height:34px}
+  .hero h1{font-size:clamp(32px,9vw,43px);letter-spacing:-1px}
+  .hero p{font-size:14px}
+  .fields{grid-template-columns:1fr}
+  .fields .field:first-child{grid-column:auto}
+  .cards{grid-template-columns:1fr}
+  .card-photo{height:190px}
+  .featured h2{font-size:22px}
+  .featured-head{align-items:flex-start;gap:10px}
+  .stats{grid-template-columns:1fr 1fr;padding:18px 14px}
+  .stat strong{font-size:12px}
+  .stat span{font-size:9px}
+  .pagination{gap:5px}
+  .pagination button{min-width:34px;height:36px;padding:0 9px}
+  .founder,.services{padding:42px 18px}
+}
+/* Admin legado: formulários, listas e navegação */
+@media(max-width:760px){
+  .panel{max-width:100%;min-width:0}
+  #app main{display:grid;grid-template-columns:minmax(0,1fr)!important;gap:14px;padding:12px}
+  #app header{padding:12px 14px;gap:8px;flex-wrap:wrap}
+  #propertyForm,.panel form{min-width:0}
+  .panel label{min-width:0}
+  .admin-sidebar{max-width:82vw}
+  .admin-sidebar .sidebar-menu{min-width:0}
+  .admin-sidebar .sidebar-link{white-space:normal}
+  .admin-content,.main-content{min-width:0;max-width:100%}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
